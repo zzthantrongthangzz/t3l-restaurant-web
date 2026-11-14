@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+  <head th:replace="~{web/layout :: head('Câu hỏi thường gặp')}"> </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" th:href="@{/}">
+        <span class="brand-mark">T3L</span>
+        <span>
+          <b>T3L Restaurant</b>
+          <small>Hương vị cho những dịp đáng nhớ</small>
+        </span>
+      </a>
+      <nav>
+        <a th:href="@{/}">Trang chủ</a>
+        <a th:href="@{/menu}">Thực đơn</a>
+        <a th:href="@{/faq}">FAQ</a>
+        <a sec:authorize="hasAnyRole('STAFF','ADMIN')" th:href="@{/staff/reservations}">Quản lý</a>
+        <a sec:authorize="isAnonymous()" th:href="@{/login}">Đăng nhập</a>
+        <form class="topbar-logout" sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post">
+          <button class="text-button" type="submit">Đăng xuất</button>
+        </form>
+        <a class="button button-small" th:href="@{/reservations/new}"
+          >Đặt bàn</a
+        >
+      </nav>
+    </header>
+    <main class="page inner-page">
+      <span class="eyebrow">HỖ TRỢ KHÁCH HÀNG</span>
+      <h1>Câu hỏi thường gặp</h1>
+      <p class="lead">Một số thông tin hữu ích trước khi bạn ghé T3L.</p>
+      <section class="faq-list">
+        <article class="faq-item" th:each="faq : ${faqs}">
+          <h2 th:text="${faq.question}">Câu hỏi</h2>
+          <p th:text="${faq.answer}">Trả lời</p>
+        </article>
+        <div class="empty-state" th:if="${#lists.isEmpty(faqs)}">
+          Nội dung FAQ chưa được khởi tạo. Hãy chạy script MongoDB trong thư mục
+          database/mongodb.
+        </div>
+      </section>
+      <footer class="footer">
+        <span>T3L Restaurant</span>
+      </footer>
+    </main>
+  </body>
+</html>

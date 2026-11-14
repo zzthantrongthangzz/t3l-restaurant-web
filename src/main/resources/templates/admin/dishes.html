@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{web/layout :: head('Quản lý thực đơn')}"> </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" th:href="@{/}">
+        <span class="brand-mark">T3L</span>
+        <span>
+          <b>T3L Restaurant</b>
+          <small>Khu vực quản trị</small>
+        </span>
+      </a>
+      <nav>
+        <a th:href="@{/staff/reservations}">Đặt bàn</a>
+        <a th:href="@{/staff/shift}">Ca làm &amp; doanh thu</a>
+        <a class="active" th:href="@{/admin/dishes}">Thực đơn</a>
+        <form th:action="@{/logout}" method="post">
+          <button class="text-button">Đăng xuất</button>
+        </form>
+      </nav>
+    </header>
+    <main class="page inner-page">
+      <span class="eyebrow">QUẢN TRỊ NỘI DUNG</span>
+      <div class="section-heading">
+        <div>
+          <h1>Quản lý thực đơn</h1>
+          <p class="lead">Thêm, sửa hoặc ẩn món ăn khỏi thực đơn công khai.</p>
+        </div>
+        <a class="button" th:href="@{/admin/dishes/new}">+ Thêm món</a>
+      </div>
+      <div class="alert success" th:if="${notice}" th:text="${notice}"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Món ăn</th>
+              <th>Danh mục</th>
+              <th>Giá</th>
+              <th>Trạng thái</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr th:each="dish : ${dishes}">
+              <td>
+                <img
+                  class="dish-admin-thumb"
+                  th:if="${dish.imageUrl != null and !dish.imageUrl.isBlank()}"
+                  th:src="${dish.imageUrl}"
+                  th:alt="${dish.name}"
+                />
+                <b th:text="${dish.name}"> </b>
+                <small class="table-sub" th:text="${dish.description}"> </small>
+              </td>
+              <td th:text="${dish.categoryName}"></td>
+              <td
+                th:text="${#numbers.formatDecimal(dish.price,0,'COMMA',0,'POINT') + ' đ'}"
+              ></td>
+              <td>
+                <span
+                  class="status"
+                  th:text="${dish.available ? 'Đang bán' : 'Đang ẩn'}"
+                >
+                </span>
+              </td>
+              <td class="actions">
+                <a
+                  class="text-link"
+                  th:href="@{/admin/dishes/{id}/edit(id=${dish.id})}"
+                  >Sửa</a
+                >
+                <form
+                  th:action="@{/admin/dishes/{id}/delete(id=${dish.id})}"
+                  method="post"
+                >
+                  <button class="text-button danger" type="submit">Xóa</button>
+                </form>
+              </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(dishes)}">
+              <td colspan="5" class="empty-cell">Chưa có món ăn.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <footer class="footer">
+        <span>T3L Restaurant · Khu vực quản trị</span>
+      </footer>
+    </main>
+  </body>
+</html>

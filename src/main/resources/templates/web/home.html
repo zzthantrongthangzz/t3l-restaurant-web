@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+  <head th:replace="~{web/layout :: head('Trang chủ')}"> </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" th:href="@{/}">
+        <span class="brand-mark">T3L</span>
+        <span>
+          <b>T3L Restaurant</b>
+          <small>Hương vị cho những dịp đáng nhớ</small>
+        </span>
+      </a>
+      <nav>
+        <a class="active" th:href="@{/}">Trang chủ</a>
+        <a th:href="@{/menu}">Thực đơn</a>
+        <a th:href="@{/faq}">FAQ</a>
+        <a sec:authorize="hasAnyRole('STAFF','ADMIN')" th:href="@{/staff/reservations}">Quản lý</a>
+        <a sec:authorize="isAnonymous()" th:href="@{/login}">Đăng nhập</a>
+        <form class="topbar-logout" sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post">
+          <button class="text-button" type="submit">Đăng xuất</button>
+        </form>
+        <a class="button button-small" th:href="@{/reservations/new}"
+          >Đặt bàn</a
+        >
+      </nav>
+    </header>
+    <main class="page">
+      <section class="hero">
+        <div class="hero-copy">
+          <span class="eyebrow">T3L · ẨM THỰC & KẾT NỐI</span>
+          <h1>
+            Một chiếc bàn ấm cúng,<br />
+            <em>một buổi gặp thật vui.</em>
+          </h1>
+          <p>
+            Khám phá thực đơn được tuyển chọn và chọn chỗ ngồi phù hợp chỉ
+            trong vài bước.
+          </p>
+          <div class="hero-actions">
+            <a class="button" th:href="@{/reservations/new}"
+              >Đặt bàn ngay <span>→</span>
+            </a>
+            <a class="text-link" th:href="@{/menu}">Xem thực đơn</a>
+          </div>
+        </div>
+        <div class="hero-art">
+          <div class="dish-illustration">
+            <span>✦</span>
+            <div>🍲</div>
+            <small>Tươi ngon mỗi ngày</small>
+          </div>
+          <div class="art-note">Bữa ngon<br />cùng người thương</div>
+        </div>
+      </section>
+      <section class="section">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">ĐƯỢC YÊU THÍCH</span>
+            <h2>Món ngon nổi bật</h2>
+          </div>
+          <a class="text-link" th:href="@{/menu}">Xem toàn bộ thực đơn →</a>
+        </div>
+        <div class="dish-grid">
+          <article class="dish-card" th:each="dish : ${dishes}">
+            <div class="dish-image">
+              <img
+                th:if="${dish.imageUrl != null and !dish.imageUrl.isBlank()}"
+                th:src="${dish.imageUrl}"
+                th:alt="${dish.name}"
+                loading="lazy"
+              />
+              <img
+                class="dish-placeholder"
+                th:unless="${dish.imageUrl != null and !dish.imageUrl.isBlank()}"
+                th:src="@{/images/dish-placeholder.svg}"
+                alt="Ảnh món ăn sẽ được cập nhật"
+              />
+            </div>
+            <div class="dish-info">
+              <div class="dish-tags">
+                <small th:text="${dish.categoryName}">Món chính</small>
+                <small
+                  class="dish-dietary"
+                  th:if="${dish.dietaryLabel != null and !dish.dietaryLabel.isBlank()}"
+                  th:text="${dish.dietaryLabel}"
+                  >Chay</small
+                >
+              </div>
+              <h3 th:text="${dish.name}">Tên món</h3>
+              <p th:text="${dish.description}">Mô tả</p>
+              <b
+                th:text="${#numbers.formatDecimal(dish.price,0,'COMMA',0,'POINT') + ' đ'}"
+                >0 đ</b
+              >
+            </div>
+          </article>
+          <div class="empty-state" th:if="${#lists.isEmpty(dishes)}">
+            Thực đơn đang được cập nhật. Mời bạn ghé lại sau.
+          </div>
+        </div>
+      </section>
+      <footer class="footer">
+        <span>T3L Restaurant · Phục vụ tận tâm, mỗi ngày.</span>
+        <span>Đặt bàn trực tuyến · 08:00–22:00</span>
+      </footer>
+    </main>
+  </body>
+</html>

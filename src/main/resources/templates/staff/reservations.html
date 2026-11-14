@@ -1,0 +1,106 @@
+<!doctype html>
+<html
+  lang="vi"
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+>
+  <head th:replace="~{web/layout :: head('Quản lý đặt bàn')}"> </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" th:href="@{/}">
+        <span class="brand-mark">T3L</span>
+        <span>
+          <b>T3L Restaurant</b>
+          <small>Khu vực nhân viên</small>
+        </span>
+      </a>
+      <nav>
+        <a th:href="@{/}">Trang chủ</a>
+        <a th:href="@{/menu}">Thực đơn</a>
+        <a th:href="@{/reservations/new}">Đặt bàn</a>
+        <span class="nav-label">Quản lý đặt bàn</span>
+        <a th:href="@{/staff/shift}">Ca làm &amp; doanh thu</a>
+        <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/dishes}"
+          >Quản lý thực đơn</a
+        >
+        <form th:action="@{/logout}" method="post">
+          <button class="text-button">Đăng xuất</button>
+        </form>
+      </nav>
+    </header>
+    <main class="page inner-page">
+      <span class="eyebrow">VẬN HÀNH NHÀ HÀNG</span>
+      <h1>Yêu cầu đặt bàn</h1>
+      <p class="lead">Các yêu cầu gần đây của khách hàng.</p>
+      <div class="alert success" th:if="${notice}" th:text="${notice}">
+      </div>
+      <div class="alert error" th:if="${error}" th:text="${error}">
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Mã đặt</th>
+              <th>Khách</th>
+              <th>Bàn</th>
+              <th>Ngày giờ</th>
+              <th>Số khách</th>
+              <th>Trạng thái</th>
+              <th>Xử lý</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr th:each="r : ${reservations}">
+              <td class="code" th:text="${r.code}"></td>
+              <td th:text="${r.guestName}"></td>
+              <td th:text="${r.table != null ? r.table.code : '—'}"></td>
+              <td
+                th:text="${r.reservationDate} + ' · ' + ${r.reservationTime}"
+              ></td>
+              <td th:text="${r.guestCount}"></td>
+              <td>
+                <span class="status" th:text="${r.status}"> </span>
+              </td>
+              <td class="actions">
+                <form
+                  th:if="${r.status == 'PENDING_CONFIRMATION'}"
+                  th:action="@{/staff/reservations/{id}/status(id=${r.id})}"
+                  method="post"
+                >
+                  <input
+                    type="hidden"
+                    name="status"
+                    value="CONFIRMED"
+                  />
+                  <button class="text-button" type="submit">
+                    Xác nhận
+                  </button>
+                </form>
+                <form
+                  th:if="${r.status != 'CANCELLED'}"
+                  th:action="@{/staff/reservations/{id}/status(id=${r.id})}"
+                  method="post"
+                >
+                  <input
+                    type="hidden"
+                    name="status"
+                    value="CANCELLED"
+                  />
+                  <button class="text-button danger" type="submit">
+                    Hủy
+                  </button>
+                </form>
+              </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(reservations)}">
+              <td colspan="7" class="empty-cell">Chưa có yêu cầu đặt bàn.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <footer class="footer">
+        <span>T3L Restaurant · Khu vực nội bộ</span>
+      </footer>
+    </main>
+  </body>
+</html>

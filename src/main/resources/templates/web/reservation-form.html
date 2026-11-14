@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+  <head th:replace="~{web/layout :: head('Chọn bàn')}"> </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" th:href="@{/}">
+        <span class="brand-mark">T3L</span>
+        <span>
+          <b>T3L Restaurant</b>
+          <small>Hương vị cho những dịp đáng nhớ</small>
+        </span>
+      </a>
+      <nav>
+        <a th:href="@{/}">Trang chủ</a>
+        <a th:href="@{/menu}">Thực đơn</a>
+        <a th:href="@{/faq}">FAQ</a>
+        <a sec:authorize="hasAnyRole('STAFF','ADMIN')" th:href="@{/staff/reservations}">Quản lý</a>
+        <a sec:authorize="isAnonymous()" th:href="@{/login}">Đăng nhập</a>
+        <form class="topbar-logout" sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post">
+          <button class="text-button" type="submit">Đăng xuất</button>
+        </form>
+        <a class="button button-small active" th:href="@{/reservations/new}">Đặt bàn</a>
+      </nav>
+    </header>
+
+    <main class="page inner-page reservation-page">
+      <div class="reservation-heading">
+        <div>
+          <span class="eyebrow">CHỌN CHỖ NGỒI PHÙ HỢP</span>
+          <h1>Đặt bàn tại T3L</h1>
+          <p class="lead">Chọn ngày để xem bàn nào còn trống trong ngày đó.</p>
+        </div>
+      </div>
+
+      <form class="reservation-filters" th:action="@{/reservations/new}" method="get">
+        <label>
+          Ngày đến
+          <input type="date" name="date" th:value="${selectedDate}" required />
+        </label>
+        <button class="button filter-button" type="submit">Xem tình trạng bàn</button>
+      </form>
+
+      <div class="table-legend" aria-label="Chú thích trạng thái bàn">
+        <span><i class="legend-dot available"></i>Bàn trống</span>
+        <span><i class="legend-dot reserved"></i>Đã có khách đặt</span>
+      </div>
+
+      <section class="reservation-table-grid" aria-label="Danh sách bàn">
+        <button
+          class="reservation-table-card"
+          type="button"
+          data-table-card
+          th:each="option : ${tables}"
+          th:classappend="${option.available ? ' is-available' : ' is-reserved'}"
+          th:attr="data-table-id=${option.table.id},data-table-name=${option.table.code},data-table-type=${option.table.tableType},data-table-capacity=${option.table.capacity},data-available=${option.available}"
+          th:disabled="${!option.available}"
+        >
+          <span class="table-card-art" aria-hidden="true">
+            <span class="table-crown" th:if="${option.table.tableType == 'Phòng VIP'}">♛</span>
+            <span class="table-top"></span>
+            <span class="table-seat seat-top-left"></span>
+            <span class="table-seat seat-top-right"></span>
+            <span class="table-seat seat-bottom-left"></span>
+            <span class="table-seat seat-bottom-right"></span>
+          </span>
+          <span class="table-card-name" th:text="${option.table.code}">Bàn 001</span>
+          <span class="table-card-type" th:text="${option.table.tableType + ' · ' + option.table.capacity + ' chỗ'}">Bàn nhỏ · 2 chỗ</span>
+          <span
+            class="table-card-status"
+            th:text="${option.available ? 'Còn trống · Chọn bàn' : 'Đã có khách đặt'}"
+          >Còn trống · Chọn bàn</span>
+          <span
+            class="table-card-guest"
+            sec:authorize="hasAnyRole('STAFF','ADMIN')"
+            th:if="${option.guestName != null}"
+            th:text="${option.guestName}"
+          ></span>
+        </button>
+        <div class="reservation-empty" th:if="${#lists.isEmpty(tables)}">
+          Bàn đang được cập nhật. Vui lòng quay lại sau.
+        </div>
+      </section>
+
+      <dialog
+        class="reservation-dialog"
+        id="reservation-dialog"
+        th:attr="data-open=${openReservationModal}"
+      >
+        <div class="reservation-dialog-heading">
+          <div>
+            <span class="eyebrow">GỬI YÊU CẦU ĐẶT BÀN</span>
+            <h2>Thông tin của bạn</h2>
+          </div>
+          <button class="dialog-close" type="button" data-close-dialog aria-label="Đóng">×</button>
+        </div>
+        <div class="selected-table-summary" data-selected-summary>
+          <strong data-selected-name>Bàn đã chọn</strong>
+          <span data-selected-details></span>
+          <span class="selected-reservation-date">Ngày đặt: <b th:text="${selectedDate}"></b></span>
+        </div>
+
+        <form class="form-card reservation-modal-form" th:action="@{/reservations}" th:object="${form}" method="post">
+          <input type="hidden" th:field="*{tableId}" data-table-id-field />
+          <input type="hidden" th:field="*{date}" />
+          <label class="reservation-time-field">
+            Giờ đến
+            <input type="time" th:field="*{time}" required />
+            <small class="field-error" th:errors="*{time}"></small>
+          </label>
+          <small class="field-error" th:errors="*{tableId}"></small>
+          <small class="field-error form-global-error" th:if="${#fields.hasGlobalErrors()}" th:each="error : ${#fields.globalErrors()}" th:text="${error}"></small>
+
+          <div class="form-grid">
+            <label>
+              Họ và tên
+              <input th:field="*{guestName}" placeholder="Tên người đặt" autocomplete="name" required />
+              <small class="field-error" th:errors="*{guestName}"></small>
+            </label>
+            <label>
+              Số điện thoại
+              <input th:field="*{guestPhone}" placeholder="09xx xxx xxx" autocomplete="tel" required />
+              <small class="field-error" th:errors="*{guestPhone}"></small>
+            </label>
+            <label>
+              Email <span>(không bắt buộc)</span>
+              <input type="email" th:field="*{guestEmail}" placeholder="ban@email.com" autocomplete="email" />
+              <small class="field-error" th:errors="*{guestEmail}"></small>
+            </label>
+            <label>
+              Số khách
+              <input type="number" min="1" max="20" th:field="*{guests}" data-guest-count placeholder="2" required />
+              <small class="field-error" th:errors="*{guests}"></small>
+            </label>
+            <label class="full">
+              Ghi chú <span>(không bắt buộc)</span>
+              <textarea rows="3" th:field="*{note}" placeholder="Dị ứng, ghế trẻ em hoặc dịp đặc biệt"></textarea>
+              <small class="field-error" th:errors="*{note}"></small>
+            </label>
+          </div>
+          <label class="consent full">
+            <input type="checkbox" th:field="*{consentAccepted}" />
+            <span>Tôi đồng ý với chính sách đặt bàn và quyền riêng tư của T3L.</span>
+            <small class="field-error" th:errors="*{consentAccepted}"></small>
+          </label>
+          <p class="form-hint">Yêu cầu sẽ ở trạng thái chờ xác nhận. Nhân viên sẽ liên hệ để xác nhận chỗ.</p>
+          <div class="reservation-form-actions">
+            <button class="button button-secondary" type="button" data-close-dialog>Quay lại chọn bàn</button>
+            <button class="button" type="submit">Gửi yêu cầu đặt bàn</button>
+          </div>
+        </form>
+      </dialog>
+
+      <footer class="footer">
+        <span>T3L Restaurant · Phục vụ tận tâm, mỗi ngày.</span>
+        <span>Yêu cầu chỉ được xác nhận sau khi nhân viên liên hệ.</span>
+      </footer>
+    </main>
+    <script th:src="@{/js/reservations.js}" defer></script>
+  </body>
+</html>

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{web/layout :: head('Món ăn')}"> </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" th:href="@{/}">
+        <span class="brand-mark">T3L</span>
+        <span>
+          <b>T3L Restaurant</b>
+          <small>Khu vực quản trị</small>
+        </span>
+      </a>
+      <nav>
+        <a th:href="@{/admin/dishes}">Thực đơn</a>
+        <form th:action="@{/logout}" method="post">
+          <button class="text-button">Đăng xuất</button>
+        </form>
+      </nav>
+    </header>
+    <main class="page inner-page">
+      <div class="form-wrap">
+        <span class="eyebrow">QUẢN TRỊ NỘI DUNG</span>
+        <h1 th:text="${heading}">Món ăn</h1>
+        <form
+          class="form-card"
+          th:action="${dishId == null} ? @{/admin/dishes} : @{/admin/dishes/{id}(id=${dishId})}"
+          th:object="${form}"
+          method="post"
+          enctype="multipart/form-data"
+        >
+          <div class="form-grid">
+            <label
+              >Tên món<input th:field="*{name}" maxlength="140" />
+              <small class="field-error" th:errors="*{name}"> </small>
+            </label>
+            <label
+              >Danh mục<input
+                th:field="*{categoryName}"
+                placeholder="Món chính"
+              />
+              <small class="field-error" th:errors="*{categoryName}"> </small>
+            </label>
+            <label
+              >Giá bán (VND)<input
+                type="number"
+                min="1"
+                step="1000"
+                th:field="*{price}"
+              />
+              <small class="field-error" th:errors="*{price}"> </small>
+            </label>
+            <label
+              >Nhãn chế độ ăn<input
+                th:field="*{dietaryLabel}"
+                placeholder="Chay, ít cay..."
+              />
+              <small class="field-error" th:errors="*{dietaryLabel}"> </small>
+            </label>
+            <label class="full"
+              >Mô tả<textarea rows="3" th:field="*{description}"></textarea>
+              <small class="field-error" th:errors="*{description}"> </small>
+            </label>
+            <label class="full">
+              Ảnh món ăn (JPEG, PNG, WebP; tối đa 5 MB)
+              <input
+                type="file"
+                th:field="*{image}"
+                accept="image/jpeg,image/png,image/webp"
+                th:required="${dishId == null}"
+              />
+              <small class="field-error" th:errors="*{image}"></small>
+              <img
+                class="dish-upload-preview"
+                th:if="${currentImageUrl != null}"
+                th:src="${currentImageUrl}"
+                alt="Ảnh món hiện tại"
+              />
+              <small th:if="${dishId != null}">Để trống nếu muốn giữ ảnh đang dùng.</small>
+            </label>
+            <label class="consent full">
+              <input type="checkbox" th:field="*{available}" />
+              <span>Hiển thị món ăn trên thực đơn công khai</span>
+            </label>
+          </div>
+          <div class="form-actions">
+            <a class="text-link" th:href="@{/admin/dishes}">Hủy</a>
+            <button class="button" type="submit">Lưu món ăn</button>
+          </div>
+        </form>
+      </div>
+      <footer class="footer">
+        <span>T3L Restaurant</span>
+      </footer>
+    </main>
+  </body>
+</html>
