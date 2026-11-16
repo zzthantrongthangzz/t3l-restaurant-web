@@ -4,7 +4,11 @@ import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.csrf.CsrfToken;
@@ -47,13 +51,33 @@ public class WebController {
   public String home(Model model) {
     model.addAttribute(
         "dishes",
-        dishes.findByAvailableTrueOrderByCategoryNameAscNameAsc().stream().limit(3).toList());
+        dishes.findByAvailableTrueOrderByCategoryNameAscNameAsc().stream()
+            .sorted(Comparator.comparingInt(dish -> homeDishPriority(dish.getName(), dish.getCategoryName())))
+            .limit(3)
+            .toList());
     return "web/home";
+  }
+
+  private int homeDishPriority(String name, String category) {
+    String normalizedName = name.toLowerCase(Locale.ROOT);
+    if (normalizedName.contains("bít tết")) return 0;
+    if (normalizedName.contains("bò nướng tảng")) return 1;
+    if (normalizedName.contains("cá hồi")) return 2;
+    return "Món chính".equals(category) ? 3 : 4;
   }
 
   @GetMapping("/menu")
   public String menu(Model model) {
-    model.addAttribute("dishes", dishes.findByAvailableTrueOrderByCategoryNameAscNameAsc());
+    var menuDishes = dishes.findByAvailableTrueOrderByCategoryNameAscNameAsc();
+    model.addAttribute("dishes", menuDishes);
+    model.addAttribute("dishGroups", menuDishes.stream()
+        .sorted(Comparator.comparing(dish -> "Đồ uống".equals(dish.getCategoryName())))
+        .collect(Collectors.groupingBy(
+        dish -> dish.getCategoryName(), LinkedHashMap::new, Collectors.toList())));
+    model.addAttribute("menuBanner", menuDishes.stream()
+        .filter(dish -> dish.getImageUrl() != null && !dish.getImageUrl().isBlank())
+        .min(Comparator.comparingInt(dish -> homeDishPriority(dish.getName(), dish.getCategoryName())))
+        .orElse(null));
     return "web/menu";
   }
 

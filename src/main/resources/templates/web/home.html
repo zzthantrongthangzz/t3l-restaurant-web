@@ -1,108 +1,139 @@
 <!doctype html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-  <head th:replace="~{web/layout :: head('Trang chủ')}"> </head>
-  <body>
-    <header class="topbar">
-      <a class="brand" th:href="@{/}">
-        <span class="brand-mark">T3L</span>
-        <span>
-          <b>T3L Restaurant</b>
-          <small>Hương vị cho những dịp đáng nhớ</small>
-        </span>
-      </a>
-      <nav>
-        <a class="active" th:href="@{/}">Trang chủ</a>
-        <a th:href="@{/menu}">Thực đơn</a>
-        <a th:href="@{/faq}">FAQ</a>
-        <a sec:authorize="hasAnyRole('STAFF','ADMIN')" th:href="@{/staff/reservations}">Quản lý</a>
-        <a sec:authorize="isAnonymous()" th:href="@{/login}">Đăng nhập</a>
-        <form class="topbar-logout" sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post">
-          <button class="text-button" type="submit">Đăng xuất</button>
-        </form>
-        <a class="button button-small" th:href="@{/reservations/new}"
-          >Đặt bàn</a
-        >
-      </nav>
-    </header>
-    <main class="page">
-      <section class="hero">
-        <div class="hero-copy">
-          <span class="eyebrow">T3L · ẨM THỰC & KẾT NỐI</span>
-          <h1>
-            Một chiếc bàn ấm cúng,<br />
-            <em>một buổi gặp thật vui.</em>
-          </h1>
-          <p>
-            Khám phá thực đơn được tuyển chọn và chọn chỗ ngồi phù hợp chỉ
-            trong vài bước.
-          </p>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description" content="T3L Restaurant — Hương vị cho những dịp đáng nhớ. Khám phá thực đơn và đặt bàn tại 6 Lê Lợi, phường 4, quận Gò Vấp, TP. Hồ Chí Minh." />
+    <meta name="theme-color" content="#171411" />
+    <title>T3L Restaurant | Hương vị cho những dịp đáng nhớ</title>
+    <link rel="stylesheet" th:href="@{/css/home.css(v=20261116)}" />
+  </head>
+  <body class="home">
+    <a class="skip-link" href="#main">Chuyển đến nội dung</a>
+    <header th:replace="~{web/fragments/restaurant-shell :: header('home')}"></header>
+    <main id="main">
+      <section class="home-hero" aria-labelledby="hero-title">
+        <img class="hero-background" th:src="@{/images/home/dining-room.jpg}" alt="Không gian dùng bữa với nội thất gỗ và ánh đèn ấm — ảnh minh họa" width="1920" height="1280" fetchpriority="high" />
+        <div class="hero-shade"></div>
+        <div class="hero-content home-container">
+          <p class="home-eyebrow"><span></span> THE ART OF DINING</p>
+          <h1 id="hero-title">T3L <span>Restaurant</span></h1>
+          <p class="hero-slogan">Hương vị tinh tế.<br />Khoảnh khắc đáng nhớ.</p>
+          <p class="hero-description">Dành một buổi tối cho món ngon,<br /> những câu chuyện và người bạn thương.</p>
           <div class="hero-actions">
-            <a class="button" th:href="@{/reservations/new}"
-              >Đặt bàn ngay <span>→</span>
-            </a>
-            <a class="text-link" th:href="@{/menu}">Xem thực đơn</a>
+            <a class="home-button" th:href="@{/reservations/new}">Đặt bàn ngay <span aria-hidden="true">↗</span></a>
+            <a class="home-text-link" th:href="@{/menu}">Khám phá thực đơn <span aria-hidden="true">→</span></a>
           </div>
         </div>
-        <div class="hero-art">
-          <div class="dish-illustration">
-            <span>✦</span>
-            <div>🍲</div>
-            <small>Tươi ngon mỗi ngày</small>
-          </div>
-          <div class="art-note">Bữa ngon<br />cùng người thương</div>
+        <div class="hero-bottom home-container">
+          <a class="scroll-link" href="#story"><span class="scroll-line" aria-hidden="true"></span> CUỘN ĐỂ KHÁM PHÁ</a>
+          <span class="hero-location">GÒ VẤP · HỒ CHÍ MINH</span>
+          <span class="hero-photo-note">Ảnh không gian minh họa</span>
         </div>
       </section>
-      <section class="section">
-        <div class="section-heading">
-          <div>
-            <span class="eyebrow">ĐƯỢC YÊU THÍCH</span>
-            <h2>Món ngon nổi bật</h2>
+      <section class="home-story home-section" id="story" aria-labelledby="story-title">
+        <div class="home-container story-grid">
+          <div class="story-visual" data-reveal>
+            <figure class="story-image">
+              <img th:src="@{/images/home/dining-detail.jpg}" alt="Góc bàn gỗ dưới ánh đèn vàng dịu — ảnh minh họa" width="900" height="1350" loading="lazy" decoding="async" />
+              <figcaption>DINING, WITH A LITTLE MORE SOUL.</figcaption>
+            </figure>
+            <span class="story-seal" aria-hidden="true">T3L<span>ẨM THỰC &amp; KẾT NỐI</span></span>
           </div>
-          <a class="text-link" th:href="@{/menu}">Xem toàn bộ thực đơn →</a>
+          <div class="story-copy" data-reveal>
+            <p class="home-eyebrow">01 / CÂU CHUYỆN T3L</p>
+            <h2 id="story-title">Bữa ăn ngon.<br /><em>Câu chuyện còn mãi.</em></h2>
+            <span class="gold-rule" aria-hidden="true"></span>
+            <p>T3L là một lời mời ngồi lại. Để cùng thưởng thức một món ăn, chia sẻ một câu chuyện và dành trọn thời gian cho những người bên cạnh.</p>
+            <p>Từ bữa tối thân mật đến những cuộc hẹn đặc biệt, chúng tôi mong mỗi lần ghé T3L đều là một dịp đáng nhớ — bằng hương vị và sự tận tâm.</p>
+            <a class="home-text-link" th:href="@{/menu}">Bắt đầu từ thực đơn <span aria-hidden="true">→</span></a>
+          </div>
         </div>
-        <div class="dish-grid">
-          <article class="dish-card" th:each="dish : ${dishes}">
-            <div class="dish-image">
-              <img
-                th:if="${dish.imageUrl != null and !dish.imageUrl.isBlank()}"
-                th:src="${dish.imageUrl}"
-                th:alt="${dish.name}"
-                loading="lazy"
-              />
-              <img
-                class="dish-placeholder"
-                th:unless="${dish.imageUrl != null and !dish.imageUrl.isBlank()}"
-                th:src="@{/images/dish-placeholder.svg}"
-                alt="Ảnh món ăn sẽ được cập nhật"
-              />
-            </div>
-            <div class="dish-info">
-              <div class="dish-tags">
-                <small th:text="${dish.categoryName}">Món chính</small>
-                <small
-                  class="dish-dietary"
-                  th:if="${dish.dietaryLabel != null and !dish.dietaryLabel.isBlank()}"
-                  th:text="${dish.dietaryLabel}"
-                  >Chay</small
-                >
+      </section>
+      <section class="home-menu home-section" id="highlights" aria-labelledby="menu-title">
+        <div class="home-container">
+          <div class="home-section-heading" data-reveal>
+            <div><p class="home-eyebrow">02 / TỪ THỰC ĐƠN T3L</p><h2 id="menu-title">Một chút <em>gợi ý cho bạn.</em></h2></div>
+            <a class="home-text-link" th:href="@{/menu}">Xem toàn bộ thực đơn <span aria-hidden="true">↗</span></a>
+          </div>
+          <div class="home-dishes">
+            <article class="home-dish" th:each="dish, state : ${dishes}" data-reveal>
+              <div class="home-dish-image">
+                <img th:if="${dish.imageUrl != null and !dish.imageUrl.isBlank()}" th:src="${dish.imageUrl}" th:alt="${dish.name}" width="600" height="450" loading="lazy" decoding="async" data-dish-image />
+                <div class="dish-image-fallback" th:hidden="${dish.imageUrl != null and !dish.imageUrl.isBlank()}">
+                  <span class="fallback-monogram" aria-hidden="true">T3L</span><span>Ảnh món đang được cập nhật</span>
+                </div>
+                <span class="dish-number" th:text="${'0' + state.count}" aria-hidden="true"></span>
               </div>
-              <h3 th:text="${dish.name}">Tên món</h3>
-              <p th:text="${dish.description}">Mô tả</p>
-              <b
-                th:text="${#numbers.formatDecimal(dish.price,0,'COMMA',0,'POINT') + ' đ'}"
-                >0 đ</b
-              >
-            </div>
-          </article>
-          <div class="empty-state" th:if="${#lists.isEmpty(dishes)}">
-            Thực đơn đang được cập nhật. Mời bạn ghé lại sau.
+              <div class="home-dish-meta">
+                <span th:text="${dish.categoryName}"></span>
+                <span class="home-dietary" th:if="${dish.dietaryLabel != null and !dish.dietaryLabel.isBlank()}" th:text="${dish.dietaryLabel}"></span>
+              </div>
+              <h3 th:text="${dish.name}"></h3>
+              <p th:text="${dish.description}"></p>
+              <div class="home-dish-bottom">
+                <span class="dish-price" th:text="${#numbers.formatDecimal(dish.price,0,'COMMA',0,'POINT') + ' ₫'}"></span>
+                <a th:href="@{/menu}" th:aria-label="${'Xem thực đơn — ' + dish.name}"><span aria-hidden="true">↗</span></a>
+              </div>
+            </article>
+          </div>
+          <div class="home-empty" th:if="${#lists.isEmpty(dishes)}">
+            <p>Thực đơn đang được cập nhật.</p><a class="home-text-link" th:href="@{/reservations/new}">Hẹn bạn tại T3L <span aria-hidden="true">→</span></a>
           </div>
         </div>
       </section>
-      <footer class="footer">
-        <span>T3L Restaurant · Phục vụ tận tâm, mỗi ngày.</span>
-        <span>Đặt bàn trực tuyến · 08:00–22:00</span>
-      </footer>
+      <section class="home-space home-section" id="space" aria-labelledby="space-title">
+        <div class="home-container">
+          <div class="space-heading" data-reveal>
+            <p class="home-eyebrow">03 / CẢM HỨNG KHÔNG GIAN</p>
+            <h2 id="space-title">Chậm lại một nhịp.<br /><em>Tận hưởng nhiều hơn.</em></h2>
+            <p>Ánh sáng ấm. Sắc gỗ trầm. Một chút riêng tư.<br />Cảm hứng cho những cuộc hẹn bên bàn ăn.</p>
+          </div>
+          <div class="space-gallery" data-reveal>
+            <figure class="space-wide"><img th:src="@{/images/home/dining-room.jpg}" alt="Không gian mở với chất liệu gỗ ấm áp — ảnh minh họa" width="1920" height="1280" loading="lazy" decoding="async" /><figcaption><span>01</span> Sự ấm cúng trong từng góc nhỏ</figcaption></figure>
+            <figure class="space-tall"><img th:src="@{/images/home/ambient-dining.jpg}" alt="Những chiếc đèn thả tạo ánh sáng dịu trên bàn ăn — ảnh minh họa" width="1200" height="1409" loading="lazy" decoding="async" /><figcaption><span>02</span> Dành cho những phút giây thư thái</figcaption></figure>
+          </div>
+          <p class="space-credit">Ảnh minh họa cảm hứng không gian, không phải ảnh chụp T3L. Nguồn: <a href="https://www.pexels.com/photo/interior-of-restaurant-14590691/" target="_blank" rel="noopener noreferrer">Jonathan Borba</a>, <a href="https://www.pexels.com/photo/dark-modern-interior-of-a-restaurant-15626998/" target="_blank" rel="noopener noreferrer">miniperde</a> và <a href="https://www.pexels.com/photo/lamps-in-dark-restaurant-interior-25381424/" target="_blank" rel="noopener noreferrer">Pexels</a>.</p>
+        </div>
+      </section>
+      <section class="home-reserve" aria-labelledby="reserve-title">
+        <div class="home-container reserve-content" data-reveal>
+          <p class="home-eyebrow">MỘT CUỘC HẸN ĐANG CHỜ</p>
+          <h2 id="reserve-title">Buổi tối đáng nhớ<br />bắt đầu từ <em>một chiếc bàn.</em></h2>
+          <p>Chọn ngày, chọn bàn và để T3L đón tiếp bạn.</p>
+          <a class="home-button" th:href="@{/reservations/new}">Đặt bàn ngay <span aria-hidden="true">↗</span></a>
+          <small>Yêu cầu đặt bàn được xác nhận sau khi nhân viên liên hệ lại.</small>
+        </div>
+        <span class="reserve-watermark" aria-hidden="true">T3L</span>
+      </section>
     </main>
+    <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
+    <script th:replace="~{web/fragments/restaurant-shell :: navigation}"></script>
+    <script>
+      (() => {
+        document.querySelectorAll('[data-dish-image]').forEach((img) => {
+          const showFallback = () => {
+            img.hidden = true;
+            img.parentElement.querySelector('.dish-image-fallback').hidden = false;
+          };
+          img.addEventListener('error', showFallback, { once: true });
+          if (img.complete && img.naturalWidth === 0) showFallback();
+        });
+        if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('is-visible');
+                observer.unobserve(entry.target);
+              }
+            });
+          }, { threshold: 0.08 });
+          document.querySelectorAll('[data-reveal]').forEach((element) => {
+            element.classList.add('reveal-ready');
+            observer.observe(element);
+          });
+        }
+      })();
+    </script>
   </body>
 </html>

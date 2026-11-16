@@ -1,77 +1,113 @@
 <!doctype html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-  <head th:replace="~{web/layout :: head('Thực đơn')}"> </head>
-  <body>
-    <header class="topbar">
-      <a class="brand" th:href="@{/}">
-        <span class="brand-mark">T3L</span>
-        <span>
-          <b>T3L Restaurant</b>
-          <small>Hương vị cho những dịp đáng nhớ</small>
-        </span>
-      </a>
-      <nav>
-        <a th:href="@{/}">Trang chủ</a>
-        <a class="active" th:href="@{/menu}">Thực đơn</a>
-        <a th:href="@{/faq}">FAQ</a>
-        <a sec:authorize="hasAnyRole('STAFF','ADMIN')" th:href="@{/staff/reservations}">Quản lý</a>
-        <a sec:authorize="isAnonymous()" th:href="@{/login}">Đăng nhập</a>
-        <form class="topbar-logout" sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post">
-          <button class="text-button" type="submit">Đăng xuất</button>
-        </form>
-        <a class="button button-small" th:href="@{/reservations/new}"
-          >Đặt bàn</a
-        >
-      </nav>
-    </header>
-    <main class="page inner-page">
-      <span class="eyebrow">BẾP T3L</span>
-      <h1>Thực đơn</h1>
-      <p class="lead">
-        Những món ngon được chuẩn bị mỗi ngày, dành cho bữa ăn gần gũi và những
-        dịp đặc biệt.
-      </p>
-      <div class="dish-grid">
-        <article class="dish-card" th:each="dish : ${dishes}">
-          <div class="dish-image">
-            <img
-              th:if="${dish.imageUrl != null and !dish.imageUrl.isBlank()}"
-              th:src="${dish.imageUrl}"
-              th:alt="${dish.name}"
-              loading="lazy"
-            />
-            <img
-              class="dish-placeholder"
-              th:unless="${dish.imageUrl != null and !dish.imageUrl.isBlank()}"
-              th:src="@{/images/dish-placeholder.svg}"
-              alt="Ảnh món ăn sẽ được cập nhật"
-            />
-          </div>
-          <div class="dish-info">
-            <div class="dish-tags">
-              <small th:text="${dish.categoryName}">Món chính</small>
-              <small
-                class="dish-dietary"
-                th:if="${dish.dietaryLabel != null and !dish.dietaryLabel.isBlank()}"
-                th:text="${dish.dietaryLabel}"
-                >Chay</small
-              >
-            </div>
-            <h3 th:text="${dish.name}">Tên món</h3>
-            <p th:text="${dish.description}">Mô tả</p>
-            <b
-              th:text="${#numbers.formatDecimal(dish.price,0,'COMMA',0,'POINT') + ' đ'}"
-              >0 đ</b
-            >
-          </div>
-        </article>
-        <div class="empty-state" th:if="${#lists.isEmpty(dishes)}">
-          Thực đơn đang được cập nhật.
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description" content="Khám phá thực đơn T3L Restaurant. Tìm món theo tên, lựa chọn danh mục và xem thông tin món ăn trước khi đặt bàn." />
+    <meta name="theme-color" content="#171411" />
+    <title>Thực đơn | T3L Restaurant</title>
+    <link rel="stylesheet" th:href="@{/css/home.css(v=20261116)}" />
+    <link rel="stylesheet" th:href="@{/css/menu.css(v=20261116)}" />
+  </head>
+  <body class="home menu-page">
+    <a class="skip-link" href="#menu-catalog">Chuyển đến thực đơn</a>
+    <header th:replace="~{web/fragments/restaurant-shell :: header('menu')}"></header>
+    <main id="main">
+      <section class="menu-banner" aria-labelledby="menu-title">
+        <img class="menu-banner-image" th:src="${menuBanner != null} ? ${menuBanner.imageUrl} : @{/images/menu/steak-banner.jpg}" th:alt="${menuBanner != null ? menuBanner.name : 'Steak nướng cùng sốt và hương thảo — ảnh minh họa'}" th:attr="data-fallback=@{/images/menu/steak-banner.jpg}" width="1920" height="700" fetchpriority="high" />
+        <div class="menu-banner-shade"></div>
+        <div class="home-container menu-banner-copy">
+          <nav class="menu-breadcrumb" aria-label="Đường dẫn"><a th:href="@{/}">Trang chủ</a><span aria-hidden="true">/</span><span aria-current="page">Thực đơn</span></nav>
+          <p class="home-eyebrow">T3L RESTAURANT / THE MENU</p>
+          <h1 id="menu-title">Thực đơn<span aria-hidden="true">.</span></h1>
+          <p>Mỗi lựa chọn, <em>một hương vị riêng.</em></p>
+          <a class="home-text-link" href="#menu-catalog">Tìm món cho cuộc hẹn của bạn <span aria-hidden="true">↓</span></a>
         </div>
-      </div>
-      <footer class="footer">
-        <span>T3L Restaurant · Phục vụ tận tâm, mỗi ngày.</span>
-      </footer>
+        <p class="menu-banner-credit" th:hidden="${menuBanner != null}">Ảnh minh họa · <a href="https://www.pexels.com/photo/a-grilled-steak-topped-with-rosemary-with-garlic-and-red-sauce-on-plate-12015291/" target="_blank" rel="noopener noreferrer">Pexels</a></p>
+      </section>
+
+      <section class="menu-catalog" id="menu-catalog" aria-labelledby="catalog-title">
+        <div class="menu-tools" hidden>
+          <div class="home-container menu-tools-inner">
+            <div class="category-filter" role="group" aria-label="Lọc theo danh mục">
+              <button class="category-button is-selected" type="button" data-category="" aria-pressed="true">Tất cả <span th:text="${#lists.size(dishes)}"></span></button>
+              <button class="category-button" type="button" th:each="group : ${dishGroups}" th:attr="data-category=${group.key}" aria-pressed="false"><th:block th:text="${group.key}"></th:block><span th:text="${#lists.size(group.value)}"></span></button>
+            </div>
+            <div class="menu-search" role="search" aria-label="Tìm món ăn">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>
+              <label class="sr-only" for="menu-search">Tìm theo tên món</label>
+              <input id="menu-search" type="search" placeholder="Tìm theo tên món…" maxlength="140" autocomplete="off" />
+            </div>
+          </div>
+        </div>
+
+        <div class="home-container menu-content">
+          <div class="menu-intro">
+            <div><p class="home-eyebrow">HƯƠNG VỊ TỪ BẾP T3L</p><h2 id="catalog-title">Chọn món ngon.<br /><em>Trọn buổi hẹn.</em></h2></div>
+            <div class="menu-intro-note"><p>Khám phá món ăn và thức uống đang phục vụ.<br />Tất cả giá được niêm yết bằng Việt Nam đồng.</p><p class="menu-result-count" role="status" aria-live="polite" aria-atomic="true"><span id="menu-result-count" th:text="${#lists.size(dishes)}"></span> lựa chọn trong thực đơn</p></div>
+          </div>
+
+          <section class="menu-category" th:each="group, groupState : ${dishGroups}" th:id="${'category-' + groupState.index}" th:attr="data-group=${group.key},aria-labelledby=${'category-title-' + groupState.index}">
+            <div class="menu-category-heading">
+              <span class="category-index" th:text="${'0' + groupState.count}" aria-hidden="true"></span>
+              <h2 th:id="${'category-title-' + groupState.index}" th:text="${group.key}"></h2>
+              <span class="category-line" aria-hidden="true"></span>
+              <span class="category-count"><span data-group-count th:text="${#lists.size(group.value)}"></span> món</span>
+            </div>
+            <div class="menu-grid">
+              <article class="menu-card" th:each="dish : ${group.value}" th:attr="data-name=${dish.name},data-category=${dish.categoryName}">
+                <div class="menu-card-image">
+                  <img th:src="${dish.imageUrl != null and !dish.imageUrl.isBlank()} ? ${dish.imageUrl} : @{/images/menu/dish-placeholder.svg}" th:alt="${dish.imageUrl != null and !dish.imageUrl.isBlank() ? dish.name : 'Ảnh ' + dish.name + ' đang được cập nhật'}" th:attr="data-fallback=@{/images/menu/dish-placeholder.svg}" width="600" height="420" loading="lazy" decoding="async" />
+                  <span class="menu-image-note" th:hidden="${dish.imageUrl != null and !dish.imageUrl.isBlank()}">Ảnh đang cập nhật</span>
+                  <span class="menu-card-dietary" th:if="${dish.dietaryLabel != null and !dish.dietaryLabel.isBlank()}" th:text="${dish.dietaryLabel}"></span>
+                </div>
+                <div class="menu-card-body">
+                  <p class="menu-card-category" th:text="${dish.categoryName}"></p>
+                  <h3 th:text="${dish.name}"></h3>
+                  <p class="menu-card-description" th:text="${dish.description}"></p>
+                  <div class="menu-card-bottom">
+                    <span class="menu-card-price" th:text="${#numbers.formatDecimal(dish.price,0,'POINT',0,'COMMA') + ' ₫'}"></span>
+                    <button class="menu-detail-button" type="button" th:aria-label="${'Xem chi tiết ' + dish.name}" data-open-dish hidden>Xem chi tiết <span aria-hidden="true">↗</span></button>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <div class="menu-no-results" id="menu-no-results" hidden>
+            <span class="no-results-mark" aria-hidden="true">⌕</span>
+            <h2>Chưa tìm thấy món phù hợp.</h2>
+            <p>Thử tên món khác hoặc khám phá toàn bộ thực đơn.</p>
+            <button class="home-button" type="button" id="menu-reset">Xem tất cả món <span aria-hidden="true">↗</span></button>
+          </div>
+          <div class="menu-no-results" th:if="${#lists.isEmpty(dishes)}">
+            <h2>Thực đơn đang được cập nhật.</h2><p>Hẹn gặp bạn tại T3L trong một cuộc hẹn sắp tới.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="menu-reservation">
+        <div class="home-container menu-reservation-inner">
+          <div><p class="home-eyebrow">HƯƠNG VỊ CHO NHỮNG DỊP ĐÁNG NHỚ</p><h2>Món ngon đã chọn.<br /><em>Chiếc bàn đang chờ.</em></h2></div>
+          <div><a class="home-button" th:href="@{/reservations/new}">Đặt bàn ngay <span aria-hidden="true">↗</span></a><p>Yêu cầu được xác nhận sau khi nhân viên liên hệ lại.</p></div>
+        </div>
+      </section>
     </main>
+    <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
+
+    <dialog class="dish-dialog" id="dish-dialog" aria-labelledby="dish-detail-title" aria-describedby="dish-detail-description">
+      <form method="dialog" class="dish-dialog-close"><button type="submit" aria-label="Đóng chi tiết món" autofocus>×</button></form>
+      <div class="dish-detail-image" id="dish-detail-image"></div>
+      <div class="dish-detail-copy">
+        <p class="home-eyebrow" id="dish-detail-category"></p>
+        <h2 id="dish-detail-title"></h2>
+        <span class="dish-detail-dietary" id="dish-detail-dietary" hidden></span>
+        <p id="dish-detail-description"></p>
+        <p class="dish-detail-price" id="dish-detail-price"></p>
+        <a class="home-button" th:href="@{/reservations/new}">Đặt bàn tại T3L <span aria-hidden="true">↗</span></a>
+      </div>
+    </dialog>
+    <script th:replace="~{web/fragments/restaurant-shell :: navigation}"></script>
+    <script th:replace="~{web/fragments/menu-interactions :: script}"></script>
   </body>
 </html>

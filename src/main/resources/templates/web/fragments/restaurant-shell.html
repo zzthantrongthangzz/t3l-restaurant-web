@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+  <body>
+    <header th:fragment="header(activePage)" class="home-header" id="home-header">
+      <a class="home-brand" th:href="@{/}" aria-label="T3L Restaurant — Trang chủ">
+        <span class="home-brand-mark">T3L<span aria-hidden="true">.</span></span>
+        <span class="home-brand-name">RESTAURANT</span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="home-nav" hidden>
+        <span class="nav-toggle-lines" aria-hidden="true"></span><span class="nav-toggle-label">Mở menu</span>
+      </button>
+      <nav class="home-nav" id="home-nav" aria-label="Điều hướng chính">
+        <a th:classappend="${activePage == 'home'} ? 'is-current'" th:href="@{/}" th:attr="aria-current=${activePage == 'home' ? 'page' : null}">Trang chủ</a>
+        <a th:classappend="${activePage == 'menu'} ? 'is-current'" th:href="@{/menu}" th:attr="aria-current=${activePage == 'menu' ? 'page' : null}">Thực đơn</a>
+        <a th:href="@{/#story}">Câu chuyện</a>
+        <a th:href="@{/#space}">Không gian</a>
+        <a href="#contact">Liên hệ</a>
+        <a sec:authorize="hasAnyRole('STAFF','ADMIN')" th:href="@{/staff/reservations}">Quản lý</a>
+        <a sec:authorize="isAnonymous()" th:href="@{/login}">Đăng nhập</a>
+        <form sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post">
+          <button class="logout-link" type="submit">Đăng xuất</button>
+        </form>
+        <a class="home-button home-button-outline nav-booking" th:href="@{/reservations/new}">Đặt bàn <span aria-hidden="true">↗</span></a>
+      </nav>
+    </header>
+    <footer th:fragment="footer" class="home-footer" id="contact">
+      <div class="home-container">
+        <div class="footer-grid">
+          <div class="footer-intro">
+            <a class="home-brand" th:href="@{/}" aria-label="T3L Restaurant — Trang chủ"><span class="home-brand-mark">T3L<span aria-hidden="true">.</span></span><span class="home-brand-name">RESTAURANT</span></a>
+            <p>Hương vị cho những dịp đáng nhớ.</p>
+          </div>
+          <div class="footer-contact"><h2>GHÉ THĂM T3L</h2><address>6 Lê Lợi, phường 4, quận Gò Vấp,<br />thành phố Hồ Chí Minh.</address><a class="home-text-link" href="https://www.google.com/maps/search/?api=1&amp;query=6+L%C3%AA+L%E1%BB%A3i+ph%C6%B0%E1%BB%9Dng+4+G%C3%B2+V%E1%BA%A5p+H%E1%BB%93+Ch%C3%AD+Minh" target="_blank" rel="noopener noreferrer">Xem bản đồ <span aria-hidden="true">↗</span></a></div>
+          <nav class="footer-links" aria-label="Khám phá"><h2>KHÁM PHÁ</h2><a th:href="@{/menu}">Thực đơn</a><a th:href="@{/reservations/new}">Đặt bàn trực tuyến</a><a th:href="@{/faq}">Câu hỏi thường gặp</a></nav>
+          <div class="footer-help"><h2>KẾT NỐI VỚI T3L</h2><p>Bạn cần hỗ trợ cho cuộc hẹn sắp tới?</p><a class="home-text-link" th:href="@{/faq}">Thông tin đặt bàn <span aria-hidden="true">→</span></a></div>
+        </div>
+        <div class="footer-bottom"><span>© <th:block th:text="${#temporals.year(#temporals.createNow())}">2026</th:block> T3L Restaurant.</span><span>ẨM THỰC &amp; KẾT NỐI</span><a href="#main">Lên đầu trang <span aria-hidden="true">↑</span></a></div>
+      </div>
+    </footer>
+    <script th:fragment="navigation">
+      (() => {
+        const header = document.getElementById('home-header');
+        const toggle = document.querySelector('.nav-toggle');
+        const nav = document.getElementById('home-nav');
+        const mobile = window.matchMedia('(max-width: 1100px)');
+        const setMenu = (open) => {
+          toggle.setAttribute('aria-expanded', String(open));
+          toggle.querySelector('.nav-toggle-label').textContent = open ? 'Đóng menu' : 'Mở menu';
+          header.classList.toggle('menu-open', open);
+          nav.inert = mobile.matches && !open;
+        };
+        toggle.hidden = false;
+        header.classList.add('nav-ready');
+        setMenu(false);
+        toggle.addEventListener('click', () => setMenu(toggle.getAttribute('aria-expanded') !== 'true'));
+        nav.addEventListener('click', (event) => {
+          if (event.target.closest('a')) setMenu(false);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') {
+            setMenu(false);
+            toggle.focus();
+          }
+        });
+        document.addEventListener('click', (event) => {
+          if (!header.contains(event.target)) setMenu(false);
+        });
+        mobile.addEventListener('change', () => setMenu(false));
+        const updateHeader = () => header.classList.toggle('is-scrolled', window.scrollY > 32);
+        updateHeader();
+        window.addEventListener('scroll', updateHeader, { passive: true });
+      })();
+    </script>
+  </body>
+</html>
