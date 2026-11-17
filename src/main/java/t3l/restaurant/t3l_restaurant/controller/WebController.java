@@ -1,15 +1,18 @@
 package t3l.restaurant.t3l_restaurant.controller;
 
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.dao.TransientDataAccessException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.stereotype.Controller;
@@ -24,6 +27,10 @@ import t3l.restaurant.t3l_restaurant.entity.Reservation;
 import t3l.restaurant.t3l_restaurant.entity.RestaurantTable;
 import t3l.restaurant.t3l_restaurant.repository.*;
 import t3l.restaurant.t3l_restaurant.service.ReservationService;
+import t3l.restaurant.t3l_restaurant.service.ReservationSchedule;
+import t3l.restaurant.t3l_restaurant.service.ReservationConfirmationAccess;
+import t3l.restaurant.t3l_restaurant.service.ReservationManagementService;
+import t3l.restaurant.t3l_restaurant.service.BookingException;
 import t3l.restaurant.t3l_restaurant.service.StaffShiftService;
 
 @Controller
@@ -31,6 +38,9 @@ public class WebController {
   private final DishRepository dishes;
   private final RestaurantTableRepository restaurantTables;
   private final ReservationService reservationService;
+  private final ReservationSchedule reservationSchedule;
+  private final ReservationConfirmationAccess confirmationAccess;
+  private final ReservationManagementService reservationManagement;
   private final FaqRepository faqs;
   private final StaffShiftService shifts;
 
@@ -38,11 +48,17 @@ public class WebController {
       DishRepository dishes,
       RestaurantTableRepository restaurantTables,
       ReservationService reservationService,
+      ReservationSchedule reservationSchedule,
+      ReservationConfirmationAccess confirmationAccess,
+      ReservationManagementService reservationManagement,
       FaqRepository faqs,
       StaffShiftService shifts) {
     this.dishes = dishes;
     this.restaurantTables = restaurantTables;
     this.reservationService = reservationService;
+    this.reservationSchedule = reservationSchedule;
+    this.confirmationAccess = confirmationAccess;
+    this.reservationManagement = reservationManagement;
     this.faqs = faqs;
     this.shifts = shifts;
   }
@@ -91,14 +107,15 @@ public class WebController {
   public String reservationForm(
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
       CsrfToken csrfToken,
-      Authentication authentication,
       Model model) {
     csrfToken.getToken();
     ReservationForm form = new ReservationForm();
-    form.setDate(date == null ? LocalDate.now() : date);
-    form.setTime(LocalTime.of(18, 0));
+    form.setDate(date == null || date.isBefore(reservationSchedule.today())
+        ? reservationSchedule.today() : date);
+    form.setGuests(2);
+    form.setPreferredArea("");
     model.addAttribute("form", form);
-    addReservationPageData(model, form.getDate(), canViewGuestNames(authentication));
+    addReservationPageData(model);
     return "web/reservation-form";
   }
 
@@ -106,48 +123,42 @@ public class WebController {
   public String reserve(
       @Valid @ModelAttribute("form") ReservationForm form,
       BindingResult result,
-      Authentication authentication,
+      HttpSession session,
       Model model,
       RedirectAttributes redirect) {
-    RestaurantTable table = null;
-    if (form.getTableId() != null) {
-      table = restaurantTables.findById(form.getTableId()).filter(RestaurantTable::isActive).orElse(null);
-    }
-    if (table == null) {
-      result.rejectValue("tableId", "table.invalid", "Bàn đã chọn không hợp lệ.");
-    } else {
-      if (form.getGuests() != null && form.getGuests() > table.getCapacity()) {
-        result.rejectValue(
-            "guests", "table.capacity", "Số khách vượt quá sức chứa của bàn đã chọn.");
+    if (!result.hasErrors()) {
+      try {
+        Reservation saved = reservationService.create(form);
+        confirmationAccess.grant(session, saved.getCode());
+        redirect.addAttribute("code", saved.getCode());
+        return "redirect:/reservations/confirmation";
+      } catch (BookingException exception) {
+        if (exception.getField() == null) {
+          result.reject("booking.unavailable", exception.getMessage());
+        } else {
+          result.rejectValue(exception.getField(), "booking.invalid", exception.getMessage());
+        }
+      } catch (TransientDataAccessException exception) {
+        result.reject("booking.busy", "Hệ thống đang xử lý nhiều yêu cầu. Vui lòng thử lại trong ít giây.");
       }
-      if (form.getDate() != null
-          && !reservationService.isTableAvailable(table.getId(), form.getDate())) {
-        result.rejectValue("tableId", "table.taken", "Bàn đã được đặt trong ngày này.");
-      }
     }
-    if (result.hasErrors()) {
-      addReservationPageData(model, form.getDate(), canViewGuestNames(authentication));
-      model.addAttribute("openReservationModal", form.getTableId() != null);
-      return "web/reservation-form";
-    }
-    final Reservation saved;
-    try {
-      saved = reservationService.create(form, table);
-    } catch (IllegalStateException exception) {
-      result.rejectValue("tableId", "table.taken", exception.getMessage());
-      addReservationPageData(model, form.getDate(), canViewGuestNames(authentication));
-      model.addAttribute("openReservationModal", true);
-      return "web/reservation-form";
-    }
-    redirect.addAttribute("code", saved.getCode());
-    return "redirect:/reservations/confirmation";
+    addReservationPageData(model);
+    return "web/reservation-form";
   }
 
   @GetMapping("/reservations/confirmation")
-  public String confirmation(@RequestParam String code, Model model) {
-    var reservation = reservationService.findByCode(code);
-    if (reservation == null) return "redirect:/reservations/new";
-    model.addAttribute("reservation", reservation);
+  public String confirmation(@RequestParam(required = false) String code,
+      HttpServletRequest request, HttpServletResponse response, Model model) {
+    response.setHeader("Cache-Control", "no-store, max-age=0");
+    response.setHeader("Pragma", "no-cache");
+    response.setHeader("Referrer-Policy", "no-referrer");
+    Reservation reservation = confirmationAccess.canView(request.getSession(false), code)
+        ? reservationService.findByCode(code) : null;
+    if (reservation == null) {
+      response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+    } else {
+      model.addAttribute("reservation", reservation);
+    }
     return "web/confirmation";
   }
 
@@ -159,6 +170,7 @@ public class WebController {
   @GetMapping("/staff/reservations")
   public String staffReservations(Model model) {
     model.addAttribute("reservations", reservationService.findRecent());
+    model.addAttribute("changeRequests", reservationManagement.pendingReviews());
     return "staff/reservations";
   }
 
@@ -237,20 +249,14 @@ public class WebController {
     return "redirect:/staff/shift";
   }
 
-  private void addReservationPageData(Model model, LocalDate date, boolean showGuestNames) {
-    LocalDate selectedDate = date == null ? LocalDate.now() : date;
-    model.addAttribute("selectedDate", selectedDate);
-    model.addAttribute("showGuestNames", showGuestNames);
-    model.addAttribute(
-        "tables",
-        reservationService.getTableAvailability(selectedDate, showGuestNames));
-  }
-
-  private boolean canViewGuestNames(Authentication authentication) {
-    return authentication != null
-        && authentication.getAuthorities().stream()
-            .anyMatch(authority ->
-                authority.getAuthority().equals("ROLE_STAFF")
-                    || authority.getAuthority().equals("ROLE_ADMIN"));
+  private void addReservationPageData(Model model) {
+    var activeTables = restaurantTables.findByActiveTrueOrderByCodeAsc();
+    model.addAttribute("areas", activeTables.stream().map(RestaurantTable::getTableType)
+        .distinct().sorted().toList());
+    model.addAttribute("maxGuests", Math.min(20, activeTables.stream()
+        .mapToInt(RestaurantTable::getCapacity).max().orElse(20)));
+    model.addAttribute("schedule", reservationSchedule);
+    model.addAttribute("today", reservationSchedule.today());
+    model.addAttribute("timeSlots", reservationSchedule.getTimeSlots());
   }
 }

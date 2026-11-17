@@ -1,0 +1,162 @@
+package t3l.restaurant.t3l_restaurant.service;
+
+import jakarta.validation.Validator;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.List;
+import java.util.Objects;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
+import t3l.restaurant.t3l_restaurant.dto.*;
+import t3l.restaurant.t3l_restaurant.entity.*;
+import t3l.restaurant.t3l_restaurant.repository.*;
+
+@Service
+public class ReservationManagementService {
+  private final ReservationRepository reservations;
+  private final ReservationChangeRequestRepository requests;
+  private final RestaurantTableRepository tables;
+  private final ReservationService bookings;
+  private final ReservationSchedule schedule;
+  private final ReservationChangePolicy policy;
+  private final Validator validator;
+
+  public ReservationManagementService(ReservationRepository reservations, ReservationChangeRequestRepository requests,
+      RestaurantTableRepository tables, ReservationService bookings, ReservationSchedule schedule,
+      ReservationChangePolicy policy, Validator validator) {
+    this.reservations = reservations;
+    this.requests = requests;
+    this.tables = tables;
+    this.bookings = bookings;
+    this.schedule = schedule;
+    this.policy = policy;
+    this.validator = validator;
+  }
+
+  static String canonicalPhone(String value) {
+    String digits = value == null ? "" : value.replaceAll("[^0-9]", "");
+    return digits.startsWith("84") && digits.length() == 11 ? "0" + digits.substring(2) : digits;
+  }
+
+  @Transactional(readOnly = true)
+  public Reservation lookup(ReservationLookupForm form) {
+    validate(form);
+    Reservation booking = reservations.findByCode(form.getCode()).orElse(null);
+    String expected = booking == null ? "" : canonicalPhone(booking.getGuestPhone());
+    boolean matches = MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8),
+        canonicalPhone(form.getPhone()).getBytes(StandardCharsets.UTF_8));
+    return booking != null && matches ? booking : null;
+  }
+
+  @Transactional(readOnly = true)
+  public List<ReservationChangeRequest> history(Long id) {
+    return requests.findTop20ByReservation_IdOrderByCreatedAtDescIdDesc(id);
+  }
+
+  @Transactional(readOnly = true)
+  public String requestBlockedReason(Reservation booking) {
+    String reason = policy.blockedReason(booking);
+    return reason != null ? reason : requests.existsByReservation_IdAndStatus(booking.getId(), "PENDING")
+        ? "Bạn đã có một yêu cầu đang chờ nhân viên duyệt. Lịch hiện tại được giữ nguyên đến khi có kết quả." : null;
+  }
+
+  private <T> void validate(T form) {
+    validator.validate(form).stream().findFirst().ifPresent(violation -> {
+      throw new BookingException(violation.getPropertyPath().toString(), violation.getMessage());
+    });
+  }
+
+  private Reservation lockBooking(String code) {
+    Long id = reservations.findIdByCode(code)
+        .orElseThrow(() -> new BookingException(null, "Không thể xử lý yêu cầu đặt bàn này."));
+    return reservations.lockById(id).orElseThrow(() -> new BookingException(null, "Không tìm thấy đặt bàn."));
+  }
+
+  private void requireNewRequest(Reservation booking) {
+    policy.requireEligible(booking);
+    if (requests.existsByReservation_IdAndStatus(booking.getId(), "PENDING")) {
+      throw new BookingException(null, "Đã có yêu cầu đang chờ duyệt cho đặt bàn này.");
+    }
+  }
+
+  @Transactional(isolation = Isolation.READ_COMMITTED)
+  public ReservationChangeRequest requestChange(String code, ReservationUpdateForm form) {
+    validate(form);
+    var active = tables.lockActiveTables();
+    Reservation booking = lockBooking(code);
+    requireNewRequest(booking);
+    var end = schedule.validateAndGetEnd(form.scheduleForm());
+    var start = form.getDate().atTime(form.getTime());
+    policy.requireProposedNotice(start);
+    String area = form.getPreferredArea() == null ? "" : form.getPreferredArea().trim();
+    if (booking.getReservationDate().equals(form.getDate()) && booking.getReservationTime().equals(form.getTime())
+        && booking.getGuestCount() == form.getGuests() && Objects.equals(normalizeArea(booking.getPreferredArea()), area)) {
+      throw new BookingException(null, "Thông tin mới chưa có thay đổi so với lịch hiện tại.");
+    }
+    bookings.selectTable(active, start, end, form.getGuests(), area, booking.getId());
+    return requests.saveAndFlush(new ReservationChangeRequest(booking, "CHANGE", form, form.getReason(), policy.now()));
+  }
+
+  @Transactional(isolation = Isolation.READ_COMMITTED)
+  public ReservationChangeRequest requestCancellation(String code, ReservationCancellationForm form) {
+    validate(form);
+    tables.lockActiveTables();
+    Reservation booking = lockBooking(code);
+    requireNewRequest(booking);
+    return requests.saveAndFlush(new ReservationChangeRequest(booking, "CANCEL", null, form.getReason(), policy.now()));
+  }
+
+  private String normalizeArea(String area) { return area == null ? "" : area.trim(); }
+
+  public record ReviewItem(ReservationChangeRequest request, String blockedReason) {}
+
+  @Transactional(readOnly = true)
+  public List<ReviewItem> pendingReviews() {
+    return requests.findByStatusOrderByCreatedAtAscIdAsc("PENDING").stream().map(request -> {
+      String reason = policy.blockedReason(request.getReservation());
+      if (reason == null && "CHANGE".equals(request.getRequestType())
+          && request.getRequestedDate().atTime(request.getRequestedTime()).isBefore(policy.now().plusMinutes(90))) {
+        reason = "Giờ mới không còn đủ thời gian báo trước 90 phút.";
+      }
+      return new ReviewItem(request, reason);
+    }).toList();
+  }
+
+  @Transactional(isolation = Isolation.READ_COMMITTED)
+  public void review(Long requestId, String decision, String note, String reviewer) {
+    if (!List.of("APPROVE", "REJECT").contains(decision)) throw new BookingException(null, "Thao tác duyệt không hợp lệ.");
+    if (note != null && note.length() > 500) throw new BookingException(null, "Phản hồi không vượt quá 500 ký tự.");
+    if ("REJECT".equals(decision) && (note == null || note.isBlank())) throw new BookingException(null, "Vui lòng nhập lý do từ chối để thông báo cho khách.");
+    var active = tables.lockActiveTables();
+    Long bookingId = requests.findReservationId(requestId)
+        .orElseThrow(() -> new BookingException(null, "Không tìm thấy yêu cầu."));
+    Reservation booking = reservations.lockById(bookingId).orElseThrow();
+    ReservationChangeRequest request = requests.lockById(requestId).orElseThrow();
+    if (!"PENDING".equals(request.getStatus())) throw new BookingException(null, "Yêu cầu đã được xử lý trước đó.");
+    boolean approve = "APPROVE".equals(decision);
+    if (approve) {
+      policy.requireEligible(booking);
+      if (!booking.getReservationDate().equals(request.getOriginalDate())
+          || !booking.getReservationTime().equals(request.getOriginalTime())
+          || booking.getGuestCount() != request.getOriginalGuests()
+          || !normalizeArea(booking.getPreferredArea()).equals(normalizeArea(request.getOriginalArea()))) {
+        throw new BookingException(null, "Lịch gốc đã thay đổi. Vui lòng từ chối yêu cầu cũ và liên hệ khách.");
+      }
+      if ("CANCEL".equals(request.getRequestType())) {
+        booking.updateStatus("CANCELLED");
+      } else {
+        var form = request.updateForm();
+        validate(form);
+        var end = schedule.validateAndGetEnd(form.scheduleForm());
+        var start = form.getDate().atTime(form.getTime());
+        policy.requireProposedNotice(start);
+        var table = bookings.selectTable(active, start, end, form.getGuests(), normalizeArea(form.getPreferredArea()), bookingId);
+        booking.reschedule(table, form.getDate(), form.getTime(), end, form.getGuests(), form.getPreferredArea());
+      }
+    }
+    request.review(approve, reviewer, note, policy.now());
+    reservations.flush();
+    requests.flush();
+  }
+}

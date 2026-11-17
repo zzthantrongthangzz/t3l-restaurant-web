@@ -1,5 +1,5 @@
-/* Home only: independent from the shared styles used by the other pages. */
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap");
+/* Shared customer shell, design tokens and Home sections. */
+@import url("./fonts.css?v=20261117");
 
 :root {
   color-scheme: dark;
@@ -9,11 +9,11 @@
   --home-muted: #b6ab9d;
   --home-bronze: #c69d68;
   --home-line: #c69d6838;
-  --home-serif: "Playfair Display", Georgia, "Times New Roman", serif;
+  --home-serif: var(--font-serif);
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 110px; }
-body.home { margin: 0; background: var(--home-bg); color: var(--home-cream); font: 400 15px/1.8 "DM Sans", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+body.home { margin: 0; background: var(--home-bg); color: var(--home-cream); font: 400 15px/1.8 var(--font-sans); -webkit-font-smoothing: antialiased; }
 .home a { color: inherit; text-decoration: none; }
 .home button { font: inherit; cursor: pointer; }
 .home img { display: block; width: 100%; object-fit: cover; }
@@ -77,7 +77,7 @@ body.home { margin: 0; background: var(--home-bg); color: var(--home-cream); fon
 .story-image img { height: 510px; object-position: center 65%; }
 .story-image figcaption { position: absolute; inset-inline: 0; bottom: 0; background: linear-gradient(transparent, #171411e6); padding: 55px 25px 22px; font-size: 8px; letter-spacing: 2.5px; }
 .story-seal { position: absolute; bottom: 65px; right: -22px; width: 115px; height: 115px; border: 1px solid var(--home-bronze); border-radius: 50%; outline: 6px solid var(--home-bg); background: var(--home-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--home-bronze); font: 36px/1.4 var(--home-serif); }
-.story-seal > span { font: 7px/2 "DM Sans", Arial, sans-serif; letter-spacing: 1.2px; }
+.story-seal > span { font: 7px/2 var(--font-sans); letter-spacing: 1.2px; }
 .story-copy .home-eyebrow { margin-bottom: 24px; }
 .gold-rule { display: block; width: 48px; height: 1px; background: var(--home-bronze); margin-block: 28px; }
 .story-copy > p:not(.home-eyebrow) { color: var(--home-muted); font-size: 14px; margin-bottom: 18px; }
@@ -131,13 +131,16 @@ body.home { margin: 0; background: var(--home-bg); color: var(--home-cream); fon
 .footer-grid { display: grid; grid-template-columns: 1.1fr 1.4fr 1fr 1.1fr; gap: 45px; padding-bottom: 60px; }
 .footer-intro .home-brand { align-items: flex-start; }
 .footer-intro > p { font: italic 14px/1.8 var(--home-serif); color: #c3b29b; margin-top: 23px; }
-.home-footer h2 { font: 500 9px/1.8 "DM Sans", Arial, sans-serif; letter-spacing: 2px; color: var(--home-bronze); margin-bottom: 23px; }
+.home-footer h2 { font: 500 9px/1.8 var(--font-sans); letter-spacing: 2px; color: var(--home-bronze); margin-bottom: 23px; }
 .footer-contact address { font-style: normal; color: var(--home-muted); font-size: 12px; line-height: 2; }
 .footer-contact .home-text-link, .footer-help .home-text-link { margin-top: 11px; font-size: 11px; }
 .footer-links { display: flex; flex-direction: column; align-items: flex-start; }
 .footer-links > a { color: var(--home-muted); font-size: 12px; padding-block: 5px; }
 .footer-links > a:hover { color: var(--home-bronze); }
 .footer-help > p { color: var(--home-muted); font-size: 12px; }
+.footer-contact > p { color: var(--home-muted); font-size: 11px; margin-top: 8px; }
+.footer-contact-link { display: block; font-size: 12px; color: var(--home-muted); margin-bottom: 9px; overflow-wrap: anywhere; }
+.footer-contact-link:hover { color: var(--home-bronze); }
 .footer-bottom { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-block: 23px; border-top: 1px solid var(--home-line); color: #9b8d7e; font-size: 9px; }
 .footer-bottom > span:nth-child(2) { letter-spacing: 2px; }
 .footer-bottom > a > span { margin-left: 14px; color: var(--home-bronze); }

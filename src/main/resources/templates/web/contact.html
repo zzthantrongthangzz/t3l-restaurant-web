@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description" content="Liên hệ T3L Restaurant. Xem địa chỉ, giờ phục vụ, chỉ đường và gửi lời nhắn cho nhà hàng." />
+    <meta name="theme-color" content="#171411" />
+    <title>Liên hệ | T3L Restaurant</title>
+    <link rel="stylesheet" th:href="@{/css/home.css(v=20261117-fonts)}" />
+    <link rel="stylesheet" th:href="@{/css/reservation.css(v=20261117-fonts)}" />
+    <link rel="stylesheet" th:href="@{/css/about-contact.css(v=20261117-fonts)}" />
+  </head>
+  <body class="home contact-page">
+    <a class="skip-link" href="#contact-form">Chuyển đến form liên hệ</a>
+    <header th:replace="~{web/fragments/restaurant-shell :: header('contact')}"></header>
+    <main id="main">
+      <section class="contact-intro home-container" aria-labelledby="contact-title">
+        <div><p class="home-eyebrow">T3L RESTAURANT / GET IN TOUCH</p><h1 id="contact-title">Một lời nhắn.<br /><em>Bắt đầu một cuộc hẹn.</em></h1></div>
+        <p>Từ một câu hỏi nhỏ đến kế hoạch cho dịp đặc biệt,<br />T3L luôn sẵn lòng lắng nghe bạn.</p>
+      </section>
+      <section class="home-container contact-main-grid" aria-label="Kết nối với T3L">
+        <div class="contact-information">
+          <p class="home-eyebrow">GHÉ THĂM &amp; KẾT NỐI</p><h2>Hẹn gặp bạn<br /><em>tại T3L.</em></h2>
+          <dl class="contact-details">
+            <div><dt>ĐỊA CHỈ</dt><dd><address th:text="${@restaurantInfo.address}"></address><a class="home-text-link" th:href="${@restaurantInfo.mapsUrl}" target="_blank" rel="noopener noreferrer">Chỉ đường đến T3L <span aria-hidden="true">↗</span></a></dd></div>
+            <div><dt>ĐIỆN THOẠI</dt><dd><a th:if="${!@restaurantInfo.phone.isBlank()}" th:href="${@restaurantInfo.phoneHref}" th:text="${@restaurantInfo.phone}"></a><span th:if="${@restaurantInfo.phone.isBlank()}">Đang cập nhật</span></dd></div>
+            <div><dt>EMAIL</dt><dd><a th:if="${!@restaurantInfo.email.isBlank()}" th:href="${@restaurantInfo.emailHref}" th:text="${@restaurantInfo.email}"></a><span th:if="${@restaurantInfo.email.isBlank()}">Đang cập nhật</span></dd></div>
+            <div><dt>GIỜ PHỤC VỤ</dt><dd><span th:text="${@restaurantInfo.hours}"></span><small>Nhận khách đặt bàn đến <th:block th:text="${@restaurantInfo.schedule.lastArrival}"></th:block> · Giờ Việt Nam</small></dd></div>
+          </dl>
+          <a class="home-text-link" th:href="@{/reservations/new}">Đặt bàn ngay <span aria-hidden="true">↗</span></a>
+          <figure class="contact-detail-image"><img th:src="@{/images/home/dining-detail.jpg}" alt="Góc bàn ăn với ánh sáng ấm — ảnh minh họa" width="900" height="1350" loading="lazy" /><figcaption>Ảnh không gian minh họa · Pexels</figcaption></figure>
+        </div>
+
+        <form id="contact-form" class="booking-form contact-form" th:action="@{/contact}" th:object="${contactForm}" th:attr="data-has-errors=${contactHasErrors == true}" method="post" aria-labelledby="contact-form-title">
+          <p class="home-eyebrow">CHÚNG TÔI LẮNG NGHE BẠN</p><h2 id="contact-form-title">Gửi lời nhắn đến T3L.</h2><p>Các trường dưới đây đều bắt buộc. Nếu cần đặt bàn, vui lòng sử dụng <a th:href="@{/reservations/new}">form đặt bàn</a>.</p>
+          <div class="contact-success" th:if="${contactNotice}" th:text="${contactNotice}" role="status"></div>
+          <div class="contact-form-error" tabindex="-1" th:if="${#fields.hasErrors('*')}" role="alert"><strong>Chưa thể gửi lời nhắn.</strong><p>Vui lòng kiểm tra các thông tin bên dưới.</p><p th:each="error : ${#fields.globalErrors()}" th:text="${error}"></p></div>
+          <div class="contact-fields">
+            <div class="booking-field"><label for="contact-name">Họ và tên</label><input id="contact-name" type="text" th:field="*{name}" maxlength="120" autocomplete="name" required th:attr="aria-invalid=${#fields.hasErrors('name')},aria-describedby=${#fields.hasErrors('name') ? 'name-error' : null}" /><p id="name-error" class="field-error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></p></div>
+            <div class="booking-field"><label for="contact-phone">Số điện thoại</label><input id="contact-phone" type="tel" th:field="*{phone}" maxlength="30" autocomplete="tel" required th:attr="aria-invalid=${#fields.hasErrors('phone')},aria-describedby=${#fields.hasErrors('phone') ? 'phone-error' : null}" /><p id="phone-error" class="field-error" th:if="${#fields.hasErrors('phone')}" th:errors="*{phone}"></p></div>
+            <div class="booking-field contact-field-wide"><label for="contact-email">Email</label><input id="contact-email" type="email" th:field="*{email}" maxlength="254" autocomplete="email" required th:attr="aria-invalid=${#fields.hasErrors('email')},aria-describedby=${#fields.hasErrors('email') ? 'email-error' : null}" /><p id="email-error" class="field-error" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></p></div>
+            <div class="booking-field contact-field-wide"><label for="contact-subject">Chủ đề</label><input id="contact-subject" type="text" th:field="*{subject}" maxlength="150" placeholder="Bạn muốn trao đổi điều gì với T3L?" required th:attr="aria-invalid=${#fields.hasErrors('subject')},aria-describedby=${#fields.hasErrors('subject') ? 'subject-error' : null}" /><p id="subject-error" class="field-error" th:if="${#fields.hasErrors('subject')}" th:errors="*{subject}"></p></div>
+            <div class="booking-field contact-field-wide"><label for="contact-message">Nội dung</label><textarea id="contact-message" th:field="*{message}" rows="6" minlength="10" maxlength="4000" placeholder="Chia sẻ câu hỏi, góp ý hoặc kế hoạch của bạn…" required th:attr="aria-invalid=${#fields.hasErrors('message')},aria-describedby=${#fields.hasErrors('message') ? 'message-error message-help' : 'message-help'}"></textarea><small id="message-help">Từ 10 đến 4.000 ký tự.</small><p id="message-error" class="field-error" th:if="${#fields.hasErrors('message')}" th:errors="*{message}"></p></div>
+          </div>
+          <button class="home-button" type="submit">Gửi lời nhắn <span aria-hidden="true">↗</span></button>
+          <p class="contact-form-note">Lời nhắn được gửi đến bộ phận quản trị T3L. Thông tin liên hệ dùng để phản hồi yêu cầu của bạn; việc gửi form này không tạo hoặc thay đổi đặt bàn.</p>
+        </form>
+      </section>
+
+      <section class="contact-map-section home-container" aria-labelledby="map-title">
+        <div class="home-section-heading"><div><p class="home-eyebrow">TÌM ĐƯỜNG ĐẾN T3L</p><h2 id="map-title">Điểm hẹn <em>của chúng ta.</em></h2></div><a class="home-text-link" th:href="${@restaurantInfo.mapsUrl}" target="_blank" rel="noopener noreferrer">Mở Google Maps <span aria-hidden="true">↗</span></a></div>
+        <iframe class="contact-map" th:src="${@restaurantInfo.mapsEmbedUrl}" title="Bản đồ địa chỉ T3L Restaurant" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
+        <p class="contact-map-address" th:text="${@restaurantInfo.address}"></p>
+      </section>
+      <section th:replace="~{web/fragments/about-contact :: invitation}"></section>
+    </main>
+    <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
+    <script th:replace="~{web/fragments/restaurant-shell :: navigation}"></script>
+    <script th:replace="~{web/fragments/about-contact :: effects}"></script>
+  </body>
+</html>

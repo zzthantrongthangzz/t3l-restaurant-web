@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="description" content="T3L Restaurant — Hương vị cho những dịp đáng nhớ. Khám phá thực đơn và đặt bàn tại 6 Lê Lợi, phường 4, quận Gò Vấp, TP. Hồ Chí Minh." />
+    <meta name="description" th:content="${'T3L Restaurant — Hương vị cho những dịp đáng nhớ. Khám phá thực đơn và đặt bàn tại ' + @restaurantInfo.address + '.'}" />
     <meta name="theme-color" content="#171411" />
     <title>T3L Restaurant | Hương vị cho những dịp đáng nhớ</title>
-    <link rel="stylesheet" th:href="@{/css/home.css(v=20261116)}" />
+    <link rel="stylesheet" th:href="@{/css/home.css(v=20261117-fonts)}" />
   </head>
   <body class="home">
     <a class="skip-link" href="#main">Chuyển đến nội dung</a>
@@ -100,7 +100,7 @@
         <div class="home-container reserve-content" data-reveal>
           <p class="home-eyebrow">MỘT CUỘC HẸN ĐANG CHỜ</p>
           <h2 id="reserve-title">Buổi tối đáng nhớ<br />bắt đầu từ <em>một chiếc bàn.</em></h2>
-          <p>Chọn ngày, chọn bàn và để T3L đón tiếp bạn.</p>
+          <p>Chọn ngày, chọn giờ và để T3L sắp xếp bàn phù hợp cho bạn.</p>
           <a class="home-button" th:href="@{/reservations/new}">Đặt bàn ngay <span aria-hidden="true">↗</span></a>
           <small>Yêu cầu đặt bàn được xác nhận sau khi nhân viên liên hệ lại.</small>
         </div>

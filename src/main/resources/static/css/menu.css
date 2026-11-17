@@ -40,7 +40,7 @@
 .category-button.is-selected { background: #2a211b; color: #f1eadf; border-color: #2a211b; }
 .menu-search { display: flex; align-items: center; gap: 11px; flex: 0 0 220px; border-bottom: 1px solid #bba487; }
 .menu-search svg { width: 16px; height: 16px; fill: none; stroke: #967247; stroke-width: 1.5; flex-shrink: 0; }
-.menu-search input { width: 100%; min-width: 0; border: 0; background: transparent; border-radius: 0; padding: 13px 0; color: #30261e; font: 12px/1.6 "DM Sans", Arial, sans-serif; }
+.menu-search input { width: 100%; min-width: 0; border: 0; background: transparent; border-radius: 0; padding: 13px 0; color: #30261e; font: 12px/1.6 var(--font-sans); }
 .menu-search input::placeholder { color: #83715d; }
 .menu-search:focus-within { border-bottom-color: #795532; }
 .menu-search input:focus-visible { outline-offset: 4px; }
@@ -89,7 +89,7 @@
 .dish-dialog[open] { display: grid; grid-template-columns: 1fr 1.1fr; }
 .dish-dialog::backdrop { background: #0d0906d9; backdrop-filter: blur(5px); }
 .dish-dialog-close { position: absolute; top: 12px; right: 12px; margin: 0; z-index: 2; }
-.dish-dialog-close button { width: 44px; height: 44px; border: 1px solid #c69d6866; color: var(--home-cream); background: #211b16ed; font: 28px/1 Arial, sans-serif; }
+.dish-dialog-close button { width: 44px; height: 44px; border: 1px solid #c69d6866; color: var(--home-cream); background: #211b16ed; font: 28px/1 var(--font-sans); }
 .dish-dialog-close button:hover { background: #58422b; }
 .dish-detail-image { position: relative; min-height: 420px; background: #211b16; }
 .dish-detail-image img { height: 100%; min-height: 420px; }

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <body>
+    <section class="staff-request-queue" th:fragment="queue" aria-labelledby="request-queue-title">
+      <div class="staff-request-heading"><div><span class="eyebrow">CHỜ NHÂN VIÊN XỬ LÝ</span><h2 id="request-queue-title">Yêu cầu thay đổi / hủy</h2></div><span th:text="${#lists.size(changeRequests) + ' yêu cầu'}"></span></div>
+      <p class="staff-request-empty" th:if="${#lists.isEmpty(changeRequests)}">Chưa có yêu cầu đang chờ duyệt.</p>
+      <article class="staff-request-card" th:each="item : ${changeRequests}" th:with="request=${item.request},booking=${request.reservation}">
+        <div class="staff-request-title"><h3 th:text="${request.typeLabel}"></h3><span class="code" th:text="${booking.code}"></span></div>
+        <p th:text="${booking.guestName + ' · ' + booking.guestPhone}"></p>
+        <p class="staff-request-created" th:text="${'Đã gửi: ' + #temporals.format(request.createdAt, 'dd/MM/yyyy HH:mm')}"></p>
+        <div class="staff-request-schedules">
+          <div><span>Lịch hiện tại</span><strong th:text="${#temporals.format(booking.reservationDate, 'dd/MM/yyyy') + ' · ' + #temporals.format(booking.reservationTime, 'HH:mm') + ' · ' + booking.guestCount + ' khách'}"></strong><small th:text="${booking.table != null ? booking.table.code + ' · ' + booking.table.tableType : 'Chưa phân bàn'}"></small></div>
+          <div th:if="${request.requestType == 'CHANGE'}"><span>Lịch đề nghị</span><strong th:text="${#temporals.format(request.requestedDate, 'dd/MM/yyyy') + ' · ' + #temporals.format(request.requestedTime, 'HH:mm') + ' · ' + request.requestedGuests + ' khách'}"></strong><small th:text="${'Ưu tiên: ' + (request.requestedArea != null and !request.requestedArea.isBlank() ? request.requestedArea : 'Để T3L sắp xếp')}"></small></div>
+        </div>
+        <p class="staff-request-reason" th:if="${request.reason != null and !request.reason.isBlank()}" th:text="${'Lý do: ' + request.reason}"></p>
+        <p class="staff-request-blocked" th:if="${item.blockedReason != null}" th:text="${item.blockedReason}"></p>
+        <form class="staff-request-review" th:action="@{/staff/reservations/requests/{id}/review(id=${request.id})}" method="post">
+          <label th:for="${'review-note-' + request.id}">Phản hồi cho khách <small>(bắt buộc khi từ chối)</small></label>
+          <textarea th:id="${'review-note-' + request.id}" name="reviewNote" rows="2" maxlength="500" placeholder="Lý do xử lý hoặc ghi chú cho khách…"></textarea>
+          <div><button class="button" type="submit" name="decision" value="APPROVE" th:disabled="${item.blockedReason != null}">Duyệt yêu cầu</button><button class="text-button danger" type="submit" name="decision" value="REJECT">Từ chối</button></div>
+        </form>
+      </article>
+    </section>
+  </body>
+</html>

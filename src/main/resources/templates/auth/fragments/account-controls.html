@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <body>
+    <script th:fragment="passwords">
+      (() => {
+        document.querySelectorAll('[data-password-toggle]').forEach((toggle) => {
+          const password = document.getElementById(toggle.dataset.passwordToggle);
+          const label = toggle.dataset.passwordLabel || 'mật khẩu';
+          toggle.hidden = false;
+          toggle.addEventListener('click', () => {
+            const visible = password.type === 'password';
+            password.type = visible ? 'text' : 'password';
+            toggle.setAttribute('aria-pressed', String(visible));
+            toggle.setAttribute('aria-label', (visible ? 'Ẩn ' : 'Hiện ') + label);
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>

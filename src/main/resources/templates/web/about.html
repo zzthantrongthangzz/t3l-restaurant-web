@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description" content="Câu chuyện T3L Restaurant — Một lời mời ngồi lại, thưởng thức món ngon và dành thời gian cho những người bên cạnh." />
+    <meta name="theme-color" content="#171411" />
+    <title>Giới thiệu | T3L Restaurant</title>
+    <link rel="stylesheet" th:href="@{/css/home.css(v=20261117-fonts)}" />
+    <link rel="stylesheet" th:href="@{/css/about-contact.css(v=20261117-fonts)}" />
+  </head>
+  <body class="home about-page">
+    <a class="skip-link" href="#main">Chuyển đến nội dung</a>
+    <header th:replace="~{web/fragments/restaurant-shell :: header('about')}"></header>
+    <main id="main">
+      <section class="about-hero" aria-labelledby="about-title">
+        <img class="about-hero-image" th:src="@{/images/home/dining-room.jpg}" alt="Nội thất nhà hàng với chất liệu gỗ và ánh sáng ấm — ảnh minh họa" width="1920" height="1280" fetchpriority="high" />
+        <div class="about-hero-shade"></div>
+        <div class="home-container about-hero-copy">
+          <p class="home-eyebrow">T3L RESTAURANT / OUR STORY</p>
+          <h1 id="about-title">Để mỗi cuộc hẹn<br /><em>có một dư vị riêng.</em></h1>
+          <p>Món ngon mở đầu câu chuyện.<br />Sự tận tâm giữ lại những điều đáng nhớ.</p>
+          <a class="home-text-link" href="#our-story">Câu chuyện của chúng tôi <span aria-hidden="true">↓</span></a>
+        </div>
+        <span class="about-photo-credit">Ảnh không gian minh họa · Pexels</span>
+      </section>
+
+      <section class="home-section about-story" id="our-story" aria-labelledby="story-title">
+        <div class="home-container about-story-grid">
+          <div class="about-story-heading" data-reveal><p class="home-eyebrow">01 / MỘT LỜI MỜI TỪ T3L</p><h2 id="story-title">Bữa ăn ngon.<br /><em>Câu chuyện còn mãi.</em></h2><span class="gold-rule" aria-hidden="true"></span><span class="about-signature" aria-hidden="true">T3L.</span></div>
+          <div class="about-story-copy" data-reveal>
+            <p class="about-lead">Có những buổi hẹn, điều ta nhớ không chỉ là món ăn.</p>
+            <p>Đó còn là câu chuyện bên bàn, khoảng thời gian dành cho nhau và cảm giác được đón tiếp. T3L bắt đầu câu chuyện của mình bằng một lời mời giản dị: ngồi lại, chậm hơn một chút và tận hưởng bữa ăn cùng những người bên cạnh.</p>
+            <p>Tinh thần steakhouse gợi mở cách T3L nghĩ về trải nghiệm dùng bữa: hương vị rõ ràng, không gian ấm và sự quan tâm vừa đủ. Từ một bữa tối thân mật đến dịp gặp gỡ đặc biệt, chúng tôi mong mỗi cuộc hẹn đều có ý nghĩa riêng.</p>
+            <a class="home-text-link" th:href="@{/reservations/new}">Hẹn gặp bạn tại T3L <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+      </section>
+
+      <section class="about-philosophy" aria-labelledby="philosophy-title">
+        <div class="about-food-visual"><img th:src="@{/images/menu/steak-banner.jpg}" alt="Steak cùng hương thảo và sốt — ảnh minh họa triết lý ẩm thực" width="1920" height="700" loading="lazy" /><span>Ảnh món ăn minh họa · Pexels</span></div>
+        <div class="about-philosophy-copy" data-reveal>
+          <p class="home-eyebrow">02 / TRIẾT LÝ ẨM THỰC</p>
+          <h2 id="philosophy-title">Tôn trọng hương vị.<br /><em>Chăm chút trải nghiệm.</em></h2>
+          <p>Với T3L, một món ăn ngon cần sự hài hòa: nguyên liệu, cách chế biến và cách thưởng thức. Chúng tôi hướng đến những món ăn có hương vị dễ cảm nhận, trình bày chỉn chu và phù hợp với nhịp điệu của cả bữa ăn.</p>
+          <div class="about-principles">
+            <article><span>01</span><div><h3>Chất lượng trong từng lựa chọn</h3><p>Sự quan tâm bắt đầu từ nguyên liệu, độ chín và cách kết hợp hương vị — để món chính, món kèm và đồ uống cùng tạo nên một bữa ăn trọn vẹn.</p></div></article>
+            <article><span>02</span><div><h3>Phục vụ bằng sự lắng nghe</h3><p>Mỗi buổi hẹn có nhu cầu khác nhau. Hãy chia sẻ sở thích hoặc lưu ý đặc biệt khi đặt bàn để T3L có thể chuẩn bị và trao đổi cùng bạn.</p></div></article>
+          </div>
+          <a class="home-text-link" th:href="@{/menu}">Khám phá thực đơn <span aria-hidden="true">↗</span></a>
+        </div>
+      </section>
+
+      <section class="home-section about-gallery" id="gallery" aria-labelledby="gallery-title">
+        <div class="home-container">
+          <div class="home-section-heading" data-reveal><div><p class="home-eyebrow">03 / CẢM HỨNG KHÔNG GIAN</p><h2 id="gallery-title">Ánh đèn ấm.<br /><em>Những cuộc hẹn dài hơn.</em></h2></div><p class="about-gallery-intro">Sắc gỗ trầm, ánh sáng dịu và những góc bàn thân mật.<br />Cảm hứng cho trải nghiệm dùng bữa tại T3L.</p></div>
+          <div class="about-gallery-grid">
+            <figure data-reveal><a th:href="@{/images/home/dining-room.jpg}" target="_blank" rel="noopener" aria-label="Mở ảnh minh họa không gian dùng bữa"><img th:src="@{/images/home/dining-room.jpg}" alt="Không gian dùng bữa với nội thất gỗ — ảnh minh họa" width="1920" height="1280" loading="lazy" /></a><figcaption><span>01 / GẶP GỠ</span> Một nơi để ngồi lại</figcaption></figure>
+            <figure data-reveal><a th:href="@{/images/home/dining-detail.jpg}" target="_blank" rel="noopener" aria-label="Mở ảnh minh họa góc bàn"><img th:src="@{/images/home/dining-detail.jpg}" alt="Góc bàn gỗ dưới ánh đèn vàng — ảnh minh họa" width="900" height="1350" loading="lazy" /></a><figcaption><span>02 / GẦN GŨI</span> Chút riêng tư cho buổi hẹn</figcaption></figure>
+            <figure data-reveal><a th:href="@{/images/home/ambient-dining.jpg}" target="_blank" rel="noopener" aria-label="Mở ảnh minh họa ánh sáng nhà hàng"><img th:src="@{/images/home/ambient-dining.jpg}" alt="Đèn thả trong không gian nhà hàng tối màu — ảnh minh họa" width="1200" height="1409" loading="lazy" /></a><figcaption><span>03 / THƯ THÁI</span> Tận hưởng từng khoảnh khắc</figcaption></figure>
+          </div>
+          <p class="space-credit">Thư viện ảnh minh họa cảm hứng, không phải ảnh chụp T3L. Nguồn: <a href="https://www.pexels.com/photo/interior-of-restaurant-14590691/" target="_blank" rel="noopener noreferrer">Jonathan Borba</a>, <a href="https://www.pexels.com/photo/dark-modern-interior-of-a-restaurant-15626998/" target="_blank" rel="noopener noreferrer">miniperde</a>, <a href="https://www.pexels.com/photo/lamps-in-dark-restaurant-interior-25381424/" target="_blank" rel="noopener noreferrer">Pexels</a>. Ảnh món ăn: <a href="https://www.pexels.com/photo/a-grilled-steak-topped-with-rosemary-with-garlic-and-red-sauce-on-plate-12015291/" target="_blank" rel="noopener noreferrer">Pexels</a>.</p>
+        </div>
+      </section>
+      <section th:replace="~{web/fragments/about-contact :: invitation}"></section>
+    </main>
+    <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
+    <script th:replace="~{web/fragments/restaurant-shell :: navigation}"></script>
+    <script th:replace="~{web/fragments/about-contact :: effects}"></script>
+  </body>
+</html>

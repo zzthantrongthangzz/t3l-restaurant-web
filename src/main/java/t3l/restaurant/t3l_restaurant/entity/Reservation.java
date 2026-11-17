@@ -38,6 +38,12 @@ public class Reservation {
   @Column(name = "reservation_time", nullable = false)
   private LocalTime reservationTime;
 
+  @Column(name = "ends_at")
+  private LocalDateTime endsAt;
+
+  @Column(name = "preferred_area", length = 40)
+  private String preferredArea;
+
   @Column(name = "guest_count", nullable = false)
   private int guestCount;
 
@@ -78,5 +84,40 @@ public class Reservation {
 
   public void updateStatus(String status) {
     this.status = status;
+  }
+
+  public void setBookingDetails(LocalDateTime endsAt, String preferredArea) {
+    this.endsAt = endsAt;
+    this.preferredArea = preferredArea;
+  }
+
+  public void reschedule(RestaurantTable table, LocalDate date, LocalTime time,
+      LocalDateTime end, int guests, String area) {
+    this.table = table;
+    this.reservationDate = date;
+    this.reservationTime = time;
+    this.endsAt = end;
+    this.guestCount = guests;
+    this.preferredArea = area == null || area.isBlank() ? null : area.trim();
+    this.status = "CONFIRMED";
+  }
+
+  public LocalDateTime getStartsAt() {
+    return LocalDateTime.of(reservationDate, reservationTime);
+  }
+
+  public LocalDateTime effectiveEndsAt(int durationMinutes) {
+    return endsAt != null ? endsAt : getStartsAt().plusMinutes(durationMinutes);
+  }
+
+  public String getStatusLabel() {
+    return switch (status) {
+      case "PENDING_CONFIRMATION" -> "Chờ xác nhận";
+      case "CONFIRMED" -> "Đã xác nhận";
+      case "CANCELLED" -> "Đã hủy";
+      case "CHECKED_IN", "SEATED" -> "Đã nhận bàn";
+      case "COMPLETED" -> "Hoàn thành";
+      default -> status;
+    };
   }
 }

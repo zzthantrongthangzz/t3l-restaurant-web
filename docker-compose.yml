@@ -15,6 +15,10 @@ services:
       - t3l_mysql_data:/var/lib/mysql
       - ./database/mysql/01_schema_seed.sql:/docker-entrypoint-initdb.d/01_schema_seed.sql:ro
       - ./database/mysql/04_menu_catalog_seed.sql:/docker-entrypoint-initdb.d/04_menu_catalog_seed.sql:ro
+      - ./database/mysql/06_reservation_timeslots.sql:/docker-entrypoint-initdb.d/06_reservation_timeslots.sql:ro
+      - ./database/mysql/07_reservation_change_requests.sql:/docker-entrypoint-initdb.d/07_reservation_change_requests.sql:ro
+      - ./database/mysql/08_contact_messages.sql:/docker-entrypoint-initdb.d/08_contact_messages.sql:ro
+      - ./database/mysql/09_customer_registration.sql:/docker-entrypoint-initdb.d/09_customer_registration.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${MYSQL_ROOT_PASSWORD:-change-this-root-password}"]
       interval: 10s

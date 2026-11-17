@@ -4,7 +4,13 @@
   xmlns:th="http://www.thymeleaf.org"
   xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
 >
-  <head th:replace="~{web/layout :: head('Quản lý đặt bàn')}"> </head>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Quản lý đặt bàn | T3L Restaurant</title>
+    <link rel="stylesheet" th:href="@{/css/site.css(v=20261119)}" />
+    <link rel="stylesheet" th:href="@{/css/reservation-requests.css(v=20261117)}" />
+  </head>
   <body>
     <header class="topbar">
       <a class="brand" th:href="@{/}">
@@ -23,6 +29,7 @@
         <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/dishes}"
           >Quản lý thực đơn</a
         >
+        <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/contacts}">Liên hệ khách hàng</a>
         <form th:action="@{/logout}" method="post">
           <button class="text-button">Đăng xuất</button>
         </form>
@@ -36,6 +43,7 @@
       </div>
       <div class="alert error" th:if="${error}" th:text="${error}">
       </div>
+      <section th:replace="~{staff/fragments/reservation-requests :: queue}"></section>
       <div class="table-wrap">
         <table>
           <thead>
@@ -55,11 +63,11 @@
               <td th:text="${r.guestName}"></td>
               <td th:text="${r.table != null ? r.table.code : '—'}"></td>
               <td
-                th:text="${r.reservationDate} + ' · ' + ${r.reservationTime}"
+                th:text="${r.reservationDate + ' · ' + r.reservationTime + (r.endsAt != null ? '–' + #temporals.format(r.endsAt, 'HH:mm') : '')}"
               ></td>
               <td th:text="${r.guestCount}"></td>
               <td>
-                <span class="status" th:text="${r.status}"> </span>
+                <span class="status" th:text="${r.statusLabel}"> </span>
               </td>
               <td class="actions">
                 <form

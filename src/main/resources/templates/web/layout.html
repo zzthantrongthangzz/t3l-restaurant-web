@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title th:text="${title} + ' | T3L Restaurant'">T3L Restaurant</title>
-    <link rel="stylesheet" th:href="@{/css/site.css(v=20261119)}" />
+    <link rel="stylesheet" th:href="@{/css/site.css(v=20261117-fonts)}" />
   </head>
   <body>
     <header class="topbar">
@@ -29,7 +29,7 @@
       <div th:fragment="footer">
         <footer class="footer">
           <span>T3L Restaurant · Phục vụ tận tâm, mỗi ngày.</span>
-          <span>Đặt bàn trực tuyến · 08:00–22:00</span>
+          <span th:text="${'Đặt bàn trực tuyến · ' + @restaurantInfo.hours}"></span>
         </footer>
       </div>
     </main>

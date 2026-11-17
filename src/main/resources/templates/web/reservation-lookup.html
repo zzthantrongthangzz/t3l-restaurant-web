@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow,noarchive" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="theme-color" content="#171411" />
+    <title>Tra cứu đặt bàn | T3L Restaurant</title>
+    <link rel="stylesheet" th:href="@{/css/home.css(v=20261117-fonts)}" />
+    <link rel="stylesheet" th:href="@{/css/reservation.css(v=20261117-fonts)}" />
+    <link rel="stylesheet" th:href="@{/css/lookup.css(v=20261117)}" />
+  </head>
+  <body class="home lookup-page">
+    <a class="skip-link" href="#lookup-form">Chuyển đến form tra cứu</a>
+    <header th:replace="~{web/fragments/restaurant-shell :: header('lookup')}"></header>
+    <main id="main" class="lookup-main">
+      <div class="home-container">
+        <section class="lookup-intro" aria-labelledby="lookup-title">
+          <div><p class="home-eyebrow">T3L RESTAURANT / YOUR RESERVATION</p><h1 id="lookup-title">Cuộc hẹn của bạn.<br /><em>Luôn được chăm chút.</em></h1></div>
+          <p>Tra cứu thông tin, theo dõi xác nhận<br />và gửi yêu cầu cho buổi hẹn sắp tới.</p>
+        </section>
+
+        <form id="lookup-form" class="lookup-form" th:action="@{/reservations/lookup}" th:object="${lookupForm}" method="post">
+          <div class="lookup-form-top"><p class="home-eyebrow">TRA CỨU ĐẶT BÀN</p><span>Xác thực bằng thông tin đã dùng khi đặt bàn</span></div>
+          <div class="lookup-search-fields">
+            <div class="booking-field"><label for="code">Mã đặt bàn</label><input id="code" th:field="*{code}" placeholder="T3L-…" maxlength="20" autocomplete="off" spellcheck="false" required aria-describedby="code-error" th:attr="aria-invalid=${#fields.hasErrors('code')}" /><small id="code-error" class="booking-field-error" th:errors="*{code}"></small></div>
+            <div class="booking-field"><label for="phone">Số điện thoại đã đặt bàn</label><input type="tel" th:field="*{phone}" placeholder="Số điện thoại của bạn" maxlength="30" autocomplete="tel" required aria-describedby="lookup-phone-error" th:attr="aria-invalid=${#fields.hasErrors('phone')}" /><small id="lookup-phone-error" class="booking-field-error" th:errors="*{phone}"></small></div>
+            <button class="home-button" type="submit">Tra cứu đặt bàn <span aria-hidden="true">↗</span></button>
+          </div>
+          <p class="lookup-security-note">Thông tin chỉ hiển thị khi mã đặt bàn và số điện thoại khớp. Phiên tra cứu có hiệu lực 30 phút.</p>
+        </form>
+        <div class="lookup-alert is-error" role="alert" th:if="${lookupError}" th:text="${lookupError}"></div>
+        <div class="lookup-alert is-success" role="status" th:if="${lookupNotice}" th:text="${lookupNotice}"></div>
+
+        <th:block th:if="${reservation != null}">
+          <div class="lookup-result-heading"><div><p class="home-eyebrow">THÔNG TIN ĐẶT BÀN</p><h2>Hẹn bạn <em>tại T3L.</em></h2></div><a class="home-text-link" th:href="@{/reservations/lookup(code=${reservation.code})}">Cập nhật trạng thái <span aria-hidden="true">↻</span></a></div>
+          <div class="lookup-result-grid">
+            <section class="lookup-receipt" aria-labelledby="lookup-details-title">
+              <div class="lookup-receipt-top"><h3 id="lookup-details-title" th:text="${reservation.code}"></h3><span class="lookup-status" th:attr="data-status=${reservation.status}" th:text="${reservation.statusLabel}"></span></div>
+              <dl class="lookup-details">
+                <div><dt>Họ và tên</dt><dd th:text="${reservation.guestName}"></dd></div>
+                <div><dt>Số điện thoại</dt><dd th:text="${reservation.guestPhone}"></dd></div>
+                <div><dt>Ngày đến</dt><dd th:text="${#temporals.format(reservation.reservationDate, 'dd/MM/yyyy')}"></dd></div>
+                <div><dt>Giờ đến</dt><dd th:text="${#temporals.format(reservation.reservationTime, 'HH:mm') + (reservation.endsAt != null ? ' – ' + #temporals.format(reservation.endsAt, 'HH:mm') : '')}"></dd></div>
+                <div><dt>Số khách</dt><dd th:text="${reservation.guestCount + ' khách'}"></dd></div>
+                <div><dt>Khu vực được sắp xếp</dt><dd th:text="${reservation.table != null ? reservation.table.tableType : 'Chờ sắp xếp'}"></dd></div>
+                <div class="lookup-full"><dt>Khu vực ưu tiên</dt><dd th:text="${reservation.preferredArea != null and !reservation.preferredArea.isBlank() ? reservation.preferredArea : 'Để T3L sắp xếp'}"></dd></div>
+                <div class="lookup-full lookup-note"><dt>Ghi chú đặc biệt</dt><dd th:text="${reservation.note != null and !reservation.note.isBlank() ? reservation.note : 'Không có ghi chú đặc biệt.'}"></dd></div>
+              </dl>
+              <a class="home-text-link" th:href="@{/reservations/confirmation(code=${reservation.code})}">Xem trang xác nhận <span aria-hidden="true">↗</span></a>
+            </section>
+            <aside class="lookup-policy"><p class="home-eyebrow">LINH HOẠT CHO BUỔI HẸN</p><h2>Thay đổi kế hoạch?<br /><em>Để T3L hỗ trợ.</em></h2><div class="lookup-policy-time"><span>THỜI HẠN GỬI YÊU CẦU</span><strong th:text="${#temporals.format(deadline, 'HH:mm · dd/MM/yyyy')}"></strong></div><p>Yêu cầu hủy hoặc thay đổi cần được gửi và duyệt trước giờ đặt tối thiểu <strong>90 phút</strong>.</p><p>Lịch hiện tại vẫn được giữ chỗ trong thời gian chờ. Thay đổi chỉ có hiệu lực sau khi nhân viên duyệt và kiểm tra lại bàn trống.</p><a class="home-text-link" th:href="@{/faq}">Thông tin hỗ trợ <span aria-hidden="true">↗</span></a></aside>
+          </div>
+
+          <section class="lookup-request-actions" aria-label="Yêu cầu hỗ trợ đặt bàn">
+            <div class="lookup-alert" th:if="${blockedReason != null}" th:text="${blockedReason}"></div>
+            <th:block th:if="${blockedReason == null}">
+              <details class="lookup-disclosure" th:open="${changeOpen}">
+                <summary>Yêu cầu thay đổi lịch <span aria-hidden="true">↗</span></summary>
+                <form class="booking-form lookup-change-form" th:action="@{/reservations/lookup/{code}/change(code=${reservation.code})}" th:object="${changeForm}" method="post">
+                  <p>Chọn lịch mong muốn. Lịch mới cần được nhân viên xác nhận trước khi áp dụng.</p>
+                  <div class="booking-alert" role="alert" th:if="${#fields.hasAnyErrors()}"><ul><li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li></ul></div>
+                  <div class="booking-fields">
+                    <div class="booking-field"><label for="date">Ngày mới</label><input type="date" th:field="*{date}" th:min="${today}" required /><small class="booking-field-error" th:errors="*{date}"></small></div>
+                    <div class="booking-field"><label for="time">Giờ mới</label><select th:field="*{time}" required><option value="">Chọn giờ đến</option><option th:each="slot : ${timeSlots}" th:value="${slot}" th:text="${#temporals.format(slot, 'HH:mm')}"></option></select><small class="booking-field-error" th:errors="*{time}"></small></div>
+                    <div class="booking-field"><label for="guests">Số khách</label><input type="number" min="1" th:max="${maxGuests}" th:field="*{guests}" required /><small class="booking-field-error" th:errors="*{guests}"></small></div>
+                    <div class="booking-field"><label for="preferredArea">Khu vực ưu tiên</label><select th:field="*{preferredArea}"><option value="">Để T3L sắp xếp</option><option th:each="area : ${areas}" th:value="${area}" th:text="${area}"></option></select><small class="booking-field-error" th:errors="*{preferredArea}"></small></div>
+                    <div class="booking-field booking-full"><label for="reason">Lý do thay đổi <small>(tùy chọn)</small></label><textarea rows="3" th:field="*{reason}" maxlength="500" placeholder="Chia sẻ thay đổi trong kế hoạch của bạn…"></textarea><small class="booking-field-error" th:errors="*{reason}"></small></div>
+                  </div>
+                  <button class="home-button" type="submit">Gửi yêu cầu thay đổi <span aria-hidden="true">↗</span></button>
+                </form>
+              </details>
+              <details class="lookup-disclosure lookup-cancel" th:open="${cancelOpen}">
+                <summary>Yêu cầu hủy đặt bàn <span aria-hidden="true">↗</span></summary>
+                <form class="booking-form" th:action="@{/reservations/lookup/{code}/cancel(code=${reservation.code})}" th:object="${cancelForm}" method="post">
+                  <p>Yêu cầu này sẽ được nhân viên duyệt. Đặt bàn vẫn có hiệu lực cho đến khi việc hủy được xác nhận.</p>
+                  <div class="booking-alert" role="alert" th:if="${#fields.hasAnyErrors()}"><ul><li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li></ul></div>
+                  <div class="booking-field"><label for="cancel-reason">Lý do hủy <small>(tùy chọn)</small></label><textarea id="cancel-reason" name="reason" th:text="*{reason}" maxlength="500" rows="3" placeholder="Chia sẻ lý do để T3L hỗ trợ bạn tốt hơn…"></textarea><small class="booking-field-error" th:errors="*{reason}"></small></div>
+                  <button class="home-button" type="submit">Gửi yêu cầu hủy <span aria-hidden="true">↗</span></button>
+                </form>
+              </details>
+            </th:block>
+          </section>
+
+          <section class="lookup-history" th:if="${!#lists.isEmpty(history)}" aria-labelledby="history-title"><p class="home-eyebrow">ĐỒNG HÀNH CÙNG CUỘC HẸN</p><h2 id="history-title">Yêu cầu <em>của bạn.</em></h2>
+            <article class="lookup-history-card" th:each="item : ${history}">
+              <div class="lookup-history-top"><h3 th:text="${item.typeLabel}"></h3><span class="lookup-status" th:attr="data-status=${item.status}" th:text="${item.statusLabel}"></span></div>
+              <p class="lookup-history-date" th:text="${'Đã gửi ' + #temporals.format(item.createdAt, 'HH:mm · dd/MM/yyyy')}"></p>
+              <div class="lookup-history-schedule" th:if="${item.requestType == 'CHANGE'}"><p><span>Lịch trước thay đổi</span><strong th:text="${#temporals.format(item.originalDate, 'dd/MM/yyyy') + ' · ' + #temporals.format(item.originalTime, 'HH:mm') + ' · ' + item.originalGuests + ' khách'}"></strong></p><p><span>Lịch đề nghị</span><strong th:text="${#temporals.format(item.requestedDate, 'dd/MM/yyyy') + ' · ' + #temporals.format(item.requestedTime, 'HH:mm') + ' · ' + item.requestedGuests + ' khách'}"></strong><small th:text="${'Ưu tiên: ' + (item.requestedArea != null and !item.requestedArea.isBlank() ? item.requestedArea : 'Để T3L sắp xếp')}"></small></p></div>
+              <p class="lookup-history-text" th:if="${item.reason != null and !item.reason.isBlank()}" th:text="${'Lý do: ' + item.reason}"></p>
+              <p class="lookup-history-text" th:if="${item.reviewNote != null and !item.reviewNote.isBlank()}" th:text="${'Phản hồi từ T3L: ' + item.reviewNote}"></p>
+              <p class="lookup-history-date" th:if="${item.reviewedAt != null}" th:text="${'Đã xử lý ' + #temporals.format(item.reviewedAt, 'HH:mm · dd/MM/yyyy')}"></p>
+            </article>
+          </section>
+        </th:block>
+
+        <div class="lookup-bottom"><p>Bạn chưa có cuộc hẹn tại T3L?</p><a class="home-text-link" th:href="@{/reservations/new}">Đặt bàn ngay <span aria-hidden="true">↗</span></a></div>
+      </div>
+    </main>
+    <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
+    <script th:replace="~{web/fragments/restaurant-shell :: navigation}"></script>
+  </body>
+</html>

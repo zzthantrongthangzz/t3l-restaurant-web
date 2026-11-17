@@ -1,0 +1,65 @@
+/* Full character sets from google/fonts; SIL licenses accompany the WOFF2 files. */
+@font-face {
+  font-family: "Be Vietnam Pro";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/be-vietnam-pro-regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Be Vietnam Pro";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../fonts/be-vietnam-pro-medium.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Be Vietnam Pro";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../fonts/be-vietnam-pro-semibold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Be Vietnam Pro";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../fonts/be-vietnam-pro-bold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Playfair Display";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("../fonts/playfair-display-variable.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Playfair Display";
+  font-style: italic;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("../fonts/playfair-display-italic-variable.woff2") format("woff2");
+}
+/* Retain the existing internal dashboard typeface. Customer text uses the family above. */
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+  src: url("../fonts/dm-sans-variable.woff2") format("woff2");
+}
+:root {
+  --font-sans: "Be Vietnam Pro", Arial, sans-serif;
+  --font-serif: "Playfair Display", Georgia, "Times New Roman", serif;
+}
+/* FAQ and sign-in reuse site.css; leave staff/admin typography unchanged. */
+body.customer-page,
+body.customer-page button,
+body.customer-page input,
+body.customer-page select,
+body.customer-page textarea,
+body.customer-page .button,
+body.customer-page .text-button {
+  font-family: var(--font-sans);
+}

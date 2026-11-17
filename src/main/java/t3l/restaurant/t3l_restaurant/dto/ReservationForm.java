@@ -5,35 +5,41 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.format.annotation.DateTimeFormat;
 
 @Getter
 @Setter
 public class ReservationForm {
-  @NotBlank
-  @Size(max = 120)
+  @NotBlank(message = "Vui lòng nhập họ tên.")
+  @Size(max = 120, message = "Họ tên không vượt quá 120 ký tự.")
   private String guestName;
 
-  @NotBlank
-  @Pattern(regexp = "[+0-9() .-]{8,30}")
+  @NotBlank(message = "Vui lòng nhập số điện thoại.")
+  @Size(max = 30, message = "Số điện thoại không hợp lệ.")
+  @Pattern(regexp = "(?=(?:\\D*\\d){8,15}\\D*$)\\+?[0-9][0-9() .-]*[0-9]",
+      message = "Số điện thoại phải có từ 8 đến 15 chữ số.")
   private String guestPhone;
 
-  @Email
-  @Size(max = 180)
+  @Email(message = "Địa chỉ email không hợp lệ.")
+  @Size(max = 180, message = "Email không vượt quá 180 ký tự.")
   private String guestEmail;
 
-  @NotNull(message = "Vui lòng chọn bàn còn trống.")
-  @Positive
-  private Long tableId;
+  @Size(max = 40, message = "Khu vực ưu tiên không hợp lệ.")
+  private String preferredArea;
 
-  @NotNull @FutureOrPresent private LocalDate date;
-  @NotNull private LocalTime time;
+  @NotNull(message = "Vui lòng chọn ngày đến.")
+  @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+  private LocalDate date;
+  @NotNull(message = "Vui lòng chọn giờ đến.")
+  @DateTimeFormat(iso = DateTimeFormat.ISO.TIME)
+  private LocalTime time;
 
-  @NotNull
-  @Min(1)
-  @Max(20)
+  @NotNull(message = "Vui lòng chọn số khách.")
+  @Min(value = 1, message = "Số khách phải từ 1 người.")
+  @Max(value = 20, message = "Mỗi yêu cầu nhận tối đa 20 khách.")
   private Integer guests;
 
-  @Size(max = 500)
+  @Size(max = 500, message = "Ghi chú không vượt quá 500 ký tự.")
   private String note;
 
   @AssertTrue(message = "Vui lòng đồng ý với chính sách đặt bàn và quyền riêng tư.")

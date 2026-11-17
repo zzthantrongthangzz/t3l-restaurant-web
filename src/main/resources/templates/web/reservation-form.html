@@ -1,160 +1,179 @@
 <!doctype html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-  <head th:replace="~{web/layout :: head('Chọn bàn')}"> </head>
-  <body>
-    <header class="topbar">
-      <a class="brand" th:href="@{/}">
-        <span class="brand-mark">T3L</span>
-        <span>
-          <b>T3L Restaurant</b>
-          <small>Hương vị cho những dịp đáng nhớ</small>
-        </span>
-      </a>
-      <nav>
-        <a th:href="@{/}">Trang chủ</a>
-        <a th:href="@{/menu}">Thực đơn</a>
-        <a th:href="@{/faq}">FAQ</a>
-        <a sec:authorize="hasAnyRole('STAFF','ADMIN')" th:href="@{/staff/reservations}">Quản lý</a>
-        <a sec:authorize="isAnonymous()" th:href="@{/login}">Đăng nhập</a>
-        <form class="topbar-logout" sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post">
-          <button class="text-button" type="submit">Đăng xuất</button>
-        </form>
-        <a class="button button-small active" th:href="@{/reservations/new}">Đặt bàn</a>
-      </nav>
-    </header>
-
-    <main class="page inner-page reservation-page">
-      <div class="reservation-heading">
-        <div>
-          <span class="eyebrow">CHỌN CHỖ NGỒI PHÙ HỢP</span>
-          <h1>Đặt bàn tại T3L</h1>
-          <p class="lead">Chọn ngày để xem bàn nào còn trống trong ngày đó.</p>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description" content="Đặt bàn tại T3L Restaurant. Chọn ngày, giờ và số khách; T3L sẽ sắp xếp bàn phù hợp cho cuộc hẹn của bạn." />
+    <meta name="theme-color" content="#171411" />
+    <title>Đặt bàn | T3L Restaurant</title>
+    <link rel="stylesheet" th:href="@{/css/home.css(v=20261117-fonts)}" />
+    <link rel="stylesheet" th:href="@{/css/reservation.css(v=20261117-fonts)}" />
+  </head>
+  <body class="home booking-page">
+    <a class="skip-link" href="#booking-form">Chuyển đến form đặt bàn</a>
+    <header th:replace="~{web/fragments/restaurant-shell :: header('reservation')}"></header>
+    <main id="main">
+      <section class="booking-banner" aria-labelledby="booking-title">
+        <img th:src="@{/images/home/dining-room.jpg}" alt="Không gian dùng bữa với ánh đèn ấm — ảnh minh họa" width="1920" height="1280" fetchpriority="high" />
+        <div class="booking-banner-shade"></div>
+        <div class="home-container booking-banner-copy">
+          <nav class="booking-breadcrumb" aria-label="Đường dẫn"><a th:href="@{/}">Trang chủ</a><span aria-hidden="true">/</span><span aria-current="page">Đặt bàn</span></nav>
+          <p class="home-eyebrow">T3L RESTAURANT / RESERVATIONS</p>
+          <h1 id="booking-title">Đặt bàn<span aria-hidden="true">.</span></h1>
+          <p>Một chiếc bàn ấm cúng.<br /><em>Một cuộc hẹn đáng nhớ.</em></p>
         </div>
-      </div>
-
-      <form class="reservation-filters" th:action="@{/reservations/new}" method="get">
-        <label>
-          Ngày đến
-          <input type="date" name="date" th:value="${selectedDate}" required />
-        </label>
-        <button class="button filter-button" type="submit">Xem tình trạng bàn</button>
-      </form>
-
-      <div class="table-legend" aria-label="Chú thích trạng thái bàn">
-        <span><i class="legend-dot available"></i>Bàn trống</span>
-        <span><i class="legend-dot reserved"></i>Đã có khách đặt</span>
-      </div>
-
-      <section class="reservation-table-grid" aria-label="Danh sách bàn">
-        <button
-          class="reservation-table-card"
-          type="button"
-          data-table-card
-          th:each="option : ${tables}"
-          th:classappend="${option.available ? ' is-available' : ' is-reserved'}"
-          th:attr="data-table-id=${option.table.id},data-table-name=${option.table.code},data-table-type=${option.table.tableType},data-table-capacity=${option.table.capacity},data-available=${option.available}"
-          th:disabled="${!option.available}"
-        >
-          <span class="table-card-art" aria-hidden="true">
-            <span class="table-crown" th:if="${option.table.tableType == 'Phòng VIP'}">♛</span>
-            <span class="table-top"></span>
-            <span class="table-seat seat-top-left"></span>
-            <span class="table-seat seat-top-right"></span>
-            <span class="table-seat seat-bottom-left"></span>
-            <span class="table-seat seat-bottom-right"></span>
-          </span>
-          <span class="table-card-name" th:text="${option.table.code}">Bàn 001</span>
-          <span class="table-card-type" th:text="${option.table.tableType + ' · ' + option.table.capacity + ' chỗ'}">Bàn nhỏ · 2 chỗ</span>
-          <span
-            class="table-card-status"
-            th:text="${option.available ? 'Còn trống · Chọn bàn' : 'Đã có khách đặt'}"
-          >Còn trống · Chọn bàn</span>
-          <span
-            class="table-card-guest"
-            sec:authorize="hasAnyRole('STAFF','ADMIN')"
-            th:if="${option.guestName != null}"
-            th:text="${option.guestName}"
-          ></span>
-        </button>
-        <div class="reservation-empty" th:if="${#lists.isEmpty(tables)}">
-          Bàn đang được cập nhật. Vui lòng quay lại sau.
-        </div>
+        <span class="booking-photo-note">Ảnh không gian minh họa · Pexels</span>
       </section>
 
-      <dialog
-        class="reservation-dialog"
-        id="reservation-dialog"
-        th:attr="data-open=${openReservationModal}"
-      >
-        <div class="reservation-dialog-heading">
-          <div>
-            <span class="eyebrow">GỬI YÊU CẦU ĐẶT BÀN</span>
-            <h2>Thông tin của bạn</h2>
-          </div>
-          <button class="dialog-close" type="button" data-close-dialog aria-label="Đóng">×</button>
+      <section class="booking-section">
+        <div class="home-container booking-layout">
+          <aside class="booking-welcome" aria-labelledby="welcome-title">
+            <p class="home-eyebrow">HẸN GẶP BẠN TẠI T3L</p>
+            <h2 id="welcome-title">Dành thời gian<br />cho <em>điều đáng nhớ.</em></h2>
+            <p>Bạn chọn ngày và giờ. Chúng tôi sắp xếp chiếc bàn phù hợp để bạn tận hưởng trọn vẹn buổi hẹn.</p>
+            <div class="booking-facts">
+              <div><span>GIỜ PHỤC VỤ</span><p th:text="${#temporals.format(schedule.openingTime, 'HH:mm') + ' – ' + #temporals.format(schedule.closingTime, 'HH:mm')}"></p></div>
+              <div><span>THỜI GIAN DÙNG BỮA</span><p th:text="${schedule.durationMinutes + ' phút / lượt'}"></p></div>
+              <div><span>ĐỊA CHỈ</span><p th:text="${@restaurantInfo.address}"></p></div>
+            </div>
+            <div class="booking-how">
+              <span class="booking-how-mark" aria-hidden="true">↗</span>
+              <div><h3>Chỗ ngồi được sắp xếp tự động</h3><p>T3L chọn bàn theo số khách và lịch trống. Nếu khu vực ưu tiên hết chỗ, hệ thống sẽ sắp xếp khu vực khác còn phù hợp.</p></div>
+            </div>
+            <a class="home-text-link" th:href="@{/menu}">Khám phá thực đơn <span aria-hidden="true">→</span></a>
+          </aside>
+
+          <form id="booking-form" class="booking-form" th:action="@{/reservations}" th:object="${form}" method="post" th:attr="data-today=${today},data-zone=${schedule.timeZone}">
+            <div class="booking-form-heading"><p class="home-eyebrow">YÊU CẦU ĐẶT BÀN</p><h2>Thông tin buổi hẹn</h2><p>Các trường có dấu <span aria-hidden="true">*</span> là bắt buộc.</p></div>
+            <div class="booking-alert" id="booking-errors" role="alert" tabindex="-1" th:if="${#fields.hasAnyErrors()}">
+              <h3>Chưa thể gửi yêu cầu đặt bàn</h3>
+              <ul><li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li></ul>
+            </div>
+
+            <fieldset>
+              <legend><span>01</span> Thời gian &amp; chỗ ngồi</legend>
+              <div class="booking-fields">
+                <div class="booking-field">
+                  <label for="date">Ngày đến <span aria-hidden="true">*</span></label>
+                  <input type="date" th:field="*{date}" th:min="${today}" required aria-describedby="date-error" th:attr="aria-invalid=${#fields.hasErrors('date')}" />
+                  <small class="booking-field-error" id="date-error" th:errors="*{date}"></small>
+                </div>
+                <div class="booking-field">
+                  <label for="time">Giờ đến <span aria-hidden="true">*</span></label>
+                  <select th:field="*{time}" required aria-describedby="time-error time-hint" th:attr="aria-invalid=${#fields.hasErrors('time')}">
+                    <option value="">Chọn giờ đến</option>
+                    <option th:each="slot : ${timeSlots}" th:value="${slot}" th:text="${#temporals.format(slot, 'HH:mm')}"></option>
+                  </select>
+                  <small class="booking-field-error" id="time-error" th:errors="*{time}"></small>
+                  <small class="booking-hint" id="time-hint" th:text="${'Các lượt cách nhau ' + schedule.slotMinutes + ' phút.'}"></small>
+                </div>
+                <div class="booking-field">
+                  <label for="guests">Số khách <span aria-hidden="true">*</span></label>
+                  <input type="number" min="1" th:max="${maxGuests}" th:field="*{guests}" required aria-describedby="guests-error guests-hint" th:attr="aria-invalid=${#fields.hasErrors('guests')}" />
+                  <small class="booking-field-error" id="guests-error" th:errors="*{guests}"></small>
+                  <small class="booking-hint" id="guests-hint" th:text="${'Tối đa ' + maxGuests + ' khách cho một bàn.'}"></small>
+                </div>
+                <div class="booking-field">
+                  <label for="preferredArea">Khu vực ưu tiên <small>(tùy chọn)</small></label>
+                  <select th:field="*{preferredArea}" aria-describedby="area-error" th:attr="aria-invalid=${#fields.hasErrors('preferredArea')}">
+                    <option value="">Để T3L sắp xếp</option>
+                    <option th:each="area : ${areas}" th:value="${area}" th:text="${area}"></option>
+                  </select>
+                  <small class="booking-field-error" id="area-error" th:errors="*{preferredArea}"></small>
+                </div>
+              </div>
+              <p class="booking-duration-note">Mỗi lượt giữ bàn <strong th:text="${schedule.durationMinutes + ' phút'}"></strong>. Giờ nhận khách cuối: <strong th:text="${#temporals.format(schedule.lastArrival, 'HH:mm')}"></strong>.</p>
+            </fieldset>
+
+            <fieldset>
+              <legend><span>02</span> Thông tin liên hệ</legend>
+              <div class="booking-fields">
+                <div class="booking-field">
+                  <label for="guestName">Họ và tên <span aria-hidden="true">*</span></label>
+                  <input th:field="*{guestName}" maxlength="120" autocomplete="name" placeholder="Họ tên người đặt bàn" required aria-describedby="name-error" th:attr="aria-invalid=${#fields.hasErrors('guestName')}" />
+                  <small class="booking-field-error" id="name-error" th:errors="*{guestName}"></small>
+                </div>
+                <div class="booking-field">
+                  <label for="guestPhone">Số điện thoại <span aria-hidden="true">*</span></label>
+                  <input type="tel" th:field="*{guestPhone}" maxlength="30" autocomplete="tel" placeholder="Số điện thoại liên hệ" required aria-describedby="phone-error" th:attr="aria-invalid=${#fields.hasErrors('guestPhone')}" />
+                  <small class="booking-field-error" id="phone-error" th:errors="*{guestPhone}"></small>
+                </div>
+                <div class="booking-field booking-full">
+                  <label for="guestEmail">Email <small>(không bắt buộc)</small></label>
+                  <input type="email" th:field="*{guestEmail}" maxlength="180" autocomplete="email" placeholder="Địa chỉ email của bạn" aria-describedby="email-error" th:attr="aria-invalid=${#fields.hasErrors('guestEmail')}" />
+                  <small class="booking-field-error" id="email-error" th:errors="*{guestEmail}"></small>
+                </div>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend><span>03</span> Một chút riêng cho buổi hẹn</legend>
+              <div class="booking-field">
+                <label for="note">Ghi chú đặc biệt <small>(tùy chọn)</small></label>
+                <textarea rows="4" th:field="*{note}" maxlength="500" placeholder="Dị ứng thực phẩm, ghế trẻ em hoặc một dịp đặc biệt…" aria-describedby="note-error note-count" th:attr="aria-invalid=${#fields.hasErrors('note')}"></textarea>
+                <div class="booking-note-meta"><small class="booking-field-error" id="note-error" th:errors="*{note}"></small><small id="note-count">Tối đa 500 ký tự</small></div>
+              </div>
+            </fieldset>
+
+            <label class="booking-consent"><input type="checkbox" th:field="*{consentAccepted}" required aria-describedby="consent-error" /><span>Tôi đồng ý với <a th:href="@{/faq}" target="_blank" rel="noopener noreferrer">chính sách đặt bàn và quyền riêng tư</a> của T3L.</span></label>
+            <small class="booking-field-error" id="consent-error" th:errors="*{consentAccepted}"></small>
+            <button class="home-button booking-submit" type="submit">Gửi yêu cầu đặt bàn <span aria-hidden="true">↗</span></button>
+            <p class="booking-submit-note">Yêu cầu sẽ ở trạng thái <strong>Chờ xác nhận</strong>.<br />Nhân viên sẽ liên hệ để xác nhận chỗ ngồi với bạn.</p>
+          </form>
         </div>
-        <div class="selected-table-summary" data-selected-summary>
-          <strong data-selected-name>Bàn đã chọn</strong>
-          <span data-selected-details></span>
-          <span class="selected-reservation-date">Ngày đặt: <b th:text="${selectedDate}"></b></span>
-        </div>
-
-        <form class="form-card reservation-modal-form" th:action="@{/reservations}" th:object="${form}" method="post">
-          <input type="hidden" th:field="*{tableId}" data-table-id-field />
-          <input type="hidden" th:field="*{date}" />
-          <label class="reservation-time-field">
-            Giờ đến
-            <input type="time" th:field="*{time}" required />
-            <small class="field-error" th:errors="*{time}"></small>
-          </label>
-          <small class="field-error" th:errors="*{tableId}"></small>
-          <small class="field-error form-global-error" th:if="${#fields.hasGlobalErrors()}" th:each="error : ${#fields.globalErrors()}" th:text="${error}"></small>
-
-          <div class="form-grid">
-            <label>
-              Họ và tên
-              <input th:field="*{guestName}" placeholder="Tên người đặt" autocomplete="name" required />
-              <small class="field-error" th:errors="*{guestName}"></small>
-            </label>
-            <label>
-              Số điện thoại
-              <input th:field="*{guestPhone}" placeholder="09xx xxx xxx" autocomplete="tel" required />
-              <small class="field-error" th:errors="*{guestPhone}"></small>
-            </label>
-            <label>
-              Email <span>(không bắt buộc)</span>
-              <input type="email" th:field="*{guestEmail}" placeholder="ban@email.com" autocomplete="email" />
-              <small class="field-error" th:errors="*{guestEmail}"></small>
-            </label>
-            <label>
-              Số khách
-              <input type="number" min="1" max="20" th:field="*{guests}" data-guest-count placeholder="2" required />
-              <small class="field-error" th:errors="*{guests}"></small>
-            </label>
-            <label class="full">
-              Ghi chú <span>(không bắt buộc)</span>
-              <textarea rows="3" th:field="*{note}" placeholder="Dị ứng, ghế trẻ em hoặc dịp đặc biệt"></textarea>
-              <small class="field-error" th:errors="*{note}"></small>
-            </label>
-          </div>
-          <label class="consent full">
-            <input type="checkbox" th:field="*{consentAccepted}" />
-            <span>Tôi đồng ý với chính sách đặt bàn và quyền riêng tư của T3L.</span>
-            <small class="field-error" th:errors="*{consentAccepted}"></small>
-          </label>
-          <p class="form-hint">Yêu cầu sẽ ở trạng thái chờ xác nhận. Nhân viên sẽ liên hệ để xác nhận chỗ.</p>
-          <div class="reservation-form-actions">
-            <button class="button button-secondary" type="button" data-close-dialog>Quay lại chọn bàn</button>
-            <button class="button" type="submit">Gửi yêu cầu đặt bàn</button>
-          </div>
-        </form>
-      </dialog>
-
-      <footer class="footer">
-        <span>T3L Restaurant · Phục vụ tận tâm, mỗi ngày.</span>
-        <span>Yêu cầu chỉ được xác nhận sau khi nhân viên liên hệ.</span>
-      </footer>
+      </section>
     </main>
-    <script th:src="@{/js/reservations.js}" defer></script>
+    <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
+    <script th:replace="~{web/fragments/restaurant-shell :: navigation}"></script>
+    <script>
+      (() => {
+        const form = document.getElementById('booking-form');
+        const date = form.querySelector('#date');
+        const time = form.querySelector('#time');
+        const note = form.querySelector('#note');
+        const submit = form.querySelector('.booking-submit');
+        const submitContent = [...submit.childNodes].map(node => node.cloneNode(true));
+        const timeHint = document.getElementById('time-hint');
+        const defaultTimeHint = timeHint.textContent;
+        const localTime = new Intl.DateTimeFormat('en-GB', {
+          timeZone: form.dataset.zone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+        });
+        const localDate = new Intl.DateTimeFormat('en-CA', {
+          timeZone: form.dataset.zone, year: 'numeric', month: '2-digit', day: '2-digit'
+        });
+        const updateTimeOptions = () => {
+          const now = new Date();
+          const parts = Object.fromEntries(localDate.formatToParts(now).map(part => [part.type, part.value]));
+          const today = `${parts.year}-${parts.month}-${parts.day}`;
+          date.min = today;
+          const currentTime = localTime.format(now);
+          [...time.options].forEach(option => {
+            option.disabled = !!option.value && date.value === today && option.value <= currentTime;
+          });
+          if (time.selectedOptions[0]?.disabled) time.value = '';
+          timeHint.textContent = [...time.options].some(option => option.value && !option.disabled)
+            ? defaultTimeHint : 'Hôm nay đã hết giờ nhận khách. Vui lòng chọn ngày khác.';
+        };
+        updateTimeOptions();
+        date.addEventListener('change', updateTimeOptions);
+        time.addEventListener('focus', updateTimeOptions);
+        const updateCount = () => document.getElementById('note-count').textContent = `${note.value.length}/500 ký tự`;
+        updateCount();
+        note.addEventListener('input', updateCount);
+        form.addEventListener('submit', () => {
+          submit.disabled = true;
+          submit.textContent = 'Đang gửi yêu cầu…';
+          form.setAttribute('aria-busy', 'true');
+        });
+        window.addEventListener('pageshow', () => {
+          submit.disabled = false;
+          submit.replaceChildren(...submitContent.map(node => node.cloneNode(true)));
+          form.removeAttribute('aria-busy');
+          updateTimeOptions();
+        });
+        const errors = document.getElementById('booking-errors');
+        if (errors) errors.focus();
+      })();
+    </script>
   </body>
 </html>
