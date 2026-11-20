@@ -28,7 +28,8 @@
       </nav>
       <details th:replace="~{account/fragments/navigation :: dropdown}"></details>
     </header>
-    <footer th:fragment="footer" class="home-footer" id="contact">
+    <th:block th:fragment="footer">
+    <footer class="home-footer" id="contact">
       <div class="home-container">
         <div class="footer-grid">
           <div class="footer-intro">
@@ -42,6 +43,10 @@
         <div class="footer-bottom"><span>© <th:block th:text="${#temporals.year(#temporals.createNow())}">2026</th:block> T3L Restaurant.</span><span>ẨM THỰC &amp; KẾT NỐI</span><a href="#main">Lên đầu trang <span aria-hidden="true">↑</span></a></div>
       </div>
     </footer>
+    <th:block th:unless="${hideChat == true}">
+      <th:block th:replace="~{web/fragments/chatbox :: widget}"></th:block>
+    </th:block>
+    </th:block>
     <th:block th:fragment="navigation">
     <script>
       (() => {

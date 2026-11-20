@@ -128,6 +128,13 @@ public class ReservationService {
     return selectTable(activeTables, start, end, guests, preferred, excludedReservationId, false);
   }
 
+  @Transactional(readOnly = true)
+  public void checkAvailability(ReservationForm form) {
+    LocalDateTime end = schedule.validateAndGetEnd(form);
+    selectTable(tables.findByActiveTrueOrderByCodeAsc(), LocalDateTime.of(form.getDate(), form.getTime()),
+        end, form.getGuests(), "", null);
+  }
+
   private RestaurantTable selectTable(List<RestaurantTable> activeTables, LocalDateTime start,
       LocalDateTime end, int guests, String preferred, Long excludedReservationId, boolean immediate) {
     if (!preferred.isEmpty() && activeTables.stream().noneMatch(t -> preferred.equals(t.getTableType()))) {

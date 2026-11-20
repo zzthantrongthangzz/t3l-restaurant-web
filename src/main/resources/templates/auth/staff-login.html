@@ -33,7 +33,7 @@
         </section>
       </div>
     </main>
-    <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
+    <footer th:replace="~{web/fragments/restaurant-shell :: footer(hideChat=true)}"></footer>
     <script th:replace="~{web/fragments/restaurant-shell :: navigation}"></script>
     <script th:replace="~{auth/fragments/account-controls :: passwords}"></script>
   </body>

@@ -40,6 +40,21 @@ services:
       - t3l_mongo_data:/data/db
       - ./database/mongodb/01_faq_seed.js:/docker-entrypoint-initdb.d/01_faq_seed.js:ro
 
+  mongodb-vector:
+    image: mongodb/mongodb-atlas-local:8.0
+    profiles: ["atlas-local"]
+    hostname: mongodb-vector
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27019:27017"
+    volumes:
+      - t3l_vector_data:/data/db
+      - t3l_vector_config:/data/configdb
+      - t3l_vector_search:/data/mongot
+
 volumes:
   t3l_mysql_data:
   t3l_mongo_data:
+  t3l_vector_data:
+  t3l_vector_config:
+  t3l_vector_search:

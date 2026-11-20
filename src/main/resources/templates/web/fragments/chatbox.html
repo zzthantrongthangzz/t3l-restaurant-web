@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<th:block th:fragment="widget" sec:authorize="isAnonymous() or hasRole('BUYER')">
+  <link rel="stylesheet" th:href="@{/css/chatbox.css}" />
+  <section class="t3l-chat" aria-label="Trợ lý T3L Restaurant"
+           th:attr="data-chat-session=@{/chat/session},data-chat-messages=@{/chat/messages},data-chat-draft=@{/chat/booking-draft}">
+    <button type="button" class="t3l-chat-launcher" aria-expanded="false" aria-controls="t3l-chat-panel">
+      <span class="t3l-chat-icon" aria-hidden="true"></span><span>Trợ lý T3L</span>
+    </button>
+    <section id="t3l-chat-panel" class="t3l-chat-panel" aria-labelledby="t3l-chat-title" hidden>
+      <div class="t3l-chat-header">
+        <div><h2 id="t3l-chat-title">Trợ lý T3L</h2><p>T3L Restaurant · Trợ lý AI</p></div>
+        <button type="button" class="t3l-chat-close" aria-label="Đóng cuộc trò chuyện">×</button>
+      </div>
+      <div class="t3l-chat-stream" role="log" aria-label="Tin nhắn" aria-live="polite" tabindex="0">
+        <p class="t3l-chat-message">Chào bạn! Mình có thể tư vấn món, kiểm tra bàn trống và giải đáp thông tin về T3L Restaurant.</p>
+      </div>
+      <div class="t3l-chat-suggestions" aria-label="Câu hỏi gợi ý">
+        <button type="button" data-prompt="Nhà hàng mở cửa lúc nào?">Giờ mở cửa</button>
+        <button type="button" data-prompt="Tư vấn món cho 2 người">Gợi ý món</button>
+        <button type="button" data-prompt="Tôi muốn kiểm tra bàn trống">Kiểm tra bàn</button>
+        <button type="button" data-prompt="Xem lịch đặt bàn của tôi">Lịch đặt của tôi</button>
+      </div>
+      <div class="t3l-chat-notice" role="status" aria-live="polite" hidden></div>
+      <form class="t3l-chat-form">
+        <label for="t3l-chat-text" class="t3l-chat-screen-reader">Tin nhắn của bạn</label>
+        <textarea id="t3l-chat-text" rows="2" maxlength="800" placeholder="Nhắn cho trợ lý…" required></textarea>
+        <button type="submit" class="t3l-chat-send">Gửi</button>
+      </form>
+      <div class="t3l-chat-footer">
+        <span>Vui lòng tránh gửi thông tin cá nhân.</span>
+        <button type="button" class="t3l-chat-clear">Xóa lịch sử</button>
+      </div>
+    </section>
+  </section>
+  <script defer th:src="@{/js/chatbox.js}"></script>
+</th:block>
+</body>
+</html>
