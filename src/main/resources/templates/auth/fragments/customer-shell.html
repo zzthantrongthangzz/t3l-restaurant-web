@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:fragment="page(title, content)">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#171411" />
+    <title th:text="${title + ' | T3L Restaurant'}">T3L Restaurant</title>
+    <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
+    <link rel="stylesheet" th:href="@{/css/login.css(v=20261120-typography)}" />
+  </head>
+  <body class="home login-page">
+    <a class="skip-link" href="#main">Chuyển đến nội dung</a>
+    <header th:replace="~{web/fragments/restaurant-shell :: header('login')}"></header>
+    <main id="main" class="login-scene">
+      <img class="login-background" th:src="@{/images/home/dining-room.jpg}" alt="" width="1800" height="1200" fetchpriority="high" />
+      <div class="login-shade" aria-hidden="true"></div>
+      <div class="home-container auth-center">
+        <section class="login-panel auth-card" aria-labelledby="auth-title">
+          <div class="login-panel-heading"><h1 id="auth-title" th:text="${title}"></h1></div>
+          <th:block th:replace="${content}"></th:block>
+        </section>
+      </div>
+    </main>
+    <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
+    <script th:replace="~{web/fragments/restaurant-shell :: navigation}"></script>
+  </body>
+</html>

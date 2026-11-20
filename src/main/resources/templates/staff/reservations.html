@@ -1,114 +1,49 @@
 <!doctype html>
-<html
-  lang="vi"
-  xmlns:th="http://www.thymeleaf.org"
-  xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
->
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Quản lý đặt bàn | T3L Restaurant</title>
-    <link rel="stylesheet" th:href="@{/css/site.css(v=20261119)}" />
-    <link rel="stylesheet" th:href="@{/css/reservation-requests.css(v=20261117)}" />
-  </head>
-  <body>
-    <header class="topbar">
-      <a class="brand" th:href="@{/}">
-        <span class="brand-mark">T3L</span>
-        <span>
-          <b>T3L Restaurant</b>
-          <small>Khu vực nhân viên</small>
-        </span>
-      </a>
-      <nav>
-        <a th:href="@{/}">Trang chủ</a>
-        <a th:href="@{/menu}">Thực đơn</a>
-        <a th:href="@{/reservations/new}">Đặt bàn</a>
-        <span class="nav-label">Quản lý đặt bàn</span>
-        <a th:href="@{/staff/shift}">Ca làm &amp; doanh thu</a>
-        <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/dishes}"
-          >Quản lý thực đơn</a
-        >
-        <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/contacts}">Liên hệ khách hàng</a>
-        <form th:action="@{/logout}" method="post">
-          <button class="text-button">Đăng xuất</button>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: head('Quản lý đặt bàn')}"></head>
+  <body class="staff-page" th:classappend="${opsBase == '/admin' ? 'admin-page' : ''}">
+    <header th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: header('reservations')}"></header>
+    <main class="staff-main">
+      <div class="staff-page-heading">
+        <div><h1>Quản lý đặt bàn</h1><p>Tìm lượt đặt, cập nhật lịch và xử lý yêu cầu của khách.</p></div>
+        <a class="staff-button" th:href="@{${opsBase + '/reservations/new'}}">Tạo đặt bàn</a>
+      </div>
+      <div th:replace="~{staff/fragments/shell :: messages}"></div>
+      <section class="staff-panel" aria-labelledby="reservation-list-title">
+        <div class="staff-panel-heading"><h2 id="reservation-list-title">Danh sách đặt bàn</h2>
+          <a class="staff-link" href="#request-queue-title" th:text="${'Đổi lịch / hủy (' + #lists.size(changeRequests) + ')'}"></a>
+        </div>
+        <form class="staff-filters" th:action="@{${opsBase + '/reservations'}}" method="get">
+          <label class="staff-field">Ngày đến <input type="date" name="date" th:value="${date}" /></label>
+          <label class="staff-field">Trạng thái <select name="status"><option value="">Tất cả</option>
+            <option th:each="option : ${statuses}" th:value="${option.key}" th:text="${option.value}" th:selected="${option.key == status}"></option>
+          </select></label>
+          <label class="staff-field">Tên khách <input name="name" th:value="${name}" maxlength="120" /></label>
+          <label class="staff-field">Số điện thoại <input name="phone" inputmode="tel" th:value="${phone}" maxlength="30" /></label>
+          <label class="staff-field">Mã đặt bàn <input name="code" th:value="${code}" maxlength="20" /></label>
+          <div class="staff-actions"><button class="staff-button" type="submit">Lọc</button><a class="staff-link" th:href="@{${opsBase + '/reservations'}}">Bỏ lọc</a></div>
         </form>
-      </nav>
-    </header>
-    <main class="page inner-page">
-      <span class="eyebrow">VẬN HÀNH NHÀ HÀNG</span>
-      <h1>Yêu cầu đặt bàn</h1>
-      <p class="lead">Các yêu cầu gần đây của khách hàng.</p>
-      <div class="alert success" th:if="${notice}" th:text="${notice}">
-      </div>
-      <div class="alert error" th:if="${error}" th:text="${error}">
-      </div>
+        <p class="staff-result-count" th:text="${results.totalElements + ' lượt đặt bàn'}"></p>
+        <p class="staff-empty" th:if="${results.empty}">Không có lượt đặt phù hợp.</p>
+        <div class="staff-table-wrap" th:unless="${results.empty}">
+          <table class="staff-table">
+            <thead><tr><th scope="col">Đặt bàn</th><th scope="col">Khách</th><th scope="col">Lịch đến</th><th scope="col">Bàn</th><th scope="col">Trạng thái</th></tr></thead>
+            <tbody><tr th:each="booking : ${results.content}">
+              <td data-label="Đặt bàn"><a class="staff-link staff-code" th:href="@{${opsBase + '/reservations/{id}'}(id=${booking.id})}" th:text="${booking.code}"></a></td>
+              <td data-label="Khách"><strong th:text="${booking.guestName}"></strong><small th:unless="${#strings.isEmpty(booking.guestPhone)}" th:text="${booking.guestPhone}"></small></td>
+              <td data-label="Lịch đến"><strong th:text="${#temporals.format(booking.startsAt, 'dd/MM/yyyy · HH:mm')}"></strong><small th:text="${booking.guestCount + ' khách'}"></small></td>
+              <td data-label="Bàn" th:text="${booking.table == null ? 'Chưa phân bàn' : booking.table.code}"></td>
+              <td data-label="Trạng thái"><span th:replace="~{staff/fragments/shell :: status(${booking})}"></span></td>
+            </tr></tbody>
+          </table>
+        </div>
+        <nav class="staff-pagination" aria-label="Phân trang đặt bàn" th:if="${results.totalPages > 1}">
+          <a class="staff-link" th:if="${results.hasPrevious()}" th:href="@{${opsBase + '/reservations'}(date=${date},status=${status},name=${name},phone=${phone},code=${code},page=${results.number - 1})}">Trang trước</a>
+          <span th:text="${'Trang ' + (results.number + 1) + ' / ' + results.totalPages}"></span>
+          <a class="staff-link" th:if="${results.hasNext()}" th:href="@{${opsBase + '/reservations'}(date=${date},status=${status},name=${name},phone=${phone},code=${code},page=${results.number + 1})}">Trang sau</a>
+        </nav>
+      </section>
       <section th:replace="~{staff/fragments/reservation-requests :: queue}"></section>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Mã đặt</th>
-              <th>Khách</th>
-              <th>Bàn</th>
-              <th>Ngày giờ</th>
-              <th>Số khách</th>
-              <th>Trạng thái</th>
-              <th>Xử lý</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr th:each="r : ${reservations}">
-              <td class="code" th:text="${r.code}"></td>
-              <td th:text="${r.guestName}"></td>
-              <td th:text="${r.table != null ? r.table.code : '—'}"></td>
-              <td
-                th:text="${r.reservationDate + ' · ' + r.reservationTime + (r.endsAt != null ? '–' + #temporals.format(r.endsAt, 'HH:mm') : '')}"
-              ></td>
-              <td th:text="${r.guestCount}"></td>
-              <td>
-                <span class="status" th:text="${r.statusLabel}"> </span>
-              </td>
-              <td class="actions">
-                <form
-                  th:if="${r.status == 'PENDING_CONFIRMATION'}"
-                  th:action="@{/staff/reservations/{id}/status(id=${r.id})}"
-                  method="post"
-                >
-                  <input
-                    type="hidden"
-                    name="status"
-                    value="CONFIRMED"
-                  />
-                  <button class="text-button" type="submit">
-                    Xác nhận
-                  </button>
-                </form>
-                <form
-                  th:if="${r.status != 'CANCELLED'}"
-                  th:action="@{/staff/reservations/{id}/status(id=${r.id})}"
-                  method="post"
-                >
-                  <input
-                    type="hidden"
-                    name="status"
-                    value="CANCELLED"
-                  />
-                  <button class="text-button danger" type="submit">
-                    Hủy
-                  </button>
-                </form>
-              </td>
-            </tr>
-            <tr th:if="${#lists.isEmpty(reservations)}">
-              <td colspan="7" class="empty-cell">Chưa có yêu cầu đặt bàn.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <footer class="footer">
-        <span>T3L Restaurant · Khu vực nội bộ</span>
-      </footer>
     </main>
   </body>
 </html>

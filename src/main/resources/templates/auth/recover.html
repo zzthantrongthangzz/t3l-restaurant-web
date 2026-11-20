@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+    th:replace="~{auth/fragments/customer-shell :: page('Khôi phục tài khoản cũ', ~{::content})}">
+  <body>
+    <th:block th:fragment="content">
+      <p class="auth-help" th:if="${recoveryPending}">Xác nhận thông tin đăng nhập cũ để giữ lịch sử đặt bàn và dữ liệu tài khoản.</p>
+      <p class="login-notice login-notice-error" role="alert" th:if="${recoveryError != null}" th:text="${recoveryError}"></p>
+      <p class="auth-help" th:unless="${recoveryPending}">Hãy đăng nhập lại bằng Google hoặc SMS để bắt đầu xác minh.</p>
+      <form class="login-form" th:if="${recoveryPending}" th:action="@{/login/recover}" method="post">
+        <div class="login-field"><label for="old-username">Tên đăng nhập cũ</label><input id="old-username" name="username" autocomplete="username" maxlength="80" required /></div>
+        <div class="login-field"><label for="old-password">Mật khẩu cũ</label><input id="old-password" name="password" type="password" maxlength="72" autocomplete="current-password" required /></div>
+        <button class="home-button login-submit" type="submit">Giữ tài khoản và lịch sử</button>
+      </form>
+      <form class="login-form" th:if="${canCreateNew}" th:action="@{/login/recover/new}" method="post">
+        <button class="login-google auth-option" type="submit">Tiếp tục với tài khoản mới</button>
+        <small class="auth-help">Lịch sử cũ sẽ được giữ trong tài khoản cũ.</small>
+      </form>
+      <a class="login-home-link" th:href="@{/login}">Quay lại đăng nhập</a>
+    </th:block>
+  </body>
+</html>

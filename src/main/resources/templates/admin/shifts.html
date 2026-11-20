@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/fragments/shell :: head('Ca làm và đối soát')}"></head>
+<body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('shift')}"></header>
+<main class="staff-main">
+  <div class="staff-page-heading"><div><h1>Ca làm &amp; đối soát</h1><p>Tra cứu ca đã mở và kết quả đối soát tiền mặt cuối ca.</p></div>
+    <a class="staff-button is-outline" th:href="@{/admin/shift}">Ca của tôi</a></div>
+  <section class="staff-panel">
+    <form th:replace="~{admin/fragments/report :: filters('/admin/shifts','shifts')}"></form>
+    <p class="staff-empty" th:if="${rows.content.isEmpty()}">Chưa có ca phù hợp.</p>
+    <div class="staff-table-wrap" th:unless="${rows.content.isEmpty()}"><table class="staff-table"><thead><tr><th>Ca</th><th>Nhân viên</th><th>Mở / kết ca</th><th>Theo sổ</th><th>Thực đếm</th><th>Chênh lệch</th></tr></thead><tbody>
+      <tr th:each="row : ${rows.content}">
+        <td data-label="Ca"><a class="staff-link" th:href="@{/admin/shift(id=${row.id})}" th:text="${'Ca #' + row.id}"></a><small th:text="${row.status == 'OPEN' ? 'Đang mở' : 'Đã kết ca'}"></small></td>
+        <td data-label="Nhân viên" th:text="${row.employee}"></td>
+        <td data-label="Mở / kết ca"><span th:text="${#temporals.format(row.opened,'dd/MM/yyyy HH:mm')}"></span>
+          <small th:if="${row.closed}" th:text="${#temporals.format(row.closed,'dd/MM/yyyy HH:mm')}"></small></td>
+        <td data-label="Theo sổ"><span th:replace="~{admin/fragments/shell :: money(${row.expected})}"></span></td>
+        <td data-label="Thực đếm"><span th:replace="~{admin/fragments/shell :: money(${row.counted})}"></span></td>
+        <td data-label="Chênh lệch"><span th:replace="~{admin/fragments/shell :: money(${row.difference})}"></span></td>
+      </tr></tbody></table></div>
+    <nav th:replace="~{admin/fragments/report :: pages('/admin/shifts')}"></nav>
+  </section>
+</main></body></html>

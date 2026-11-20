@@ -16,13 +16,17 @@
         <a th:href="@{/about#gallery}">Không gian</a>
         <a th:classappend="${activePage == 'contact'} ? 'is-current'" th:href="@{/contact}" th:attr="aria-current=${activePage == 'contact' ? 'page' : null}">Liên hệ</a>
         <a th:classappend="${activePage == 'lookup'} ? 'is-current'" th:href="@{/reservations/lookup}" th:attr="aria-current=${activePage == 'lookup' ? 'page' : null}">Tra cứu đặt bàn</a>
-        <a sec:authorize="hasAnyRole('STAFF','ADMIN')" th:href="@{/staff/reservations}">Quản lý</a>
-        <a sec:authorize="isAnonymous()" th:classappend="${activePage == 'login'} ? 'is-current'" th:href="@{/login}" th:attr="aria-current=${activePage == 'login' ? 'page' : null}">Đăng nhập</a>
-        <form sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post">
+        <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/dashboard}">Quản trị</a>
+        <a sec:authorize="hasRole('STAFF')" th:href="@{/staff/dashboard}">Vận hành</a>
+        <a sec:authorize="isAnonymous()" data-header-login th:classappend="${activePage == 'login'} ? 'is-current'"
+            th:href="${loginReturnTo == null} ? @{/login} : @{/login(returnTo=${loginReturnTo})}"
+            th:attr="aria-current=${activePage == 'login' ? 'page' : null}">Đăng nhập</a>
+        <form sec:authorize="hasAnyRole('STAFF','ADMIN')" th:action="@{/logout}" method="post">
           <button class="logout-link" type="submit">Đăng xuất</button>
         </form>
         <a class="home-button home-button-outline nav-booking" th:href="@{/reservations/new}" th:attr="aria-current=${activePage == 'reservation' ? 'page' : null}">Đặt bàn <span aria-hidden="true">↗</span></a>
       </nav>
+      <details th:replace="~{account/fragments/navigation :: dropdown}"></details>
     </header>
     <footer th:fragment="footer" class="home-footer" id="contact">
       <div class="home-container">
@@ -38,7 +42,8 @@
         <div class="footer-bottom"><span>© <th:block th:text="${#temporals.year(#temporals.createNow())}">2026</th:block> T3L Restaurant.</span><span>ẨM THỰC &amp; KẾT NỐI</span><a href="#main">Lên đầu trang <span aria-hidden="true">↑</span></a></div>
       </div>
     </footer>
-    <script th:fragment="navigation">
+    <th:block th:fragment="navigation">
+    <script>
       (() => {
         const header = document.getElementById('home-header');
         const toggle = document.querySelector('.nav-toggle');
@@ -49,11 +54,16 @@
           toggle.querySelector('.nav-toggle-label').textContent = open ? 'Đóng menu' : 'Mở menu';
           header.classList.toggle('menu-open', open);
           nav.inert = mobile.matches && !open;
+          if (open) {
+            const account = header.querySelector('.customer-menu');
+            if (account) account.open = false;
+          }
         };
         toggle.hidden = false;
         header.classList.add('nav-ready');
         setMenu(false);
         toggle.addEventListener('click', () => setMenu(toggle.getAttribute('aria-expanded') !== 'true'));
+        header.querySelector('.customer-menu > summary')?.addEventListener('click', () => setMenu(false));
         nav.addEventListener('click', (event) => {
           if (event.target.closest('a')) setMenu(false);
         });
@@ -72,5 +82,7 @@
         window.addEventListener('scroll', updateHeader, { passive: true });
       })();
     </script>
+    <script th:replace="~{account/fragments/navigation :: dropdownControls}"></script>
+    </th:block>
   </body>
 </html>

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <body>
+    <div th:fragment="content">
+      <nav class="account-tabs" aria-label="Hóa đơn VAT">
+        <a th:href="@{/account/invoices}" th:attr="aria-current=${tab == 'list' ? 'page' : null}">Hóa đơn điện tử (VAT)</a>
+        <a th:href="@{/account/invoices(tab='company')}" th:attr="aria-current=${tab == 'company' ? 'page' : null}">Thông tin công ty</a>
+      </nav>
+      <div th:if="${tab == 'list'}">
+        <section aria-labelledby="invoice-list-title">
+          <h2 id="invoice-list-title">Hóa đơn điện tử của bạn</h2>
+          <div th:replace="~{account/fragments/activity :: empty('invoices','Chưa có hóa đơn điện tử (VAT)',null)}"></div>
+        </section>
+        <section class="account-subsection" aria-labelledby="invoice-request-title">
+          <h2 id="invoice-request-title">Yêu cầu xuất hóa đơn VAT</h2>
+          <div th:replace="~{account/fragments/activity :: empty('orders','Chưa có đơn hàng đủ điều kiện','Bạn có thể yêu cầu hóa đơn cho đơn hàng đã hoàn tất và chưa được xuất hóa đơn.')}"></div>
+          <form class="account-form account-invoice-form">
+            <fieldset disabled>
+              <div class="account-field">
+                <label for="invoice-order">Đơn hàng</label>
+                <select id="invoice-order"><option>Chưa có đơn hàng để chọn</option></select>
+              </div>
+              <div class="account-field">
+                <label for="invoice-recipient">Thông tin xuất hóa đơn</label>
+                <input id="invoice-recipient" th:value="${companyForm.companyName}" placeholder="Thông tin công ty đã lưu" />
+              </div>
+              <button class="account-button is-primary" type="submit">Gửi yêu cầu</button>
+            </fieldset>
+            <a class="account-text-action" th:href="@{/account/invoices(tab='company')}">Cập nhật thông tin công ty</a>
+          </form>
+        </section>
+      </div>
+      <form class="account-form" th:if="${tab == 'company'}" th:action="@{/account/invoices/company}"
+          th:object="${companyForm}" method="post">
+        <div class="account-fields">
+          <div class="account-field">
+            <label for="companyName">Tên công ty</label>
+            <input th:field="*{companyName}" autocomplete="organization" maxlength="180" required />
+            <small th:errors="*{companyName}"></small>
+          </div>
+          <div class="account-field">
+            <label for="taxCode">Mã số thuế</label>
+            <input th:field="*{taxCode}" maxlength="14" required />
+            <small th:errors="*{taxCode}"></small>
+          </div>
+          <div class="account-field account-full">
+            <label for="companyAddress">Địa chỉ công ty</label>
+            <textarea th:field="*{companyAddress}" rows="3" autocomplete="street-address" maxlength="300" required></textarea>
+            <small th:errors="*{companyAddress}"></small>
+          </div>
+          <div class="account-field account-full">
+            <label for="invoiceEmail">Email nhận hóa đơn</label>
+            <input type="email" th:field="*{invoiceEmail}" autocomplete="email" maxlength="254" required />
+            <small th:errors="*{invoiceEmail}"></small>
+          </div>
+        </div>
+        <div class="account-form-actions"><button class="account-button is-primary" type="submit">Lưu thông tin công ty</button></div>
+      </form>
+    </div>
+  </body>
+</html>

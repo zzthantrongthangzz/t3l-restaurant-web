@@ -1,22 +1,30 @@
 <!doctype html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
-  <head th:fragment="contactHead(title)">
-    <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /><meta name="robots" content="noindex,nofollow" />
-    <title th:text="${(title ?: 'Chi tiết liên hệ') + ' | T3L Restaurant'}"></title><link rel="stylesheet" th:href="@{/css/site.css(v=20261119)}" /><link rel="stylesheet" th:href="@{/css/admin-contacts.css(v=20261117)}" />
-  </head>
-  <body>
-    <header class="topbar" th:fragment="contactHeader">
-      <a class="brand" th:href="@{/}"><span class="brand-mark">T3L</span><span><b>T3L Restaurant</b><small>Khu vực quản trị</small></span></a>
-      <nav><a th:href="@{/staff/reservations}">Đặt bàn</a><a th:href="@{/staff/shift}">Ca làm &amp; doanh thu</a><a th:href="@{/admin/dishes}">Thực đơn</a><a class="active" th:href="@{/admin/contacts}">Liên hệ</a><form th:action="@{/logout}" method="post"><button class="text-button">Đăng xuất</button></form></nav>
-    </header>
-    <main class="page inner-page admin-contacts">
-      <a class="text-link" th:href="@{/admin/contacts}">← Danh sách liên hệ</a>
-      <div class="contact-admin-title"><span class="eyebrow">LỜI NHẮN CỦA KHÁCH HÀNG</span><h1 th:text="${contact.subject}"></h1><span class="status" th:text="${contact.statusLabel}"></span></div>
-      <div class="alert success" th:if="${notice}" th:text="${notice}" role="status"></div><div class="alert error" th:if="${error}" th:text="${error}" role="alert"></div>
-      <div class="contact-admin-grid">
-        <section class="form-card"><h2>Thông tin liên hệ</h2><dl class="contact-admin-details"><div><dt>Họ và tên</dt><dd th:text="${contact.name}"></dd></div><div><dt>Email</dt><dd th:text="${contact.email}"></dd></div><div><dt>Số điện thoại</dt><dd th:text="${contact.phone}"></dd></div><div><dt>Thời gian gửi</dt><dd th:text="${#temporals.format(contact.createdAt, 'dd/MM/yyyy HH:mm') + ' · Giờ Việt Nam'}"></dd></div></dl><h2>Nội dung</h2><p class="contact-admin-message" th:text="${contact.message}"></p></section>
-        <section class="form-card"><h2>Xử lý liên hệ</h2><form class="contact-admin-update" th:action="@{/admin/contacts/{id}/status(id=${contact.id})}" method="post"><input type="hidden" name="version" th:value="${contact.version}" /><label for="contact-status">Trạng thái</label><select id="contact-status" name="status"><option value="NEW" th:selected="${contact.status == 'NEW'}">Mới tiếp nhận</option><option value="IN_PROGRESS" th:selected="${contact.status == 'IN_PROGRESS'}">Đang xử lý</option><option value="RESOLVED" th:selected="${contact.status == 'RESOLVED'}">Đã xử lý</option></select><label for="admin-note">Ghi chú nội bộ</label><textarea id="admin-note" name="adminNote" rows="6" maxlength="1000" th:text="${contact.adminNote}"></textarea><small>Ghi chú chỉ dành cho Admin. Hệ thống không tự gửi email hoặc SMS.</small><button class="button" type="submit">Lưu cập nhật</button></form><p class="contact-admin-audit" th:if="${contact.handledBy != null}" th:text="${'Cập nhật bởi ' + contact.handledBy + ' · ' + #temporals.format(contact.updatedAt, 'dd/MM/yyyy HH:mm')}"></p></section>
-      </div>
-    </main>
-  </body>
-</html>
+<head th:replace="~{admin/fragments/shell :: head('Chi tiết liên hệ')}"></head>
+<body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('contacts')}"></header>
+<main class="staff-main">
+  <a class="staff-link staff-back" th:href="@{/admin/contacts}">Danh sách liên hệ</a>
+  <div class="staff-page-heading"><h1 th:text="${contact.subject}"></h1><span class="staff-badge" th:text="${contact.statusLabel}"></span></div>
+  <div th:replace="~{admin/fragments/shell :: messages}"></div>
+  <div class="staff-split">
+    <section class="staff-panel"><h2>Thông tin liên hệ</h2>
+      <dl class="staff-details"><div><dt>Họ và tên</dt><dd th:text="${contact.name}"></dd></div><div><dt>Email</dt><dd th:text="${contact.email}"></dd></div>
+        <div><dt>Số điện thoại</dt><dd th:text="${contact.phone}"></dd></div><div><dt>Thời gian gửi</dt><dd th:text="${#temporals.format(contact.createdAt,'dd/MM/yyyy HH:mm')}"></dd></div></dl>
+      <h2>Nội dung</h2><p class="staff-note" th:text="${contact.message}"></p>
+    </section>
+    <section class="staff-panel"><h2>Xử lý liên hệ</h2>
+      <form class="staff-form" th:action="@{/admin/contacts/{id}/status(id=${contact.id})}" method="post">
+        <input type="hidden" name="version" th:value="${contact.version}" />
+        <label class="staff-field">Trạng thái<select name="status">
+          <option value="NEW" th:selected="${contact.status == 'NEW'}">Mới tiếp nhận</option>
+          <option value="IN_PROGRESS" th:selected="${contact.status == 'IN_PROGRESS'}">Đang xử lý</option>
+          <option value="RESOLVED" th:selected="${contact.status == 'RESOLVED'}">Đã xử lý</option>
+        </select></label>
+        <label class="staff-field">Ghi chú nội bộ<textarea name="adminNote" rows="6" maxlength="1000" th:text="${contact.adminNote}"></textarea>
+          <small>Ghi chú chỉ dành cho Admin. Hệ thống không tự gửi email hoặc SMS.</small></label>
+        <div class="staff-actions"><button class="staff-button" type="submit">Lưu cập nhật</button></div>
+      </form>
+      <p class="staff-muted" th:if="${contact.handledBy != null}" th:text="${'Cập nhật bởi ' + contact.handledBy + ' · ' + #temporals.format(contact.updatedAt, 'dd/MM/yyyy HH:mm')}"></p>
+    </section>
+  </div>
+</main></body></html>

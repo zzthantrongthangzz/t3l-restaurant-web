@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/fragments/shell :: head('Nhật ký quản trị')}"></head>
+<body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('activity')}"></header>
+<main class="staff-main">
+  <div class="staff-page-heading"><div><h1>Nhật ký quản trị</h1><p>Tra cứu các thay đổi tài khoản, danh mục, bàn và cấu hình.</p></div></div>
+  <section class="staff-panel">
+    <form th:replace="~{admin/fragments/report :: filters('/admin/activity','activity')}"></form>
+    <p class="staff-empty" th:if="${rows.content.isEmpty()}">Chưa có thay đổi trong khoảng thời gian này.</p>
+    <div class="staff-table-wrap" th:unless="${rows.content.isEmpty()}"><table class="staff-table"><thead><tr><th>Thời gian</th><th>Quản trị viên</th><th>Thao tác</th><th>Đối tượng</th></tr></thead><tbody>
+      <tr th:each="row : ${rows.content}">
+        <td data-label="Thời gian" th:text="${#temporals.format(row.time,'dd/MM/yyyy HH:mm')}"></td>
+        <td data-label="Quản trị viên" th:text="${row.actor}"></td><td data-label="Thao tác" th:text="${row.operation}"></td>
+        <td data-label="Đối tượng" th:text="${row.target}"></td>
+      </tr></tbody></table></div>
+    <nav th:replace="~{admin/fragments/report :: pages('/admin/activity')}"></nav>
+  </section>
+</main></body></html>

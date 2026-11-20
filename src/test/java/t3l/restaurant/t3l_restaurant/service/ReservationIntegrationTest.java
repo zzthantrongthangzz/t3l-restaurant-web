@@ -29,8 +29,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 import t3l.restaurant.t3l_restaurant.dto.ReservationForm;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
 import t3l.restaurant.t3l_restaurant.entity.RestaurantTable;
+import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.repository.ReservationRepository;
 import t3l.restaurant.t3l_restaurant.repository.RestaurantTableRepository;
+import t3l.restaurant.t3l_restaurant.repository.UserAccountRepository;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -41,8 +43,10 @@ class ReservationIntegrationTest {
   @Autowired TransactionTemplate transaction;
   @Autowired MockMvc mvc;
   @Autowired ReservationConfirmationAccess confirmationAccess;
+  @Autowired UserAccountRepository accounts;
 
   private final ConcurrentLinkedQueue<Long> createdIds = new ConcurrentLinkedQueue<>();
+  private final List<Long> createdUsers = new java.util.ArrayList<>();
   private LocalDate date;
 
   @BeforeEach
@@ -57,6 +61,8 @@ class ReservationIntegrationTest {
   void removeOnlyBookingsCreatedByThisTest() {
     transaction.executeWithoutResult(status -> reservations.deleteAllByIdInBatch(List.copyOf(createdIds)));
     createdIds.clear();
+    accounts.deleteAllByIdInBatch(createdUsers);
+    createdUsers.clear();
   }
 
   private ReservationForm form(LocalTime time, int guests, String area) {
@@ -163,9 +169,19 @@ class ReservationIntegrationTest {
   }
 
   @Test
-  void guestCanSubmitWithoutEmailAndStaffCanConfirmThenCancel() throws Exception {
+  void customerCanSubmitWithoutEmailAndStaffCanConfirmThenCancel() throws Exception {
     var guest = new MockHttpSession();
+    var customer = accounts.save(UserAccount.customer("T3L MVC test", null, "0901234567", "qa:" + UUID.randomUUID(), "unused"));
+    createdUsers.add(customer.getId());
+    var customerContext = SecurityContextHolder.createEmptyContext();
+    customerContext.setAuthentication(UsernamePasswordAuthenticationToken.authenticated(customer.getUsername(), "",
+        List.of(new SimpleGrantedAuthority("ROLE_BUYER"))));
+    guest.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, customerContext);
+    String draft = (String) mvc.perform(get("/reservations/new").session(guest)).andExpect(status().isOk())
+        .andReturn().getModelAndView().getModel().get("bookingDraft");
+    assertNotNull(draft);
     var result = mvc.perform(post("/reservations").session(guest).param("_csrf", csrf(guest))
+            .param("draft", draft)
             .param("date", date.toString()).param("time", "18:00").param("guests", "2")
             .param("guestName", "T3L MVC test").param("guestPhone", "0901234567")
             .param("guestEmail", "").param("preferredArea", "Phòng VIP")
@@ -195,7 +211,7 @@ class ReservationIntegrationTest {
     assertEquals("PENDING_CONFIRMATION", service.findByCode(code).getStatus());
     mvc.perform(post("/staff/reservations/" + saved.getId() + "/status").session(guest)
             .param("_csrf", csrf(guest)).param("status", "CONFIRMED"))
-        .andExpect(status().is3xxRedirection()).andExpect(redirectedUrlPattern("**/login"));
+        .andExpect(status().isForbidden());
 
     var staff = new MockHttpSession();
     String staffCsrf = csrf(staff);
@@ -225,10 +241,10 @@ class ReservationIntegrationTest {
     var session = new MockHttpSession();
     mvc.perform(post("/reservations").session(session).param("_csrf", csrf(session))
             .param("date", date.toString()).param("time", "20:30").param("guests", "2")
-            .param("guestName", "Retained name").param("guestPhone", "0901234567")
+            .param("note", "Retained note")
             .param("consentAccepted", "true"))
         .andExpect(status().isOk()).andExpect(model().attributeHasFieldErrors("form", "time"))
-        .andExpect(content().string(org.hamcrest.Matchers.containsString("Retained name")));
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("Retained note")));
   }
 
   @Test

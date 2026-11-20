@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/fragments/shell :: head('Hóa đơn')}"></head>
+<body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('invoices')}"></header>
+<main class="staff-main">
+  <div class="staff-page-heading"><div><h1>Hóa đơn</h1><p>Lịch sử đơn gọi món và trạng thái thanh toán theo lượt phục vụ.</p></div>
+    <a class="staff-button is-outline" th:href="@{/admin/orders}">Đơn đang phục vụ</a></div>
+  <section class="staff-panel">
+    <form th:replace="~{admin/fragments/report :: filters('/admin/invoices','invoices')}"></form>
+    <p class="staff-muted" th:text="${rows.total + ' hóa đơn'}"></p>
+    <p class="staff-empty" th:if="${rows.content.isEmpty()}">Không tìm thấy hóa đơn phù hợp.</p>
+    <div class="staff-table-wrap" th:unless="${rows.content.isEmpty()}"><table class="staff-table">
+      <thead><tr><th>Hóa đơn</th><th>Thời gian</th><th>Nhân viên</th><th>Phương thức</th><th>Trạng thái</th><th>Số tiền</th></tr></thead>
+      <tbody><tr th:each="row : ${rows.content}">
+        <td data-label="Hóa đơn"><a class="staff-link" th:href="@{/admin/invoices/{id}(id=${row.id})}" th:text="${row.code}"></a><small th:text="${row.bookingCode + (row.table == null ? '' : ' · ' + row.table)}"></small></td>
+        <td data-label="Thời gian" th:text="${#temporals.format(row.time,'dd/MM/yyyy HH:mm')}"></td>
+        <td data-label="Nhân viên" th:text="${row.employee}"></td>
+        <td data-label="Phương thức"><span th:replace="~{admin/fragments/shell :: method(${row.method})}"></span></td>
+        <td data-label="Trạng thái"><span class="staff-badge" th:attr="data-status=${row.status}" th:text="${row.statusLabel}"></span></td>
+        <td data-label="Số tiền"><span th:replace="~{admin/fragments/shell :: money(${row.amount})}"></span></td>
+      </tr></tbody></table></div>
+    <nav th:replace="~{admin/fragments/report :: pages('/admin/invoices')}"></nav>
+  </section>
+</main></body></html>

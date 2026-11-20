@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -13,6 +14,7 @@ import t3l.restaurant.t3l_restaurant.service.ContactService;
 
 @Controller
 @RequestMapping("/admin/contacts")
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminContactController {
   private final ContactService contacts;
   public AdminContactController(ContactService contacts) { this.contacts = contacts; }

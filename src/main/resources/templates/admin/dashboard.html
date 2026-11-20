@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/fragments/shell :: head('Tổng quan quản trị')}"></head>
+<body class="staff-page admin-page">
+<header th:replace="~{admin/fragments/shell :: header('dashboard')}"></header>
+<main class="staff-main">
+  <div class="staff-page-heading">
+    <div><p class="staff-kicker" th:text="${#temporals.format(dashboard.filter.from, 'dd/MM/yyyy') + ' – ' + #temporals.format(dashboard.filter.to, 'dd/MM/yyyy')}"></p><h1>Tổng quan quản trị</h1></div>
+    <a class="staff-button is-outline" th:href="@{/admin/revenue(from=${dashboard.filter.from},to=${dashboard.filter.to})}">Xem báo cáo doanh thu</a>
+  </div>
+  <section class="staff-metrics" aria-label="Số liệu quản trị">
+    <a class="staff-metric" th:href="@{/admin/revenue(from=${dashboard.filter.from},to=${dashboard.filter.to})}"><span>Doanh thu đã thu</span><strong><span th:replace="~{admin/fragments/shell :: money(${dashboard.revenue})}"></span></strong></a>
+    <a class="staff-metric" th:href="@{/admin/reservations}"><span>Lượt đặt trong kỳ</span><strong th:text="${dashboard.bookings}"></strong></a>
+    <div class="staff-metric"><span>Khách đã phục vụ</span><strong th:text="${dashboard.served}"></strong></div>
+    <a class="staff-metric" th:href="@{/admin/tables}"><span>Bàn đang sử dụng</span><strong th:text="${dashboard.occupied}"></strong></a>
+    <a class="staff-metric" th:href="@{/admin/reservations(status='PENDING_CONFIRMATION')}"><span>Yêu cầu chờ xử lý</span><strong th:text="${dashboard.pending}"></strong></a>
+  </section>
+  <div class="admin-dashboard-grid">
+    <section class="staff-panel admin-revenue-chart">
+      <div class="staff-panel-heading"><h2>Doanh thu theo thời gian</h2>
+        <nav class="admin-segments" aria-label="Kỳ doanh thu">
+          <a th:each="period : ${ {'day','week','month'} }" th:href="@{/admin/dashboard(period=${period})}"
+             th:attr="aria-current=${period == dashboard.grain ? 'page' : null}"
+             th:text="${period == 'day' ? 'Ngày' : (period == 'week' ? 'Tuần' : 'Tháng')}"></a>
+        </nav>
+      </div>
+      <figure class="admin-chart">
+        <figcaption>Tiền đã thu từ hóa đơn bàn và các khoản bán lẻ.</figcaption>
+        <ol class="admin-bars" tabindex="0" aria-label="Biểu đồ doanh thu">
+          <li th:each="point : ${dashboard.chart}" th:title="${point.label + ': ' + #numbers.formatInteger(point.amount,1,'POINT') + ' đ'}">
+            <span class="admin-bar-track" aria-hidden="true"><span class="admin-bar" th:style="|--height:${point.height}%|"></span></span>
+            <span th:text="${point.label}"></span><span class="admin-sr-only" th:text="${#numbers.formatInteger(point.amount,1,'POINT') + ' đ'}"></span>
+          </li>
+        </ol>
+        <details class="staff-disclosure admin-chart-values"><summary>Xem số liệu từng kỳ</summary>
+          <dl><div th:each="point : ${dashboard.chart}"><dt th:text="${point.label}"></dt><dd><span th:replace="~{admin/fragments/shell :: money(${point.amount})}"></span></dd></div></dl>
+        </details>
+      </figure>
+    </section>
+    <section class="staff-panel">
+      <h2>Tình hình đặt bàn</h2>
+      <dl class="staff-details">
+        <div><dt>Đã hủy</dt><dd th:text="${dashboard.cancellations + ' lượt · ' + #numbers.formatDecimal(dashboard.cancellationRate,1,1) + '%'}"></dd></div>
+        <div><dt>Khách không đến</dt><dd th:text="${dashboard.noShows + ' lượt · ' + #numbers.formatDecimal(dashboard.noShowRate,1,1) + '%'}"></dd></div>
+      </dl>
+      <div class="staff-actions"><a class="staff-link" th:href="@{/admin/reservations}">Lịch đặt bàn</a><a class="staff-link" th:href="@{/admin/contacts}">Liên hệ khách</a></div>
+    </section>
+    <section class="staff-panel">
+      <div class="staff-panel-heading"><h2>Hoạt động gần đây</h2><a class="staff-link" th:href="@{/admin/activity}">Nhật ký quản trị</a></div>
+      <p class="staff-empty" th:if="${dashboard.recent.isEmpty()}">Chưa có hoạt động.</p>
+      <ul class="staff-feed"><li th:each="entry : ${dashboard.recent}"><div><strong th:text="${entry.operation}"></strong>
+        <p th:text="${entry.target + (#strings.isEmpty(entry.actor) ? '' : ' · ' + entry.actor)}"></p></div>
+        <span class="staff-muted" th:text="${#temporals.format(entry.time, 'dd/MM HH:mm')}"></span></li></ul>
+    </section>
+    <section class="staff-panel">
+      <h2>Món bán chạy trong kỳ</h2><p class="staff-empty" th:if="${dashboard.bestsellers.isEmpty()}">Chưa phát sinh món đã thanh toán trong kỳ.</p>
+      <ol class="staff-feed"><li th:each="dish : ${dashboard.bestsellers}"><strong th:text="${dish.name}"></strong><span th:text="${dish.quantity + ' phần'}"></span></li></ol>
+    </section>
+  </div>
+</main>
+</body></html>

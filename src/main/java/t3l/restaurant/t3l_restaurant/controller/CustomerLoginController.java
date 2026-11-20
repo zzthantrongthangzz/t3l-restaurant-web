@@ -1,0 +1,157 @@
+package t3l.restaurant.t3l_restaurant.controller;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import t3l.restaurant.t3l_restaurant.entity.UserAccount;
+import t3l.restaurant.t3l_restaurant.security.CustomerSession;
+import t3l.restaurant.t3l_restaurant.security.LoginReturnTarget;
+import t3l.restaurant.t3l_restaurant.service.CustomerAccountService;
+import t3l.restaurant.t3l_restaurant.service.CustomerRecovery;
+import t3l.restaurant.t3l_restaurant.service.PhoneCustomerService;
+import t3l.restaurant.t3l_restaurant.service.SmsOtpService;
+import t3l.restaurant.t3l_restaurant.service.SmsOtpService.OtpException;
+
+@Controller
+public class CustomerLoginController {
+  private final SmsOtpService otp;
+  private final PhoneCustomerService phones;
+  private final CustomerRecovery recovery;
+  private final CustomerSession sessions;
+  private final CustomerAccountService customers;
+
+  public CustomerLoginController(SmsOtpService otp, PhoneCustomerService phones, CustomerRecovery recovery,
+      CustomerSession sessions, CustomerAccountService customers) {
+    this.otp = otp;
+    this.phones = phones;
+    this.recovery = recovery;
+    this.sessions = sessions;
+    this.customers = customers;
+  }
+
+  @ModelAttribute
+  void privateResponse(HttpServletResponse response) {
+    response.setHeader("Cache-Control", "no-store");
+    response.setHeader("Referrer-Policy", "no-referrer");
+  }
+
+  @GetMapping("/login")
+  String login(@RequestParam(required = false) String returnTo, HttpServletRequest request, Model model) {
+    model.addAttribute("googleReturnTo", LoginReturnTarget.validate(returnTo));
+    model.addAttribute("smsAvailable", otp.available(request));
+    return "auth/login";
+  }
+
+  @GetMapping("/register")
+  String oldRegistrationLink() {
+    return "redirect:/login";
+  }
+
+  @GetMapping({"/login/sms", "/account/sms"})
+  String sms(@RequestParam(required = false) String returnTo, Authentication authentication,
+      HttpServletRequest request, Model model) {
+    return smsPage(request, linkAccount(request, authentication), returnTo, model);
+  }
+
+  @PostMapping({"/login/sms/send", "/account/sms/send"})
+  String send(@RequestParam(defaultValue = "") String phone, @RequestParam(required = false) String returnTo,
+      Authentication authentication, HttpServletRequest request, Model model) {
+    UserAccount account = linkAccount(request, authentication);
+    Long accountId = account == null ? null : account.getId();
+    try {
+      var issue = otp.issue(request, accountId, phone, accountId == null ? returnTo : null);
+      model.addAttribute("localCode", issue.localCode());
+      model.addAttribute("requestAccepted", issue.localCode() == null);
+    } catch (OtpException exception) {
+      model.addAttribute("smsError", exception.getMessage());
+    } catch (DataAccessException exception) {
+      model.addAttribute("smsError", "Chưa thể xử lý yêu cầu. Vui lòng thử lại.");
+    }
+    return smsPage(request, account, returnTo, model);
+  }
+
+  @PostMapping({"/login/sms/verify", "/account/sms/verify"})
+  String verify(@RequestParam(defaultValue = "") String code, @RequestParam(required = false) String returnTo,
+      Authentication authentication, HttpServletRequest request, HttpServletResponse response, Model model,
+      RedirectAttributes redirect) {
+    UserAccount account = linkAccount(request, authentication);
+    try {
+      var proof = otp.verify(request, account == null ? null : account.getId(), code);
+      if (account != null) {
+        phones.link(account.getId(), proof.phone());
+        redirect.addFlashAttribute("accountNotice", "Đã xác thực và cập nhật số điện thoại đăng nhập.");
+        return "redirect:/account";
+      }
+      if (!proof.local() && phones.canRecover(proof.phone())) {
+        recovery.begin(request.getSession(), proof.phone(), null, proof.returnTo());
+        return "redirect:/login/recover";
+      }
+      UserAccount customer;
+      try {
+        customer = phones.signIn(proof.phone(), proof.local());
+      } catch (DataIntegrityViolationException race) {
+        customer = phones.signIn(proof.phone(), proof.local());
+      }
+      return signedIn(request, response, customer, proof.returnTo());
+    } catch (OtpException exception) {
+      model.addAttribute("smsError", exception.getMessage());
+    } catch (DataAccessException exception) {
+      model.addAttribute("smsError", "Chưa thể xác thực số điện thoại. Vui lòng yêu cầu mã mới.");
+    }
+    return smsPage(request, account, returnTo, model);
+  }
+
+  @GetMapping("/login/recover")
+  String recovery(HttpServletRequest request, Model model) {
+    return recoveryPage(request, model);
+  }
+
+  @PostMapping({"/login/recover", "/login/recover/new"})
+  String recover(@RequestParam(defaultValue = "") String username, @RequestParam(defaultValue = "") String password,
+      HttpServletRequest request, HttpServletResponse response, Model model, RedirectAttributes redirect) {
+    try {
+      var recovered = recovery.complete(request, username, password, request.getRequestURI().endsWith("/new"));
+      return signedIn(request, response, recovered.account(), recovered.target());
+    } catch (OtpException exception) {
+      model.addAttribute("recoveryError", exception.getMessage());
+    } catch (DataAccessException exception) {
+      model.addAttribute("recoveryError", "Chưa thể chuyển tài khoản. Vui lòng thử lại.");
+    }
+    return recoveryPage(request, model);
+  }
+
+  private String signedIn(HttpServletRequest request, HttpServletResponse response, UserAccount customer, String returnTo) {
+    recovery.clear(request.getSession(false));
+    sessions.signIn(request, response, customer);
+    String target = LoginReturnTarget.validate(returnTo);
+    return "redirect:" + (target == null ? "/" : target);
+  }
+
+  private UserAccount linkAccount(HttpServletRequest request, Authentication authentication) {
+    String path = request.getRequestURI().substring(request.getContextPath().length());
+    return path.startsWith("/account/") ? customers.signedInCustomer(authentication) : null;
+  }
+
+  private String recoveryPage(HttpServletRequest request, Model model) {
+    var pending = recovery.pending(request.getSession(false));
+    model.addAttribute("recoveryPending", pending != null);
+    model.addAttribute("canCreateNew", pending != null && pending.phone() != null);
+    return "auth/recover";
+  }
+
+  private String smsPage(HttpServletRequest request, UserAccount account, String returnTo, Model model) {
+    Long accountId = account == null ? null : account.getId();
+    model.addAttribute("linkingSms", accountId != null);
+    model.addAttribute("smsAvailable", account == null ? otp.available(request)
+        : otp.canLinkPhone() && !PhoneCustomerService.isLocal(account));
+    model.addAttribute("smsReturnTo", LoginReturnTarget.validate(returnTo));
+    model.addAttribute("pendingPhone", otp.pendingPhone(request.getSession(false), accountId));
+    return "auth/sms";
+  }
+}

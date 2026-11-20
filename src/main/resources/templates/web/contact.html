@@ -6,9 +6,9 @@
     <meta name="description" content="Liên hệ T3L Restaurant. Xem địa chỉ, giờ phục vụ, chỉ đường và gửi lời nhắn cho nhà hàng." />
     <meta name="theme-color" content="#171411" />
     <title>Liên hệ | T3L Restaurant</title>
-    <link rel="stylesheet" th:href="@{/css/home.css(v=20261117-fonts)}" />
-    <link rel="stylesheet" th:href="@{/css/reservation.css(v=20261117-fonts)}" />
-    <link rel="stylesheet" th:href="@{/css/about-contact.css(v=20261117-fonts)}" />
+    <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
+    <link rel="stylesheet" th:href="@{/css/reservation.css(v=20261120-typography)}" />
+    <link rel="stylesheet" th:href="@{/css/about-contact.css(v=20261120-typography)}" />
   </head>
   <body class="home contact-page">
     <a class="skip-link" href="#contact-form">Chuyển đến form liên hệ</a>
@@ -25,7 +25,7 @@
             <div><dt>ĐỊA CHỈ</dt><dd><address th:text="${@restaurantInfo.address}"></address><a class="home-text-link" th:href="${@restaurantInfo.mapsUrl}" target="_blank" rel="noopener noreferrer">Chỉ đường đến T3L <span aria-hidden="true">↗</span></a></dd></div>
             <div><dt>ĐIỆN THOẠI</dt><dd><a th:if="${!@restaurantInfo.phone.isBlank()}" th:href="${@restaurantInfo.phoneHref}" th:text="${@restaurantInfo.phone}"></a><span th:if="${@restaurantInfo.phone.isBlank()}">Đang cập nhật</span></dd></div>
             <div><dt>EMAIL</dt><dd><a th:if="${!@restaurantInfo.email.isBlank()}" th:href="${@restaurantInfo.emailHref}" th:text="${@restaurantInfo.email}"></a><span th:if="${@restaurantInfo.email.isBlank()}">Đang cập nhật</span></dd></div>
-            <div><dt>GIỜ PHỤC VỤ</dt><dd><span th:text="${@restaurantInfo.hours}"></span><small>Nhận khách đặt bàn đến <th:block th:text="${@restaurantInfo.schedule.lastArrival}"></th:block> · Giờ Việt Nam</small></dd></div>
+            <div><dt>GIỜ PHỤC VỤ</dt><dd><span th:text="${@restaurantInfo.hours}"></span><small>Nhận khách đặt bàn đến <th:block th:text="${@restaurantInfo.lastArrival}"></th:block> · Giờ Việt Nam</small></dd></div>
           </dl>
           <a class="home-text-link" th:href="@{/reservations/new}">Đặt bàn ngay <span aria-hidden="true">↗</span></a>
           <figure class="contact-detail-image"><img th:src="@{/images/home/dining-detail.jpg}" alt="Góc bàn ăn với ánh sáng ấm — ảnh minh họa" width="900" height="1350" loading="lazy" /><figcaption>Ảnh không gian minh họa · Pexels</figcaption></figure>

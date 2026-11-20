@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+  <body>
+    <svg th:fragment="icon(name)" class="customer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <th:block th:switch="${name}">
+        <path th:case="'profile'" d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m12-13a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" />
+        <path th:case="'reservations'" d="M4 6h16v14H4zM8 3v6m8-6v6M4 11h16m-10 4h4" />
+        <path th:case="'orders'" d="M5 8h14l2 12H3L5 8Zm3 2V7a4 4 0 0 1 8 0v3" />
+        <path th:case="'vouchers'" d="M3 7h18v3a2 2 0 0 0 0 4v3H3v-3a2 2 0 0 0 0-4V7Zm11 0v2m0 3h.01m-.01 3v2" />
+        <path th:case="'addresses'" d="M20 10c0 6-8 11-8 11s-8-5-8-11a8 8 0 1 1 16 0Zm-5 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+        <path th:case="'invoices'" d="M6 3h8l4 4v14l-3-2-3 2-3-2-3 2V3Zm8 0v5h4M9 12h6m-6 3h5" />
+        <path th:case="'logout'" d="M11 4H5v16h6m4-12 4 4-4 4m4-4H9" />
+      </th:block>
+    </svg>
+    <a th:fragment="link(key, path, label, active)" class="customer-option" th:href="@{${path}}"
+        th:attr="aria-current=${key == active ? 'page' : null}">
+      <svg th:replace="~{account/fragments/navigation :: icon(${key})}"></svg>
+      <span th:text="${label}"></span>
+    </a>
+    <th:block th:fragment="links(active)">
+      <a th:replace="~{account/fragments/navigation :: link('profile','/account','Tài khoản',${active})}"></a>
+      <a th:replace="~{account/fragments/navigation :: link('reservations','/account/reservations','Thông tin đặt bàn',${active})}"></a>
+      <a th:replace="~{account/fragments/navigation :: link('orders','/account/orders','Đơn hàng',${active})}"></a>
+      <a th:replace="~{account/fragments/navigation :: link('vouchers','/account/vouchers','Ví voucher',${active})}"></a>
+      <a th:replace="~{account/fragments/navigation :: link('addresses','/account/addresses','Địa chỉ',${active})}"></a>
+      <a th:replace="~{account/fragments/navigation :: link('invoices','/account/invoices','Hóa đơn',${active})}"></a>
+    </th:block>
+    <span th:fragment="avatar" class="customer-avatar" aria-hidden="true">
+      <span th:text="${customerBadge.initial}"></span>
+      <img th:if="${customerBadge.avatar != null}" th:src="${customerBadge.avatar}" referrerpolicy="no-referrer"
+          width="40" height="40" alt="" />
+    </span>
+    <details th:fragment="dropdown" class="customer-menu" th:if="${customerBadge != null}">
+      <summary aria-label="Menu tài khoản của bạn">
+        <span th:replace="~{account/fragments/navigation :: avatar}"></span>
+        <svg class="customer-chevron" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <path d="m3 5 4 4 4-4" />
+        </svg>
+      </summary>
+      <nav class="customer-dropdown" aria-label="Menu tài khoản">
+        <p class="customer-menu-name" th:text="${customerBadge.name}"></p>
+        <th:block th:replace="~{account/fragments/navigation :: links(${section})}"></th:block>
+        <form th:action="@{/logout}" method="post">
+          <button class="customer-option" type="submit">
+            <svg th:replace="~{account/fragments/navigation :: icon('logout')}"></svg><span>Đăng xuất</span>
+          </button>
+        </form>
+      </nav>
+    </details>
+    <script th:fragment="dropdownControls">
+      (() => {
+        const menu = document.querySelector('.customer-menu');
+        if (!menu) return;
+        const avatar = menu.querySelector('img');
+        if (avatar) {
+          const hideBrokenAvatar = () => avatar.remove();
+          if (avatar.complete && avatar.naturalWidth === 0) hideBrokenAvatar();
+          else avatar.addEventListener('error', hideBrokenAvatar, { once: true });
+        }
+        document.addEventListener('click', (event) => {
+          if (!menu.contains(event.target)) menu.open = false;
+        });
+        menu.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && menu.open) {
+            menu.open = false;
+            menu.querySelector('summary').focus();
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

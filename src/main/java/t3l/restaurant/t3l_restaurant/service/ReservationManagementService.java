@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import t3l.restaurant.t3l_restaurant.dto.*;
 import t3l.restaurant.t3l_restaurant.entity.*;
+import t3l.restaurant.t3l_restaurant.entity.ReservationEmail.Kind;
 import t3l.restaurant.t3l_restaurant.repository.*;
 
 @Service
@@ -21,10 +22,12 @@ public class ReservationManagementService {
   private final ReservationSchedule schedule;
   private final ReservationChangePolicy policy;
   private final Validator validator;
+  private final ReservationEmailQueue emails;
+  private final AdminAudit audit;
 
   public ReservationManagementService(ReservationRepository reservations, ReservationChangeRequestRepository requests,
       RestaurantTableRepository tables, ReservationService bookings, ReservationSchedule schedule,
-      ReservationChangePolicy policy, Validator validator) {
+      ReservationChangePolicy policy, Validator validator, ReservationEmailQueue emails, AdminAudit audit) {
     this.reservations = reservations;
     this.requests = requests;
     this.tables = tables;
@@ -32,6 +35,8 @@ public class ReservationManagementService {
     this.schedule = schedule;
     this.policy = policy;
     this.validator = validator;
+    this.emails = emails;
+    this.audit = audit;
   }
 
   static String canonicalPhone(String value) {
@@ -46,7 +51,7 @@ public class ReservationManagementService {
     String expected = booking == null ? "" : canonicalPhone(booking.getGuestPhone());
     boolean matches = MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8),
         canonicalPhone(form.getPhone()).getBytes(StandardCharsets.UTF_8));
-    return booking != null && matches ? booking : null;
+    return booking != null && booking.getCustomerId() == null && matches ? booking : null;
   }
 
   @Transactional(readOnly = true)
@@ -80,11 +85,31 @@ public class ReservationManagementService {
     }
   }
 
+  private void requireOwner(Reservation booking, Long customerId) {
+    if (!Objects.equals(booking.getCustomerId(), customerId)) {
+      throw new BookingException(null, "Bạn không có quyền xử lý đặt bàn này.");
+    }
+  }
+
+  @Transactional(isolation = Isolation.READ_COMMITTED)
+  public Reservation claim(String code, UserAccount customer) {
+    Reservation booking = lockBooking(code);
+    requireOwner(booking, null);
+    booking.assignCustomer(customer);
+    return booking;
+  }
+
   @Transactional(isolation = Isolation.READ_COMMITTED)
   public ReservationChangeRequest requestChange(String code, ReservationUpdateForm form) {
+    return requestChange(code, form, null);
+  }
+
+  @Transactional(isolation = Isolation.READ_COMMITTED)
+  public ReservationChangeRequest requestChange(String code, ReservationUpdateForm form, Long customerId) {
     validate(form);
     var active = tables.lockActiveTables();
     Reservation booking = lockBooking(code);
+    requireOwner(booking, customerId);
     requireNewRequest(booking);
     var end = schedule.validateAndGetEnd(form.scheduleForm());
     var start = form.getDate().atTime(form.getTime());
@@ -100,9 +125,15 @@ public class ReservationManagementService {
 
   @Transactional(isolation = Isolation.READ_COMMITTED)
   public ReservationChangeRequest requestCancellation(String code, ReservationCancellationForm form) {
+    return requestCancellation(code, form, null);
+  }
+
+  @Transactional(isolation = Isolation.READ_COMMITTED)
+  public ReservationChangeRequest requestCancellation(String code, ReservationCancellationForm form, Long customerId) {
     validate(form);
     tables.lockActiveTables();
     Reservation booking = lockBooking(code);
+    requireOwner(booking, customerId);
     requireNewRequest(booking);
     return requests.saveAndFlush(new ReservationChangeRequest(booking, "CANCEL", null, form.getReason(), policy.now()));
   }
@@ -116,8 +147,8 @@ public class ReservationManagementService {
     return requests.findByStatusOrderByCreatedAtAscIdAsc("PENDING").stream().map(request -> {
       String reason = policy.blockedReason(request.getReservation());
       if (reason == null && "CHANGE".equals(request.getRequestType())
-          && request.getRequestedDate().atTime(request.getRequestedTime()).isBefore(policy.now().plusMinutes(90))) {
-        reason = "Giờ mới không còn đủ thời gian báo trước 90 phút.";
+          && request.getRequestedDate().atTime(request.getRequestedTime()).isBefore(policy.now().plusMinutes(policy.noticeMinutes()))) {
+        reason = "Giờ mới không còn đủ thời gian báo trước " + policy.noticeMinutes() + " phút.";
       }
       return new ReviewItem(request, reason);
     }).toList();
@@ -135,6 +166,7 @@ public class ReservationManagementService {
     ReservationChangeRequest request = requests.lockById(requestId).orElseThrow();
     if (!"PENDING".equals(request.getStatus())) throw new BookingException(null, "Yêu cầu đã được xử lý trước đó.");
     boolean approve = "APPROVE".equals(decision);
+    boolean cancellation = "CANCEL".equals(request.getRequestType());
     if (approve) {
       policy.requireEligible(booking);
       if (!booking.getReservationDate().equals(request.getOriginalDate())
@@ -143,7 +175,7 @@ public class ReservationManagementService {
           || !normalizeArea(booking.getPreferredArea()).equals(normalizeArea(request.getOriginalArea()))) {
         throw new BookingException(null, "Lịch gốc đã thay đổi. Vui lòng từ chối yêu cầu cũ và liên hệ khách.");
       }
-      if ("CANCEL".equals(request.getRequestType())) {
+      if (cancellation) {
         booking.updateStatus("CANCELLED");
       } else {
         var form = request.updateForm();
@@ -158,5 +190,11 @@ public class ReservationManagementService {
     request.review(approve, reviewer, note, policy.now());
     reservations.flush();
     requests.flush();
+    Kind kind;
+    if (approve) kind = cancellation ? Kind.CANCELLATION_APPROVED : Kind.RESCHEDULED;
+    else kind = cancellation ? Kind.CANCELLATION_DECLINED : Kind.CHANGE_DECLINED;
+    emails.enqueue(booking, kind, requestId, request.getReviewNote());
+    audit.record("Xét duyệt yêu cầu", booking.getCode() + " · " + request.getTypeLabel()
+        + (approve ? " · Đã duyệt" : " · Đã từ chối"));
   }
 }

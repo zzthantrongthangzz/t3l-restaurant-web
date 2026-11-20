@@ -19,9 +19,22 @@ public class RestaurantTable {
   @Column(name = "table_type", nullable = false, length = 40)
   private String tableType;
 
+  @Column(name = "table_kind", length = 40)
+  private String tableKind;
+
   @Column(nullable = false)
   private int capacity;
 
   @Column(nullable = false)
   private boolean active = true;
+
+  public void setActive(boolean active) { this.active = active; }
+
+  public void configure(String code, String area, String kind, int capacity, boolean active) {
+    this.code = code;
+    this.tableType = area;
+    this.tableKind = kind;
+    this.capacity = capacity;
+    this.active = active;
+  }
 }

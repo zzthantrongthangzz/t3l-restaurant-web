@@ -21,7 +21,7 @@ public class ReservationForm {
   private String guestPhone;
 
   @Email(message = "Địa chỉ email không hợp lệ.")
-  @Size(max = 180, message = "Email không vượt quá 180 ký tự.")
+  @Size(max = 254, message = "Email không vượt quá 254 ký tự.")
   private String guestEmail;
 
   @Size(max = 40, message = "Khu vực ưu tiên không hợp lệ.")

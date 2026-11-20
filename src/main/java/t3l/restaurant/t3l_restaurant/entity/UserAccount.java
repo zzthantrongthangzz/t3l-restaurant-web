@@ -5,7 +5,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "app_users", uniqueConstraints = @UniqueConstraint(name = "uk_app_users_email", columnNames = "email"))
+@Table(name = "app_users", uniqueConstraints = {
+    @UniqueConstraint(name = "uk_app_users_email", columnNames = "email"),
+    @UniqueConstraint(name = "uk_app_users_verified_phone", columnNames = "verified_phone")
+})
 @Getter
 @NoArgsConstructor(access = lombok.AccessLevel.PROTECTED)
 public class UserAccount {
@@ -25,6 +28,9 @@ public class UserAccount {
   @Column(length = 30)
   private String phone;
 
+  @Column(name = "verified_phone", length = 16)
+  private String verifiedPhone;
+
   @Column(nullable = false, length = 100)
   private String password;
 
@@ -33,6 +39,10 @@ public class UserAccount {
 
   @Column(nullable = false)
   private boolean enabled = true;
+
+  @Column(name = "auth_version", nullable = false)
+  @org.hibernate.annotations.ColumnDefault("0")
+  private long authVersion;
 
   public UserAccount(String username, String password, String role) {
     this.username = username;
@@ -48,9 +58,21 @@ public class UserAccount {
     return account;
   }
 
-  public void setDemoCredentials(String encodedPassword, String role) {
-    this.password = encodedPassword;
+  public void manage(String role, boolean enabled, String encodedPassword) {
+    if (!this.role.equals(role) || this.enabled != enabled || encodedPassword != null) authVersion++;
     this.role = role;
-    this.enabled = true;
+    this.enabled = enabled;
+    if (encodedPassword != null) this.password = encodedPassword;
+  }
+
+  public void updateCustomerContact(String fullName, String email, String phone) {
+    this.fullName = fullName;
+    this.email = email;
+    this.phone = verifiedPhone == null ? phone : verifiedPhone;
+  }
+
+  public void verifyPhone(String phone) {
+    this.verifiedPhone = phone;
+    this.phone = phone;
   }
 }

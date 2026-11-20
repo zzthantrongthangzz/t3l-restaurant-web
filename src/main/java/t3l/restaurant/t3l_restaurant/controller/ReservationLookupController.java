@@ -3,6 +3,7 @@ package t3l.restaurant.t3l_restaurant.controller;
 import jakarta.servlet.http.*;
 import jakarta.validation.Valid;
 import org.springframework.dao.TransientDataAccessException;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import t3l.restaurant.t3l_restaurant.dto.*;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
+import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.repository.RestaurantTableRepository;
 import t3l.restaurant.t3l_restaurant.service.*;
 
@@ -23,10 +25,12 @@ public class ReservationLookupController {
   private final ReservationChangePolicy policy;
   private final ReservationSchedule schedule;
   private final RestaurantTableRepository tables;
+  private final CustomerAccountService customers;
 
   public ReservationLookupController(ReservationManagementService management, ReservationService bookings,
       ReservationLookupAccess access, ReservationConfirmationAccess confirmationAccess,
-      ReservationChangePolicy policy, ReservationSchedule schedule, RestaurantTableRepository tables) {
+      ReservationChangePolicy policy, ReservationSchedule schedule, RestaurantTableRepository tables,
+      CustomerAccountService customers) {
     this.management = management;
     this.bookings = bookings;
     this.access = access;
@@ -34,6 +38,7 @@ public class ReservationLookupController {
     this.policy = policy;
     this.schedule = schedule;
     this.tables = tables;
+    this.customers = customers;
   }
 
   @ModelAttribute
@@ -44,15 +49,18 @@ public class ReservationLookupController {
   }
 
   @GetMapping
-  public String lookup(@RequestParam(required = false) String code, HttpServletRequest request, Model model) {
+  public String lookup(@RequestParam(required = false) String code, HttpServletRequest request,
+      Authentication authentication, Model model) {
     var form = new ReservationLookupForm();
     // Do not reflect arbitrary URL text or telephone numbers into the page.
     if (code != null && code.matches("T3L-[A-Z0-9-]{4,16}")) form.setCode(code);
     model.addAttribute("lookupForm", form);
-    if (access.canView(request.getSession(false), code)) {
-      Reservation booking = bookings.findByCode(code);
-      if (booking != null) addDetails(model, booking);
-      else model.addAttribute("lookupError", "Không thể hiển thị đặt bàn này. Vui lòng tra cứu lại.");
+    var customer = customers.signedInCustomer(authentication);
+    Reservation booking = visibleBooking(code, request, customer);
+    if (booking != null) {
+      addDetails(model, booking, customer);
+    } else if (access.canView(request.getSession(false), code)) {
+      model.addAttribute("lookupError", "Không thể hiển thị đặt bàn này. Vui lòng tra cứu lại.");
     }
     return "web/reservation-lookup";
   }
@@ -76,11 +84,14 @@ public class ReservationLookupController {
 
   @PostMapping("/{code}/change")
   public String change(@PathVariable String code, @Valid @ModelAttribute("changeForm") ReservationUpdateForm form,
-      BindingResult errors, HttpServletRequest request, Model model, RedirectAttributes redirect) {
-    if (!access.canView(request.getSession(false), code)) return requireVerification(redirect);
+      BindingResult errors, HttpServletRequest request, Authentication authentication, Model model,
+      RedirectAttributes redirect) {
+    var customer = customers.signedInCustomer(authentication);
+    Reservation booking = visibleBooking(code, request, customer);
+    if (booking == null) return requireVerification(redirect);
     if (!errors.hasErrors()) {
       try {
-        management.requestChange(code, form);
+        management.requestChange(code, form, booking.getCustomerId());
         return submitted(code, redirect);
       } catch (BookingException exception) {
         if (exception.getField() == null) errors.reject("change.invalid", exception.getMessage());
@@ -90,16 +101,19 @@ public class ReservationLookupController {
       }
     }
     model.addAttribute("changeOpen", true);
-    return redisplay(code, model, redirect);
+    return redisplay(code, request, customer, model, redirect);
   }
 
   @PostMapping("/{code}/cancel")
   public String cancel(@PathVariable String code, @Valid @ModelAttribute("cancelForm") ReservationCancellationForm form,
-      BindingResult errors, HttpServletRequest request, Model model, RedirectAttributes redirect) {
-    if (!access.canView(request.getSession(false), code)) return requireVerification(redirect);
+      BindingResult errors, HttpServletRequest request, Authentication authentication, Model model,
+      RedirectAttributes redirect) {
+    var customer = customers.signedInCustomer(authentication);
+    Reservation booking = visibleBooking(code, request, customer);
+    if (booking == null) return requireVerification(redirect);
     if (!errors.hasErrors()) {
       try {
-        management.requestCancellation(code, form);
+        management.requestCancellation(code, form, booking.getCustomerId());
         return submitted(code, redirect);
       } catch (BookingException exception) {
         errors.reject("cancel.invalid", exception.getMessage());
@@ -108,7 +122,24 @@ public class ReservationLookupController {
       }
     }
     model.addAttribute("cancelOpen", true);
-    return redisplay(code, model, redirect);
+    return redisplay(code, request, customer, model, redirect);
+  }
+
+  @PostMapping("/{code}/claim")
+  public String claim(@PathVariable String code, HttpServletRequest request, Authentication authentication,
+      RedirectAttributes redirect) {
+    var customer = customers.signedInCustomer(authentication);
+    if (!access.canView(request.getSession(false), code)) return requireVerification(redirect);
+    try {
+      var booking = management.claim(code, customer);
+      access.revoke(request.getSession(false), code);
+      if (bookings.isPast(booking)) redirect.addAttribute("tab", "past");
+      redirect.addFlashAttribute("accountNotice", "Đã thêm đặt bàn vào tài khoản của bạn.");
+      return "redirect:/account/reservations";
+    } catch (BookingException | TransientDataAccessException exception) {
+      redirect.addFlashAttribute("lookupError", "Không thể thêm đặt bàn lúc này. Vui lòng tra cứu lại.");
+      return "redirect:/reservations/lookup";
+    }
   }
 
   private String submitted(String code, RedirectAttributes redirect) {
@@ -122,21 +153,29 @@ public class ReservationLookupController {
     return "redirect:/reservations/lookup";
   }
 
-  private String redisplay(String code, Model model, RedirectAttributes redirect) {
-    Reservation booking = bookings.findByCode(code);
+  private Reservation visibleBooking(String code, HttpServletRequest request, UserAccount customer) {
+    return bookings.findVisibleByCode(code, customer, access.canView(request.getSession(false), code));
+  }
+
+  private String redisplay(String code, HttpServletRequest request, UserAccount customer, Model model,
+      RedirectAttributes redirect) {
+    Reservation booking = visibleBooking(code, request, customer);
     if (booking == null) return requireVerification(redirect);
     var lookup = new ReservationLookupForm();
     lookup.setCode(code);
     model.addAttribute("lookupForm", lookup);
-    addDetails(model, booking);
+    addDetails(model, booking, customer);
     return "web/reservation-lookup";
   }
 
-  private void addDetails(Model model, Reservation booking) {
+  private void addDetails(Model model, Reservation booking, UserAccount customer) {
     model.addAttribute("reservation", booking);
+    model.addAttribute("ownedBooking", bookings.owns(booking, customer));
+    model.addAttribute("canClaimBooking", customer != null && booking.getCustomerId() == null);
     model.addAttribute("history", management.history(booking.getId()));
     model.addAttribute("blockedReason", management.requestBlockedReason(booking));
     model.addAttribute("deadline", policy.deadline(booking));
+    model.addAttribute("changeNoticeMinutes", policy.noticeMinutes());
     if (!model.containsAttribute("changeForm")) {
       var change = new ReservationUpdateForm();
       change.setDate(booking.getReservationDate());

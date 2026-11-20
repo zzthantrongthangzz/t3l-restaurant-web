@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title th:text="${title + ' | T3L Restaurant'}">T3L Restaurant</title>
+  <link rel="stylesheet" th:href="@{/css/site.css(v=20261120-typography)}" />
+  <link rel="stylesheet" th:href="@{/css/reservation-requests.css(v=20261120-staff)}" />
+  <link rel="stylesheet" th:href="@{/css/staff.css(v=20261120)}" />
+  <link rel="stylesheet" th:href="@{/css/admin.css(v=20261120)}" />
+  <script defer th:src="@{/js/staff.js(v=20261120)}"></script>
+  <script defer th:src="@{/js/admin.js(v=20261120)}"></script>
+</head>
+<body>
+<header class="admin-sidebar" th:fragment="header(section)">
+  <div class="admin-brand-row">
+    <a class="staff-brand" th:href="@{/admin/dashboard}">
+      <span class="staff-brand-mark">T3L<span>.</span></span>
+      <span>T3L Restaurant<small>Quản trị nhà hàng</small></span>
+    </a>
+    <button type="button" class="staff-signout admin-toggle" aria-expanded="false" aria-controls="admin-navigation" hidden>Menu</button>
+  </div>
+  <div class="admin-navigation" id="admin-navigation">
+    <nav aria-label="Điều hướng quản trị">
+      <a th:href="@{/admin/dashboard}" th:attr="aria-current=${section == 'dashboard' ? 'page' : null}">Tổng quan</a>
+      <span class="admin-nav-label">Vận hành</span>
+      <a th:href="@{/admin/reservations}" th:attr="aria-current=${section == 'reservations' ? 'page' : null}">Đặt bàn</a>
+      <a th:href="@{/admin/tables}" th:attr="aria-current=${section == 'tables' ? 'page' : null}">Sơ đồ bàn</a>
+      <a th:href="@{/admin/orders}" th:attr="aria-current=${section == 'orders' ? 'page' : null}">Đơn đang phục vụ</a>
+      <a th:href="@{/admin/invoices}" th:attr="aria-current=${section == 'invoices' ? 'page' : null}">Hóa đơn</a>
+      <a th:href="@{/admin/revenue}" th:attr="aria-current=${section == 'revenue' ? 'page' : null}">Doanh thu</a>
+      <a th:href="@{/admin/shifts}" th:attr="aria-current=${section == 'shift' ? 'page' : null}">Ca làm &amp; đối soát</a>
+      <span class="admin-nav-label">Quản lý</span>
+      <a th:href="@{/admin/accounts}" th:attr="aria-current=${section == 'accounts' ? 'page' : null}">Tài khoản</a>
+      <a th:href="@{/admin/inventory}" th:attr="aria-current=${section == 'inventory' ? 'page' : null}">Bàn &amp; khu vực</a>
+      <a th:href="@{/admin/dishes}" th:attr="aria-current=${section == 'dishes' ? 'page' : null}">Thực đơn</a>
+      <a th:href="@{/admin/contacts}" th:attr="aria-current=${section == 'contacts' ? 'page' : null}">Liên hệ</a>
+      <a th:href="@{/admin/settings}" th:attr="aria-current=${section == 'settings' ? 'page' : null}">Cấu hình</a>
+      <a th:href="@{/admin/activity}" th:attr="aria-current=${section == 'activity' ? 'page' : null}">Nhật ký quản trị</a>
+    </nav>
+    <div class="admin-nav-actions">
+      <a th:href="@{/}">Trang khách hàng</a>
+      <form th:action="@{/logout}" method="post"><button class="staff-signout" type="submit">Đăng xuất</button></form>
+    </div>
+  </div>
+</header>
+<div th:fragment="messages" th:remove="tag">
+  <div th:replace="~{staff/fragments/shell :: messages}"></div>
+</div>
+<div th:fragment="errors" th:if="${#fields.hasAnyErrors()}" class="staff-notice is-error" role="alert">
+  <ul><li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li></ul>
+</div>
+<span th:fragment="money(value)" th:text="${value == null ? '—' : #numbers.formatInteger(value,1,'POINT') + ' đ'}"></span>
+<span th:fragment="method(value)" th:text="${value == 'CASH' ? 'Tiền mặt' : (value == 'TRANSFER' ? 'Chuyển khoản' : (value == 'CARD' ? 'Thẻ' : '—'))}"></span>
+</body></html>

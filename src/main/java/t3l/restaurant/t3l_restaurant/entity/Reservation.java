@@ -8,10 +8,18 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "reservations")
+@Table(name = "reservations", indexes =
+    @Index(name = "ix_reservations_customer_schedule", columnList = "customer_id,reservation_date,reservation_time"))
 @Getter
 @NoArgsConstructor(access = lombok.AccessLevel.PROTECTED)
 public class Reservation {
+  public static final String PENDING = "PENDING_CONFIRMATION";
+  public static final String CONFIRMED = "CONFIRMED";
+  public static final String CHECKED_IN = "CHECKED_IN";
+  public static final String SEATED = "SEATED";
+  public static final String COMPLETED = "COMPLETED";
+  public static final String CANCELLED = "CANCELLED";
+  public static final String NO_SHOW = "NO_SHOW";
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
@@ -25,12 +33,19 @@ public class Reservation {
   @Column(name = "guest_phone", nullable = false, length = 30)
   private String guestPhone;
 
-  @Column(name = "guest_email", length = 180)
+  @Column(name = "guest_email", length = 254)
   private String guestEmail;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "table_id")
   private RestaurantTable table;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "customer_id", foreignKey = @ForeignKey(name = "fk_reservations_customer"))
+  private UserAccount customer;
+
+  @Column(name = "customer_id", insertable = false, updatable = false)
+  private Long customerId;
 
   @Column(name = "reservation_date", nullable = false)
   private LocalDate reservationDate;
@@ -51,7 +66,20 @@ public class Reservation {
   private String note;
 
   @Column(nullable = false, length = 32)
-  private String status = "PENDING_CONFIRMATION";
+  private String status = PENDING;
+
+  @Column(name = "checked_in_at")
+  private LocalDateTime checkedInAt;
+
+  @Column(name = "seated_at")
+  private LocalDateTime seatedAt;
+
+  @Column(name = "completed_at")
+  private LocalDateTime completedAt;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "service_shift_id", foreignKey = @ForeignKey(name = "fk_reservations_service_shift"))
+  private StaffShift serviceShift;
 
   @Column(name = "consent_accepted", nullable = false)
   private boolean consentAccepted;
@@ -86,6 +114,41 @@ public class Reservation {
     this.status = status;
   }
 
+  public void checkIn(LocalDateTime now) {
+    checkedInAt = now;
+    status = CHECKED_IN;
+  }
+
+  public void seat(StaffShift shift, LocalDateTime now, LocalDateTime expectedEnd) {
+    seatedAt = now;
+    endsAt = expectedEnd;
+    serviceShift = shift;
+    status = SEATED;
+  }
+
+  public void complete(LocalDateTime now) {
+    completedAt = now;
+    status = COMPLETED;
+  }
+
+  public void moveTo(RestaurantTable destination, LocalDateTime expectedEnd) {
+    table = destination;
+    endsAt = expectedEnd;
+  }
+
+  public boolean isOpenBooking() {
+    return PENDING.equals(status) || CONFIRMED.equals(status);
+  }
+
+  public boolean isTerminal() {
+    return CANCELLED.equals(status) || COMPLETED.equals(status) || NO_SHOW.equals(status);
+  }
+
+  public void assignCustomer(UserAccount customer) {
+    this.customer = customer;
+    this.customerId = customer == null ? null : customer.getId();
+  }
+
   public void setBookingDetails(LocalDateTime endsAt, String preferredArea) {
     this.endsAt = endsAt;
     this.preferredArea = preferredArea;
@@ -111,12 +174,18 @@ public class Reservation {
   }
 
   public String getStatusLabel() {
+    return labelFor(status);
+  }
+
+  public static String labelFor(String status) {
     return switch (status) {
-      case "PENDING_CONFIRMATION" -> "Chờ xác nhận";
-      case "CONFIRMED" -> "Đã xác nhận";
-      case "CANCELLED" -> "Đã hủy";
-      case "CHECKED_IN", "SEATED" -> "Đã nhận bàn";
-      case "COMPLETED" -> "Hoàn thành";
+      case PENDING -> "Chờ xác nhận";
+      case CONFIRMED -> "Đã xác nhận";
+      case CANCELLED -> "Đã hủy";
+      case CHECKED_IN -> "Khách đã đến";
+      case SEATED -> "Đang phục vụ";
+      case COMPLETED -> "Hoàn thành";
+      case NO_SHOW -> "Khách không đến";
       default -> status;
     };
   }

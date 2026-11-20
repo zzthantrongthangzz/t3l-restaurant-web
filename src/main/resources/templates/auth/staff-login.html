@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Đăng nhập nhân viên | T3L Restaurant</title>
+    <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
+    <link rel="stylesheet" th:href="@{/css/login.css(v=20261120-typography)}" />
+  </head>
+  <body class="home login-page">
+    <header th:replace="~{web/fragments/restaurant-shell :: header('login')}"></header>
+    <main id="main" class="login-scene">
+      <img class="login-background" th:src="@{/images/home/dining-room.jpg}" alt="" />
+      <div class="login-shade" aria-hidden="true"></div>
+      <div class="home-container auth-center">
+        <section class="login-panel">
+          <div class="login-panel-heading"><h1>Đăng nhập nhân viên</h1></div>
+          <p class="login-notice login-notice-error" role="alert" th:if="${param.error}">Tên đăng nhập hoặc mật khẩu chưa đúng.</p>
+          <form class="login-form" th:action="@{/login}" method="post">
+            <div class="login-field"><label for="username">Tên đăng nhập</label><input id="username" name="username" autocomplete="username" required /></div>
+            <div class="login-field">
+              <label for="password">Mật khẩu</label>
+              <div class="login-password">
+                <input id="password" type="password" name="password" autocomplete="current-password" required />
+                <button class="login-password-toggle" type="button" data-password-toggle="password" aria-label="Hiện mật khẩu" aria-pressed="false" hidden>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /><path class="login-eye-slash" d="m3 3 18 18" /></svg>
+                </button>
+              </div>
+            </div>
+            <button class="home-button login-submit" type="submit">Đăng nhập</button>
+          </form>
+          <a class="login-home-link" th:href="@{/login}">Đăng nhập khách hàng</a>
+        </section>
+      </div>
+    </main>
+    <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
+    <script th:replace="~{web/fragments/restaurant-shell :: navigation}"></script>
+    <script th:replace="~{auth/fragments/account-controls :: passwords}"></script>
+  </body>
+</html>

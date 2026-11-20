@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title th:text="${heading + ' | T3L Restaurant'}">T3L Restaurant</title>
+</head>
+<body style="margin:0;padding:0;background:#f3ece3;color:#2d241b;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3ece3;">
+    <tr><td align="center" style="padding:28px 12px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+             style="width:100%;max-width:620px;border:1px solid #decdb8;background:#fffdfa;">
+        <tr><td style="background:#171411;padding:23px 28px;border-bottom:3px solid #b8905f;">
+          <span style="color:#fff8ed;font:28px Georgia,serif;">T3L<span style="color:#d4ad7b;">.</span></span>
+          <span style="color:#e7d1b6;letter-spacing:2px;font-size:12px;">&nbsp; RESTAURANT</span>
+        </td></tr>
+        <tr><td style="padding:30px 28px;">
+          <h1 style="margin:0 0 15px;color:#302318;font:normal 29px/1.24 Georgia,serif;" th:text="${heading}"></h1>
+          <p style="margin:0 0 9px;font-size:16px;line-height:1.6;">Chào <strong th:text="${email.guestName}"></strong>,</p>
+          <p style="margin:0 0 21px;font-size:16px;line-height:1.6;" th:text="${summary}"></p>
+          <table width="100%" cellspacing="0" cellpadding="0" aria-label="Thông tin đặt bàn"
+                 style="width:100%;border:1px solid #e3d5c3;background:#f8f1e7;font-size:15px;line-height:1.5;">
+            <tr><th scope="row" align="left" style="padding:13px 12px;color:#625143;">Mã đặt bàn</th>
+                <td style="padding:13px 12px;font-weight:bold;overflow-wrap:anywhere;" th:text="${email.bookingCode}"></td></tr>
+            <tr><th scope="row" align="left" style="padding:10px 12px;border-top:1px solid #e3d5c3;color:#625143;">Ngày và giờ</th>
+                <td style="padding:10px 12px;border-top:1px solid #e3d5c3;" th:text="${dateTime}"></td></tr>
+            <tr><th scope="row" align="left" style="padding:10px 12px;border-top:1px solid #e3d5c3;color:#625143;">Số khách</th>
+                <td style="padding:10px 12px;border-top:1px solid #e3d5c3;" th:text="${email.guestCount}"></td></tr>
+            <tr><th scope="row" align="left" style="padding:10px 12px;border-top:1px solid #e3d5c3;color:#625143;">Khu vực</th>
+                <td style="padding:10px 12px;border-top:1px solid #e3d5c3;" th:text="${email.area}"></td></tr>
+            <tr><th scope="row" align="left" style="padding:10px 12px;border-top:1px solid #e3d5c3;color:#625143;">Trạng thái</th>
+                <td style="padding:10px 12px;border-top:1px solid #e3d5c3;font-weight:bold;" th:text="${email.bookingStatus}"></td></tr>
+          </table>
+          <p th:if="${email.reviewNote != null}" style="margin:18px 0 0;font-size:15px;line-height:1.6;">
+            <strong>Phản hồi từ T3L</strong><br>
+            <span th:text="${email.reviewNote}" style="white-space:pre-line;"></span>
+          </p>
+          <table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:24px;">
+            <tr><td bgcolor="#614224" style="border-radius:3px;">
+              <a th:href="${detailsUrl}" style="display:inline-block;padding:13px 19px;color:#fff9ee;font-size:15px;font-weight:bold;text-decoration:none;">
+                Xem chi tiết đặt bàn
+              </a>
+            </td></tr>
+          </table>
+          <p style="margin:10px 0 0;color:#6c5a49;font-size:13px;line-height:1.5;">Nếu được yêu cầu, hãy đăng nhập bằng tài khoản dùng khi đặt bàn hoặc xác thực theo hướng dẫn trên trang tra cứu.</p>
+        </td></tr>
+        <tr><td style="padding:19px 28px;background:#f8f1e7;border-top:1px solid #e3d5c3;color:#4c3b2d;font-size:14px;line-height:1.7;">
+          <strong>Liên hệ T3L Restaurant</strong><br>
+          <span th:text="${restaurant.address}"></span><br>
+          <th:block th:if="${!restaurant.phone.isBlank()}">
+            <a th:href="${restaurant.phoneHref}" th:text="${restaurant.phone}" style="color:#614224;"></a><br>
+          </th:block>
+          <a th:if="${!restaurant.email.isBlank()}" th:href="${restaurant.emailHref}" th:text="${restaurant.email}" style="color:#614224;overflow-wrap:anywhere;"></a>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

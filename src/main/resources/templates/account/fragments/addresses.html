@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <body>
+    <div th:fragment="content">
+      <form class="account-form account-address-form" th:if="${addressForm != null}" method="post"
+          th:action="${addressId == null} ? @{/account/addresses/new} : @{/account/addresses/{id}(id=${addressId})}"
+          th:object="${addressForm}">
+        <h2 th:text="${addressId == null ? 'Thêm địa chỉ' : 'Chỉnh sửa địa chỉ'}"></h2>
+        <div class="account-fields">
+          <div class="account-field">
+            <label for="recipientName">Người nhận</label>
+            <input th:field="*{recipientName}" autocomplete="name" maxlength="120" required />
+            <small th:errors="*{recipientName}"></small>
+          </div>
+          <div class="account-field">
+            <label for="phone">Số điện thoại</label>
+            <input type="tel" th:field="*{phone}" autocomplete="tel" maxlength="30" required />
+            <small th:errors="*{phone}"></small>
+          </div>
+          <div class="account-field account-full">
+            <label for="streetAddress">Địa chỉ đầy đủ</label>
+            <textarea th:field="*{streetAddress}" rows="3" autocomplete="street-address" maxlength="300" required></textarea>
+            <small th:errors="*{streetAddress}"></small>
+          </div>
+          <label class="account-check account-full"><input type="checkbox" th:field="*{defaultAddress}" /> Đặt làm địa chỉ mặc định</label>
+        </div>
+        <div class="account-form-actions">
+          <a class="account-button" th:href="@{/account/addresses}">Hủy</a>
+          <button class="account-button is-primary" type="submit">Lưu địa chỉ</button>
+        </div>
+      </form>
+      <th:block th:if="${addressForm == null}">
+        <div class="account-form-actions">
+          <a class="account-button is-primary" th:href="@{/account/addresses/new}">Thêm địa chỉ</a>
+        </div>
+        <th:block th:if="${addresses.isEmpty()}">
+          <div th:replace="~{account/fragments/activity :: empty('addresses','Chưa có địa chỉ nào','Lưu thông tin người nhận và địa chỉ của bạn tại đây.')}"></div>
+        </th:block>
+      </th:block>
+      <ul class="account-list" th:unless="${addresses.isEmpty()}">
+        <li class="account-record account-record-address" th:each="address : ${addresses}">
+          <div>
+            <p class="account-record-title"><span th:text="${address.recipientName}"></span>
+              <span class="account-status" th:if="${address.defaultAddress}">Mặc định</span></p>
+            <p class="account-muted" th:text="${address.phone}"></p>
+            <p class="account-address" th:text="${address.streetAddress}"></p>
+          </div>
+          <div class="account-record-actions">
+            <a class="account-text-action" th:href="@{/account/addresses/{id}(id=${address.id})}">Sửa</a>
+            <form th:unless="${address.defaultAddress}" th:action="@{/account/addresses/{id}/default(id=${address.id})}" method="post">
+              <button type="submit" class="account-text-action">Đặt mặc định</button>
+            </form>
+            <details class="account-delete">
+              <summary>Xóa</summary>
+              <form th:action="@{/account/addresses/{id}/delete(id=${address.id})}" method="post">
+                <button type="submit" class="account-button is-danger">Xác nhận xóa</button>
+              </form>
+            </details>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: head('Sơ đồ bàn')}"></head>
+  <body class="staff-page" th:classappend="${opsBase == '/admin' ? 'admin-page' : ''}">
+    <header th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: header('tables')}"></header>
+    <main class="staff-main">
+      <div class="staff-page-heading">
+        <div><h1>Sơ đồ bàn</h1><p>Tình trạng hiện tại và lượt đặt tiếp theo trong ngày.</p></div>
+        <a class="staff-button" th:href="@{${opsBase + '/reservations/new'}(walkIn=true)}">Tiếp nhận khách tại chỗ</a>
+      </div>
+      <div th:replace="~{staff/fragments/shell :: messages}"></div>
+      <ul class="staff-legend" aria-label="Trạng thái bàn">
+        <li class="staff-badge" data-status="FREE">Trống</li><li class="staff-badge" data-status="RESERVED">Đã đặt</li>
+        <li class="staff-badge" data-status="OCCUPIED">Đang phục vụ</li><li class="staff-badge" data-status="INACTIVE">Tạm ngưng</li>
+      </ul>
+      <p class="staff-empty" th:if="${areas.isEmpty()}">Chưa có bàn trong hệ thống.</p>
+      <section class="staff-area" th:each="area : ${areas}">
+        <h2 th:text="${area.key}"></h2>
+        <div class="staff-table-grid">
+          <article class="staff-panel staff-table-card" th:each="item : ${area.value}" th:with="table=${item.table},booking=${item.current}">
+            <div class="staff-panel-heading"><h3 th:text="${table.code}"></h3><span class="staff-badge" th:attr="data-status=${item.state.name()}" th:text="${item.state.label}"></span></div>
+            <p class="staff-muted" th:text="${table.capacity + ' chỗ'}"></p>
+            <div class="staff-table-info" th:if="${booking != null}">
+              <a class="staff-link" th:href="@{${opsBase + '/reservations/{id}'}(id=${booking.id})}" th:text="${booking.guestName}"></a>
+              <p th:text="${booking.guestCount + ' khách · ' + booking.statusLabel}"></p>
+            </div>
+            <div class="staff-table-info" th:if="${item.next != null and table.active}">
+              <p><span class="staff-muted">Kế tiếp</span> <a class="staff-link" th:href="@{${opsBase + '/reservations/{id}'}(id=${item.next.id})}" th:text="${#temporals.format(item.next.startsAt, 'HH:mm')}"></a></p>
+            </div>
+            <div class="staff-actions">
+              <a class="staff-button is-outline" th:if="${item.state.name() == 'FREE'}" th:href="@{${opsBase + '/reservations/new'}(walkIn=true,tableId=${table.id})}">Nhận khách mới</a>
+              <form th:if="${booking != null and booking.status == 'CHECKED_IN' and table.active}"
+                  th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
+                <input type="hidden" name="from" value="table" /><button class="staff-button" name="status" value="SEATED">Nhận bàn</button>
+              </form>
+              <a class="staff-button is-outline" th:if="${item.state.name() == 'OCCUPIED'}" th:href="@{${opsBase + '/orders/{id}'}(id=${booking.id})}">Gọi món / thu tiền</a>
+              <a class="staff-link" th:if="${item.state.name() == 'OCCUPIED'}" th:href="@{${opsBase + '/reservations/{id}'}(id=${booking.id})}">Chuyển bàn / kết thúc</a>
+              <form th:if="${item.state.name() == 'FREE' or !table.active}" th:action="@{${opsBase + '/tables/{id}/availability'}(id=${table.id})}" method="post">
+                <button class="staff-link staff-link-button" name="active" th:value="${!table.active}" th:text="${table.active ? 'Tạm ngưng' : 'Mở lại bàn'}"></button>
+              </form>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

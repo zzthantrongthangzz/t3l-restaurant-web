@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{staff/fragments/shell :: head('Tổng quan nhân viên')}"></head>
+  <body class="staff-page">
+    <header th:replace="~{staff/fragments/shell :: header('dashboard')}"></header>
+    <main class="staff-main">
+      <div class="staff-page-heading">
+        <div><p class="staff-kicker" th:text="${#temporals.format(dashboard.date, 'dd/MM/yyyy')}"></p><h1>Tổng quan nhân viên</h1></div>
+        <div class="staff-actions">
+          <a class="staff-button is-outline" th:href="@{/staff/shift}" th:text="${openShift ? 'Xem ca đang mở' : 'Mở ca làm'}"></a>
+          <a class="staff-button" th:href="@{/staff/reservations/new}">Tạo đặt bàn</a>
+        </div>
+      </div>
+      <div th:replace="~{staff/fragments/shell :: messages}"></div>
+      <section class="staff-metrics" aria-label="Tình hình vận hành">
+        <a class="staff-metric" th:href="@{/staff/reservations(date=${dashboard.date})}"><span>Đặt bàn hôm nay</span><strong th:text="${dashboard.bookingsToday}"></strong></a>
+        <a class="staff-metric" th:href="@{/staff/reservations(status='PENDING_CONFIRMATION')}"><span>Chờ xác nhận</span><strong th:text="${dashboard.pending}"></strong></a>
+        <div class="staff-metric"><span>Khách đã đến hôm nay</span><strong th:text="${dashboard.guestsArrived}"></strong></div>
+        <a class="staff-metric" th:href="@{/staff/orders}"><span>Bàn đang phục vụ</span><strong th:text="${dashboard.serving}"></strong></a>
+        <a class="staff-metric" th:href="@{/staff/tables}"><span>Bàn trống hiện tại</span><strong th:text="${dashboard.free}"></strong></a>
+      </section>
+      <div class="staff-split">
+        <section class="staff-panel">
+          <div class="staff-panel-heading"><h2>Lượt đặt sắp đến</h2><a class="staff-link" th:href="@{/staff/reservations}">Danh sách đặt bàn</a></div>
+          <p class="staff-empty" th:if="${#lists.isEmpty(dashboard.upcoming)}">Chưa có lượt đặt sắp đến.</p>
+          <ul class="staff-feed" th:unless="${#lists.isEmpty(dashboard.upcoming)}">
+            <li th:each="booking : ${dashboard.upcoming}">
+              <div><a class="staff-link" th:href="@{/staff/reservations/{id}(id=${booking.id})}" th:text="${booking.guestName}"></a>
+                <p th:text="${booking.guestCount + ' khách · ' + (booking.table == null ? 'Chưa phân bàn' : booking.table.code)}"></p></div>
+              <div class="staff-feed-end"><strong th:text="${#temporals.format(booking.startsAt, 'dd/MM · HH:mm')}"></strong><span th:replace="~{staff/fragments/shell :: status(${booking})}"></span></div>
+            </li>
+          </ul>
+        </section>
+        <section class="staff-panel">
+          <div class="staff-panel-heading"><h2>Việc cần xử lý</h2></div>
+          <a class="staff-task-link" th:href="@{/staff/reservations} + '#request-queue-title'">
+            <span>Yêu cầu đổi lịch hoặc hủy</span><strong th:text="${dashboard.changeRequests}"></strong>
+          </a>
+          <a class="staff-task-link" th:href="@{/staff/orders}" th:if="${dashboard.awaitingPayment > 0}">
+            <span>Hóa đơn chờ thu tiền</span><strong th:text="${dashboard.awaitingPayment}"></strong>
+          </a>
+          <ul class="staff-feed">
+            <li th:each="booking : ${dashboard.checkedIn}">
+              <div><strong th:text="${booking.guestName}"></strong><p th:text="${booking.guestCount + ' khách đã check-in'}"></p></div>
+              <a class="staff-link" th:href="@{/staff/reservations/{id}(id=${booking.id})}">Nhận bàn</a>
+            </li>
+            <li th:each="booking : ${dashboard.toConfirm}">
+              <div><strong th:text="${booking.guestName}"></strong><p th:text="${#temporals.format(booking.startsAt, 'dd/MM · HH:mm')}"></p></div>
+              <a class="staff-link" th:href="@{/staff/reservations/{id}(id=${booking.id})}">Xử lý</a>
+            </li>
+          </ul>
+          <p class="staff-empty" th:if="${#lists.isEmpty(dashboard.toConfirm) and #lists.isEmpty(dashboard.checkedIn) and dashboard.changeRequests == 0 and dashboard.awaitingPayment == 0}">Mọi yêu cầu đã được xử lý.</p>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import t3l.restaurant.t3l_restaurant.entity.CashSale;
 
 public interface CashSaleRepository extends JpaRepository<CashSale, Long> {
+  boolean existsByDish_Id(Long dishId);
   List<CashSale> findByShift_IdOrderByCreatedAtDesc(Long shiftId);
 
   @Query("select coalesce(sum(s.totalAmount), 0) from CashSale s where s.shift.id = :shiftId and s.paymentMethod = :method")

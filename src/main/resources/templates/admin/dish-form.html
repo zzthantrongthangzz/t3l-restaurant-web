@@ -1,96 +1,29 @@
 <!doctype html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
-  <head th:replace="~{web/layout :: head('Món ăn')}"> </head>
-  <body>
-    <header class="topbar">
-      <a class="brand" th:href="@{/}">
-        <span class="brand-mark">T3L</span>
-        <span>
-          <b>T3L Restaurant</b>
-          <small>Khu vực quản trị</small>
-        </span>
-      </a>
-      <nav>
-        <a th:href="@{/admin/dishes}">Thực đơn</a>
-        <form th:action="@{/logout}" method="post">
-          <button class="text-button">Đăng xuất</button>
-        </form>
-      </nav>
-    </header>
-    <main class="page inner-page">
-      <div class="form-wrap">
-        <span class="eyebrow">QUẢN TRỊ NỘI DUNG</span>
-        <h1 th:text="${heading}">Món ăn</h1>
-        <form
-          class="form-card"
-          th:action="${dishId == null} ? @{/admin/dishes} : @{/admin/dishes/{id}(id=${dishId})}"
-          th:object="${form}"
-          method="post"
-          enctype="multipart/form-data"
-        >
-          <div class="form-grid">
-            <label
-              >Tên món<input th:field="*{name}" maxlength="140" />
-              <small class="field-error" th:errors="*{name}"> </small>
-            </label>
-            <label
-              >Danh mục<input
-                th:field="*{categoryName}"
-                placeholder="Món chính"
-              />
-              <small class="field-error" th:errors="*{categoryName}"> </small>
-            </label>
-            <label
-              >Giá bán (VND)<input
-                type="number"
-                min="1"
-                step="1000"
-                th:field="*{price}"
-              />
-              <small class="field-error" th:errors="*{price}"> </small>
-            </label>
-            <label
-              >Nhãn chế độ ăn<input
-                th:field="*{dietaryLabel}"
-                placeholder="Chay, ít cay..."
-              />
-              <small class="field-error" th:errors="*{dietaryLabel}"> </small>
-            </label>
-            <label class="full"
-              >Mô tả<textarea rows="3" th:field="*{description}"></textarea>
-              <small class="field-error" th:errors="*{description}"> </small>
-            </label>
-            <label class="full">
-              Ảnh món ăn (JPEG, PNG, WebP; tối đa 5 MB)
-              <input
-                type="file"
-                th:field="*{image}"
-                accept="image/jpeg,image/png,image/webp"
-                th:required="${dishId == null}"
-              />
-              <small class="field-error" th:errors="*{image}"></small>
-              <img
-                class="dish-upload-preview"
-                th:if="${currentImageUrl != null}"
-                th:src="${currentImageUrl}"
-                alt="Ảnh món hiện tại"
-              />
-              <small th:if="${dishId != null}">Để trống nếu muốn giữ ảnh đang dùng.</small>
-            </label>
-            <label class="consent full">
-              <input type="checkbox" th:field="*{available}" />
-              <span>Hiển thị món ăn trên thực đơn công khai</span>
-            </label>
-          </div>
-          <div class="form-actions">
-            <a class="text-link" th:href="@{/admin/dishes}">Hủy</a>
-            <button class="button" type="submit">Lưu món ăn</button>
-          </div>
-        </form>
-      </div>
-      <footer class="footer">
-        <span>T3L Restaurant</span>
-      </footer>
-    </main>
-  </body>
-</html>
+<head th:replace="~{admin/fragments/shell :: head(${heading})}"></head>
+<body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('dishes')}"></header>
+<main class="staff-main">
+  <a class="staff-link staff-back" th:href="@{/admin/dishes}">Danh sách món</a>
+  <div class="staff-page-heading"><h1 th:text="${heading}"></h1></div>
+  <form class="staff-panel staff-form staff-form-narrow" th:object="${form}"
+    th:action="${dishId == null} ? @{/admin/dishes} : @{/admin/dishes/{id}(id=${dishId})}" method="post" enctype="multipart/form-data">
+    <div th:replace="~{admin/fragments/shell :: errors}"></div>
+    <div class="staff-form-grid">
+      <label class="staff-field">Tên món<input th:field="*{name}" required maxlength="140" /></label>
+      <label class="staff-field">Giá (đ)<input th:field="*{price}" type="number" min="1" max="999999999999" step="1" required /></label>
+      <label class="staff-field">Danh mục<select th:field="*{categoryName}" required><option value="">Chọn danh mục</option>
+        <option th:each="item : ${categories}" th:value="${item.name}" th:text="${item.name + (item.active ? '' : ' (đang ẩn)')}"></option>
+      </select><a class="staff-link" th:href="@{/admin/categories}">Quản lý danh mục</a></label>
+      <label class="staff-field">Ghi chú chế độ ăn<input th:field="*{dietaryLabel}" maxlength="80" /></label>
+      <label class="staff-field staff-full">Mô tả<textarea th:field="*{description}" rows="4" maxlength="1000" required></textarea></label>
+      <label class="staff-field staff-full">URL ảnh công khai<input th:field="*{imageUrl}" maxlength="500" placeholder="https://" /><small>Dùng ảnh mặc định khi để trống cả URL và tệp ảnh.</small></label>
+      <label class="staff-field staff-full">Tải ảnh lên Cloudinary<input type="file" name="image" accept="image/jpeg,image/png,image/webp" /><small>JPEG, PNG hoặc WebP, tối đa 5 MB.</small></label>
+      <img class="dish-upload-preview staff-full" th:if="${!#strings.isEmpty(currentImageUrl)}" th:src="${currentImageUrl}" alt="Ảnh hiện tại của món" referrerpolicy="no-referrer" />
+    </div>
+    <label class="staff-checkbox"><input type="checkbox" th:field="*{available}" /> Món còn bán</label>
+    <label class="staff-checkbox"><input type="checkbox" th:field="*{published}" /> Cho phép hiển thị trên thực đơn</label>
+    <div class="staff-actions"><button type="submit" class="staff-button">Lưu món</button></div>
+  </form>
+  <form class="staff-actions admin-danger-action" th:if="${dishId != null}" th:action="@{/admin/dishes/{id}/delete(id=${dishId})}" method="post">
+    <button type="submit" class="staff-button is-danger" data-confirm="Xóa món khỏi thực đơn? Món đã có giao dịch sẽ được giữ lại.">Xóa món</button></form>
+</main></body></html>

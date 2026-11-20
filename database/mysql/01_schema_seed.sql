@@ -95,7 +95,7 @@ VALUES
   ('Bàn 013','Bàn nhỏ',4,TRUE),('Bàn 014','Bàn nhỏ',6,TRUE),
   ('Bàn 015','Bàn nhỏ',6,TRUE),('Bàn 016','Bàn nhỏ',6,TRUE),
   ('Bàn 017','Bàn nhỏ',6,TRUE),('Bàn 018','Bàn nhỏ',6,TRUE)
-ON DUPLICATE KEY UPDATE table_type=VALUES(table_type), capacity=VALUES(capacity), active=TRUE;
+ON DUPLICATE KEY UPDATE table_type=VALUES(table_type), capacity=VALUES(capacity);
 
 INSERT INTO dishes(name,description,price,category_name,dietary_label,available) VALUES
   ('Gỏi cuốn tôm thịt','Tôm tươi, thịt luộc, rau thơm và nước chấm nhà làm.',79000,'Khai vị','',TRUE),
@@ -111,19 +111,3 @@ INSERT INTO dishes(name,description,price,category_name,dietary_label,available)
   ('Bánh flan caramel','Bánh flan mềm mịn, dùng kèm caramel nhà làm.',39000,'Tráng miệng','',TRUE),
   ('Trà đào cam sả','Trà đào thơm nhẹ với cam tươi và sả.',49000,'Đồ uống','',TRUE)
 ON DUPLICATE KEY UPDATE description=VALUES(description), price=VALUES(price), category_name=VALUES(category_name), dietary_label=VALUES(dietary_label), available=VALUES(available);
-
--- Dữ liệu đặt bàn mẫu cho hôm nay/ngày mai. Không ghi tên khách lên giao diện công khai.
-INSERT INTO reservations(code,guest_name,guest_phone,guest_email,table_id,reservation_date,reservation_time,guest_count,note,consent_accepted,status)
-SELECT 'T3L-SAMPLE-001','Nguyễn Minh Anh','0901000001','minhanh@example.com',t.id,CURRENT_DATE,'18:30:00',4,'Dữ liệu minh họa đặt bàn',TRUE,'CONFIRMED'
-FROM restaurant_tables t WHERE t.code='Bàn 008'
-AND NOT EXISTS (SELECT 1 FROM reservations r WHERE r.code='T3L-SAMPLE-001');
-
-INSERT INTO reservations(code,guest_name,guest_phone,guest_email,table_id,reservation_date,reservation_time,guest_count,note,consent_accepted,status)
-SELECT 'T3L-SAMPLE-002','Trần Gia Bảo','0901000002','giabao@example.com',t.id,CURRENT_DATE,'19:00:00',2,'Dữ liệu minh họa đặt bàn',TRUE,'PENDING_CONFIRMATION'
-FROM restaurant_tables t WHERE t.code='Bàn 006'
-AND NOT EXISTS (SELECT 1 FROM reservations r WHERE r.code='T3L-SAMPLE-002');
-
-INSERT INTO reservations(code,guest_name,guest_phone,guest_email,table_id,reservation_date,reservation_time,guest_count,note,consent_accepted,status)
-SELECT 'T3L-SAMPLE-003','Lê Thu Hà','0901000003','thuha@example.com',t.id,DATE_ADD(CURRENT_DATE, INTERVAL 1 DAY),'12:00:00',6,'Dữ liệu minh họa đặt bàn',TRUE,'CONFIRMED'
-FROM restaurant_tables t WHERE t.code='VIP-01'
-AND NOT EXISTS (SELECT 1 FROM reservations r WHERE r.code='T3L-SAMPLE-003');

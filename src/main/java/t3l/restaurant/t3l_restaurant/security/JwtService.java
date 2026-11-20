@@ -32,6 +32,7 @@ public class JwtService {
     return Jwts.builder()
         .subject(user.getUsername())
         .claim("roles", roles)
+        .claim("version", user instanceof AccountPrincipal principal ? principal.getVersion() : 0)
         .issuedAt(Date.from(now))
         .expiration(Date.from(now.plusMillis(expirationMs)))
         .signWith(key)
@@ -40,8 +41,11 @@ public class JwtService {
 
   public boolean isValid(String token, UserDetails user) {
     Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
-    return claims.getSubject().equals(user.getUsername())
-        && claims.getExpiration().after(new Date());
+    long current = user instanceof AccountPrincipal principal ? principal.getVersion() : 0;
+    long issued = claims.get("version") instanceof Number number ? number.longValue() : 0;
+    var roles = user.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList();
+    return user.isEnabled() && claims.getSubject().equals(user.getUsername()) && issued == current
+        && roles.equals(claims.get("roles")) && claims.getExpiration().after(new Date());
   }
 
   public String extractUsername(String token) {

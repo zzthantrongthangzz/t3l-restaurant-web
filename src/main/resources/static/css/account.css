@@ -1,0 +1,237 @@
+.account-page .home-header { background: #171411; border-color: var(--home-line); }
+.account-area, .booking-profile-dialog {
+  --account-ink: #2b231b;
+  --account-muted: #655a4e;
+  --account-accent: #754e25;
+  --account-line: #dfd4c6;
+  --account-paper: #fffdfa;
+  --account-wash: #f4ebdf;
+}
+.account-area {
+  min-height: 100svh;
+  padding: 155px 24px 82px;
+  background: #f7f1e9;
+  color: var(--account-ink);
+  color-scheme: light;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+.account-layout {
+  width: min(1100px, 100%);
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: 225px minmax(0, 1fr);
+  gap: clamp(24px, 5vw, 72px);
+  align-items: start;
+}
+.account-nav { display: grid; gap: 5px; padding: 12px 0; border-block: 1px solid var(--account-line); }
+.account-nav .customer-option {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  min-height: 46px;
+  padding: 9px 13px;
+  font-size: var(--text-compact);
+  font-weight: 500;
+}
+.account-nav .customer-option[aria-current="page"] {
+  background: #ece0d0;
+  box-shadow: inset 2px 0 var(--account-accent);
+  color: #5b3a1c;
+  font-weight: 600;
+}
+.account-nav .customer-option:hover { background: var(--account-wash); color: var(--account-accent); }
+.account-nav .customer-option:focus-visible { outline-offset: -3px; }
+.account-content {
+  min-width: 0;
+  padding: clamp(24px, 4.2vw, 49px);
+  border: 1px solid var(--account-line);
+  border-top: 2px solid #b38a58;
+  background: var(--account-paper);
+}
+.account-content h1 { margin: 0 0 25px; font-size: clamp(2rem, 4vw, 3.15rem); line-height: 1.15; }
+.account-content h2 { margin-bottom: 15px; font-size: clamp(1.35rem, 3vw, 1.75rem); letter-spacing: 0; }
+.account-area :focus-visible { outline-color: var(--account-accent); outline-offset: 3px; }
+.account-tabs {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 8px;
+  margin-bottom: 23px;
+}
+.account-tabs a {
+  display: grid;
+  place-items: center;
+  min-height: var(--control-height);
+  padding: 7px 9px;
+  border: 1px solid var(--account-line);
+  border-radius: 50px;
+  text-align: center;
+  color: var(--account-muted);
+  font-size: var(--text-label);
+  line-height: var(--leading-control);
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.account-tabs a:is(:hover, [aria-current="page"]) { border-color: #c9a982; color: #5b3a1c; background: var(--account-wash); }
+.account-form { display: grid; gap: 19px; }
+.account-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px 18px; }
+.account-full { grid-column: 1 / -1; }
+.account-field { display: grid; gap: 6px; min-width: 0; }
+.account-field label, .account-preferences legend { color: var(--account-ink); font-weight: 600; font-size: var(--text-label); }
+.account-field :is(input, textarea, select) {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: 10px 12px;
+  border: 1px solid #d7c9b8;
+  border-radius: 2px;
+  background: #fffefa;
+  color: var(--account-ink);
+  font: inherit;
+  line-height: var(--leading-control);
+}
+.account-field textarea { resize: vertical; min-height: 76px; }
+.account-field :is(input, textarea, select):hover { border-color: #b89d7f; }
+.account-field :is(input, textarea, select):focus-visible { outline: 2px solid var(--account-accent); outline-offset: 1px; }
+.account-field :is(input, textarea, select):disabled { opacity: 1; background: #f4efe8; color: #655a4e; }
+.account-field small, .account-error { color: #8c3327; font-size: var(--text-label); }
+.account-preferences {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 11px 14px 15px;
+  border: 1px solid var(--account-line);
+}
+.account-preferences legend { padding: 0 5px; }
+.account-preferences label, .account-check { display: flex; align-items: start; gap: 9px; font-size: var(--text-label); }
+:is(.account-area, .booking-profile-dialog) input[type="checkbox"] { width: 17px; height: 17px; flex: 0 0 auto; margin: 3px 0 0; accent-color: #754e25; }
+.account-form-actions, .account-record-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 9px; }
+.account-area .account-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-height);
+  padding: 8px 15px;
+  border: 1px solid #c9b8a5;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--account-ink);
+  font-weight: 600;
+  font-size: var(--text-compact);
+  line-height: var(--leading-control);
+  text-align: center;
+  cursor: pointer;
+}
+.account-area .account-button:hover { border-color: #a58360; background: var(--account-wash); }
+.account-area .account-button.is-primary { border-color: #563a22; background: #563a22; color: #fff9ef; }
+.account-area .account-button.is-primary:hover { background: #734f2c; }
+.account-area .account-button:disabled { border-color: var(--account-line); background: #e7ded3; color: #655a4e; cursor: default; }
+.account-area .account-button.is-danger { color: #8c3327; }
+.account-subsection { border-top: 1px solid var(--account-line); margin-top: 26px; padding-top: 23px; }
+.account-muted, .account-empty p { color: var(--account-muted); font-size: var(--text-compact); overflow-wrap: anywhere; }
+.account-provider { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 12px; font-weight: 600; }
+.account-status {
+  display: inline-block;
+  padding: 3px 9px;
+  border: 1px solid #deccb5;
+  border-radius: 30px;
+  background: var(--account-wash);
+  color: #624324;
+  font-size: var(--text-label);
+  font-weight: 600;
+}
+.account-link-google { margin-top: 13px; }
+.account-link-google > summary { cursor: pointer; color: var(--account-accent); font-size: var(--text-compact); font-weight: 600; }
+.account-link-google form { margin-top: 13px; }
+.account-content .account-notice {
+  margin: 0 0 17px;
+  border: 1px solid #bfcbad;
+  padding: 10px 13px;
+  background: #eff4e9;
+  color: #414d36;
+  font-size: var(--text-label);
+}
+.account-subsection .account-notice { margin: 13px 0 0; }
+.account-content .account-notice.is-error { border-color: #e8bdb1; background: #fcf0ec; color: #8c3327; }
+.account-empty {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 8px;
+  min-height: 185px;
+  padding: 20px 13px;
+  border: 1px dashed var(--account-line);
+  background: #faf5ee;
+  text-align: center;
+}
+.account-empty p { max-width: 400px; }
+.account-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 4px;
+  border: 1px solid #ded1bf;
+  border-radius: 50%;
+  background: #f1e5d5;
+  color: var(--account-accent);
+}
+.account-empty-icon .customer-icon { width: 24px; height: 24px; }
+.account-form-actions + .account-empty, .account-spaced-actions { margin-top: 18px; }
+.account-list { display: grid; gap: 11px; margin: 18px 0 0; padding: 0; list-style: none; }
+.account-record {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px 17px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border: 1px solid var(--account-line);
+  overflow-wrap: anywhere;
+}
+.account-record-address { align-items: start; }
+.account-record-title { font-weight: 600; }
+.account-record-title .account-status { margin-inline-start: 4px; }
+.account-address { white-space: pre-line; }
+.account-area .account-text-action, .account-delete summary {
+  border: 0;
+  padding: 6px 2px;
+  background: none;
+  color: var(--account-accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  font-size: var(--text-label);
+  font-weight: 600;
+  cursor: pointer;
+}
+.account-area .account-text-action:hover, .account-delete summary:hover { color: #432b15; }
+.account-delete { position: relative; }
+.account-delete form { margin-top: 4px; }
+.account-invoice-form { margin-top: 16px; justify-items: start; }
+.account-invoice-form fieldset {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 13px;
+}
+.account-invoice-form fieldset button { justify-self: start; }
+@media (max-width: 760px) {
+  .account-area { padding: 109px 16px 46px; }
+  .account-layout { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .account-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); padding-block: 6px; }
+  .account-nav .customer-option { padding-inline: 9px; }
+  .account-content { padding: 21px 17px; }
+}
+@media (max-width: 480px) {
+  .account-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .account-fields, .account-invoice-form fieldset { grid-template-columns: minmax(0, 1fr); }
+  .account-tabs { gap: 5px; }
+  .account-tabs a { padding: 5px 6px; }
+}

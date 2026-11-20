@@ -38,6 +38,13 @@ public class Dish {
   @Column(nullable = false)
   private boolean available = true;
 
+  @Column(nullable = false)
+  @org.hibernate.annotations.ColumnDefault("true")
+  private boolean published = true;
+
+  public void setPublished(boolean published) { this.published = published; }
+  public void setAvailable(boolean available) { this.available = available; }
+
   public void update(
       String name,
       String description,

@@ -3,6 +3,7 @@ package t3l.restaurant.t3l_restaurant.service;
 import org.springframework.security.core.userdetails.*;
 import org.springframework.stereotype.Service;
 import t3l.restaurant.t3l_restaurant.repository.UserAccountRepository;
+import t3l.restaurant.t3l_restaurant.security.AccountPrincipal;
 
 @Service
 public class DatabaseUserDetailsService implements UserDetailsService {
@@ -18,10 +19,6 @@ public class DatabaseUserDetailsService implements UserDetailsService {
         accounts
             .findByUsername(username)
             .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy tài khoản."));
-    return User.withUsername(account.getUsername())
-        .password(account.getPassword())
-        .roles(account.getRole())
-        .disabled(!account.isEnabled())
-        .build();
+    return new AccountPrincipal(account);
   }
 }

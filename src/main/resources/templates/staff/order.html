@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: head('Đơn và hóa đơn')}"></head>
+  <body class="staff-page" th:classappend="${opsBase == '/admin' ? 'admin-page' : ''}">
+    <header th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: header('orders')}"></header>
+    <main class="staff-main" th:with="booking=${view.booking},order=${view.order},payment=${view.payment}">
+      <a class="staff-link staff-back" th:href="@{${opsBase + '/orders'}}">← Các bàn đang phục vụ</a>
+      <div class="staff-page-heading">
+        <div><p class="staff-kicker" th:text="${booking.table == null ? booking.code : booking.table.code + ' · ' + booking.code}"></p>
+          <h1 th:text="${order == null ? 'Đơn gọi món' : order.invoiceNumber}"></h1>
+          <p><a class="staff-link" th:href="@{${opsBase + '/reservations/{id}'}(id=${booking.id})}" th:text="${booking.guestName}"></a> <span th:text="${'· ' + booking.guestCount + ' khách'}"></span></p>
+        </div>
+        <span class="staff-badge" th:if="${order != null}" th:text="${order.statusLabel}" th:attr="data-status=${order.status}"></span>
+      </div>
+      <div th:replace="~{staff/fragments/shell :: messages}"></div>
+      <section class="staff-panel" th:if="${order == null}">
+        <h2>Đơn gọi món</h2>
+        <form th:if="${booking.status == 'SEATED'}" class="staff-actions" th:action="@{${opsBase + '/orders/{id}/open'}(id=${booking.id})}" method="post">
+          <button type="submit" class="staff-button">Mở đơn cho bàn này</button>
+        </form>
+        <p class="staff-empty" th:unless="${booking.status == 'SEATED'}">Lượt đặt bàn này chưa có đơn gọi món.</p>
+      </section>
+      <div class="staff-stack" th:if="${order != null}">
+        <section class="staff-panel">
+          <div class="staff-panel-heading"><h2>Chi tiết món</h2>
+            <strong class="staff-total" th:text="${#numbers.formatInteger(order.currentTotal, 1, 'POINT') + ' đ'}"></strong>
+          </div>
+          <p class="staff-empty" th:if="${order.items.isEmpty()}">Chưa có món trong đơn.</p>
+          <div class="staff-table-wrap" th:unless="${order.items.isEmpty()}">
+            <table class="staff-table">
+              <thead><tr><th scope="col">Món</th><th scope="col">Đơn giá</th><th scope="col">Số lượng</th><th scope="col">Thành tiền</th>
+                <th scope="col" th:if="${order.status == 'DRAFT'}">Thao tác</th></tr></thead>
+              <tbody><tr th:each="item : ${order.items}" th:classappend="${item.cancelled ? 'staff-cancelled' : ''}">
+                <td data-label="Món"><strong th:text="${item.dishName}"></strong><small th:if="${item.cancelled}">Đã hủy món</small></td>
+                <td data-label="Đơn giá" th:text="${#numbers.formatInteger(item.unitPrice, 1, 'POINT') + ' đ'}"></td>
+                <td data-label="Số lượng" th:text="${item.quantity}"></td>
+                <td data-label="Thành tiền" th:text="${item.cancelled ? '—' : #numbers.formatInteger(item.amount, 1, 'POINT') + ' đ'}"></td>
+                <td data-label="Thao tác" th:if="${order.status == 'DRAFT'}">
+                  <form class="staff-actions" th:unless="${item.cancelled}" th:action="@{${opsBase + '/orders/{id}/items/{itemId}'}(id=${booking.id},itemId=${item.id})}" method="post">
+                    <input class="staff-quantity" type="number" name="quantity" th:value="${item.quantity}" min="1" max="100"
+                        th:attr="aria-label=${'Số lượng ' + item.dishName}" required />
+                    <button class="staff-button is-outline" type="submit">Lưu</button>
+                    <button class="staff-button is-danger" name="cancel" value="true" type="submit" formnovalidate>Hủy món</button>
+                  </form>
+                </td>
+              </tr></tbody>
+            </table>
+          </div>
+          <form class="staff-order-add" th:if="${order.status == 'DRAFT'}" th:action="@{${opsBase + '/orders/{id}/items'}(id=${booking.id})}" method="post">
+            <label class="staff-field">Món ăn <select name="dishId" required><option value="">Chọn món</option>
+              <option th:each="dish : ${dishes}" th:value="${dish.id}" th:text="${dish.name + ' · ' + #numbers.formatInteger(dish.price, 1, 'POINT') + ' đ'}"></option>
+            </select></label>
+            <label class="staff-field">Số lượng <input type="number" name="quantity" value="1" min="1" max="100" required /></label>
+            <button class="staff-button is-outline" type="submit">Thêm món</button>
+          </form>
+          <form class="staff-actions" th:if="${order.status == 'DRAFT' and order.hasItems()}" th:action="@{${opsBase + '/orders/{id}/finalize'}(id=${booking.id})}" method="post">
+            <button class="staff-button" type="submit" data-confirm="Chốt hóa đơn? Sau khi chốt, số lượng và món sẽ được khóa.">Chốt hóa đơn</button>
+          </form>
+        </section>
+        <section class="staff-panel staff-form-narrow" th:if="${order.status == 'FINALIZED'}">
+          <h2>Xác nhận thu tiền</h2>
+          <form class="staff-form" th:action="@{${opsBase + '/orders/{id}/pay'}(id=${booking.id})}" method="post" data-payment-form>
+            <label class="staff-field">Phương thức <select name="method" data-payment-method>
+              <option value="CASH">Tiền mặt</option><option value="TRANSFER">Chuyển khoản</option></select></label>
+            <label class="staff-field" data-payment-reference>Mã giao dịch (khi chuyển khoản) <input name="reference" maxlength="80" autocomplete="off" />
+              <small>Đối chiếu khoản tiền đến với tổng hóa đơn trước khi nhập mã.</small>
+            </label>
+            <label class="staff-checkbox"><input type="checkbox" name="received" value="true" required /> Tôi đã thực nhận đủ số tiền của hóa đơn.</label>
+            <div class="staff-actions"><button class="staff-button" type="submit">Xác nhận đã thanh toán</button></div>
+          </form>
+        </section>
+        <section class="staff-panel" th:if="${payment != null}">
+          <h2>Thông tin thanh toán</h2>
+          <dl class="staff-details">
+            <div><dt>Đã thu</dt><dd th:text="${#numbers.formatInteger(payment.amount, 1, 'POINT') + ' đ'}"></dd></div>
+            <div><dt>Phương thức</dt><dd th:text="${payment.methodLabel}"></dd></div>
+            <div><dt>Thời điểm</dt><dd th:text="${#temporals.format(payment.paidAt, 'dd/MM/yyyy · HH:mm')}"></dd></div>
+            <div><dt>Nhân viên xác nhận</dt><dd th:text="${payment.receivedBy}"></dd></div>
+            <div th:if="${payment.transferReference != null}"><dt>Mã giao dịch</dt><dd th:text="${payment.transferReference}"></dd></div>
+          </dl>
+          <form class="staff-actions" th:if="${booking.status == 'SEATED'}" th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
+            <input type="hidden" name="from" value="order" /><button class="staff-button" name="status" value="COMPLETED">Kết thúc phục vụ</button>
+          </form>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: head('Tạo đặt bàn')}"></head>
+  <body class="staff-page" th:classappend="${opsBase == '/admin' ? 'admin-page' : ''}">
+    <header th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: header('reservations')}"></header>
+    <main class="staff-main">
+      <a class="staff-link staff-back" th:href="@{${opsBase + '/reservations'}}">← Danh sách đặt bàn</a>
+      <div class="staff-page-heading"><div><h1>Tạo đặt bàn</h1><p>Ghi nhận khách đến trực tiếp hoặc đặt trước qua điện thoại.</p></div></div>
+      <form class="staff-panel staff-form staff-form-narrow" th:action="@{${opsBase + '/reservations'}}" th:object="${bookingForm}" method="post" data-booking-form>
+        <div class="staff-notice is-error" th:if="${#fields.hasAnyErrors()}" role="alert">
+          <ul><li th:each="message : ${#fields.allErrors()}" th:text="${message}"></li></ul>
+        </div>
+        <div class="staff-form-grid">
+          <label class="staff-field">Hình thức
+            <select name="walkIn" data-booking-mode>
+              <option value="false" th:selected="${!walkIn}">Đặt trước qua điện thoại</option>
+              <option value="true" th:selected="${walkIn}">Khách đến trực tiếp</option>
+            </select>
+          </label>
+          <label class="staff-field">Số khách <input type="number" th:field="*{guests}" min="1" max="20" required /></label>
+          <label class="staff-field">Họ và tên khách <input th:field="*{guestName}" maxlength="120" required /></label>
+          <label class="staff-field">Số điện thoại <input type="tel" th:field="*{guestPhone}" maxlength="30" autocomplete="tel" data-booking-phone aria-describedby="staff-phone-hint" />
+            <small id="staff-phone-hint">Bắt buộc khi đặt qua điện thoại.</small>
+          </label>
+          <label class="staff-field">Email (tùy chọn) <input type="email" th:field="*{guestEmail}" maxlength="254" autocomplete="email" /></label>
+          <label class="staff-field">Bàn
+            <select name="tableId"><option value="">Tự động chọn bàn phù hợp</option><th:block th:replace="~{staff/fragments/shell :: tableOptions(${tableOptions}, ${selectedTable})}"></th:block></select>
+          </label>
+          <label class="staff-field" data-booking-schedule>Ngày đến <input type="date" th:field="*{date}" th:min="${today}" /></label>
+          <label class="staff-field" data-booking-schedule>Giờ đến
+            <select th:field="*{time}"><option value="">Chọn giờ</option><option th:each="slot : ${timeSlots}" th:value="${#temporals.format(slot, 'HH:mm')}" th:text="${#temporals.format(slot, 'HH:mm')}"></option></select>
+          </label>
+          <label class="staff-field staff-full">Ghi chú <textarea th:field="*{note}" rows="3" maxlength="500"></textarea></label>
+        </div>
+        <label class="staff-checkbox"><input type="checkbox" th:field="*{consentAccepted}" /> Khách đồng ý với chính sách đặt bàn và quyền riêng tư.</label>
+        <div class="staff-actions"><button class="staff-button" type="submit">Lưu đặt bàn</button></div>
+      </form>
+    </main>
+  </body>
+</html>

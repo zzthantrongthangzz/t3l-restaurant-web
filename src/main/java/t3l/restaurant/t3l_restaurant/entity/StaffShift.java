@@ -28,33 +28,33 @@ public class StaffShift {
   @Column(name = "opening_cash", nullable = false, precision = 14, scale = 0)
   private BigDecimal openingCash;
 
-  @Column(name = "cash_sales", precision = 14, scale = 0)
+  @Column(name = "cash_sales", precision = 18, scale = 0)
   private BigDecimal cashSales;
 
-  @Column(name = "other_sales", precision = 14, scale = 0)
+  @Column(name = "other_sales", precision = 18, scale = 0)
   private BigDecimal otherSales;
 
-  @Column(name = "counted_cash", precision = 14, scale = 0)
+  @Column(name = "counted_cash", precision = 18, scale = 0)
   private BigDecimal countedCash;
 
-  @Column(name = "cash_difference", precision = 14, scale = 0)
+  @Column(name = "cash_difference", precision = 18, scale = 0)
   private BigDecimal cashDifference;
 
   @Column(nullable = false, length = 16)
   private String status = "OPEN";
 
-  public StaffShift(UserAccount employee, BigDecimal openingCash) {
+  public StaffShift(UserAccount employee, BigDecimal openingCash, LocalDateTime now) {
     this.employee = employee;
     this.openingCash = openingCash;
-    this.openedAt = LocalDateTime.now();
+    this.openedAt = now;
   }
 
-  public void close(BigDecimal cashSales, BigDecimal otherSales, BigDecimal countedCash) {
+  public void close(BigDecimal cashSales, BigDecimal otherSales, BigDecimal countedCash, LocalDateTime now) {
     this.cashSales = cashSales;
     this.otherSales = otherSales;
     this.countedCash = countedCash;
     this.cashDifference = countedCash.subtract(openingCash).subtract(cashSales);
-    this.closedAt = LocalDateTime.now();
+    this.closedAt = now;
     this.status = "CLOSED";
   }
 }

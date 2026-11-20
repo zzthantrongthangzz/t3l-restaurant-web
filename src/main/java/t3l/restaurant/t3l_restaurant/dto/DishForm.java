@@ -17,9 +17,10 @@ public class DishForm {
   @Size(max = 1000)
   private String description;
 
-  @NotNull @Positive private BigDecimal price;
+  @NotNull @Positive @Digits(integer = 12, fraction = 0) private BigDecimal price;
 
   private MultipartFile image;
+  @Size(max = 500) private String imageUrl;
 
   @Size(max = 80)
   private String dietaryLabel;
@@ -29,4 +30,5 @@ public class DishForm {
   private String categoryName;
 
   private boolean available = true;
+  private boolean published = true;
 }

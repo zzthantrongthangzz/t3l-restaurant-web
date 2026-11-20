@@ -1,19 +1,31 @@
 <!doctype html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
-  <head th:replace="~{admin/contact-detail :: contactHead('Quản lý liên hệ')}"></head>
-  <body>
-    <header th:replace="~{admin/contact-detail :: contactHeader}"></header>
-    <main class="page inner-page admin-contacts">
-      <span class="eyebrow">CHĂM SÓC KHÁCH HÀNG</span>
-      <div class="section-heading"><div><h1>Liên hệ của khách hàng</h1><p class="lead">Tiếp nhận lời nhắn và theo dõi quá trình xử lý.</p></div><span th:text="${contacts.totalElements + ' liên hệ'}"></span></div>
-      <form class="contact-admin-filter" th:action="@{/admin/contacts}" method="get">
-        <label for="contact-status-filter">Trạng thái</label><select id="contact-status-filter" name="status"><option value="" th:selected="${filterStatus == ''}">Tất cả</option><option value="NEW" th:selected="${filterStatus == 'NEW'}">Mới tiếp nhận</option><option value="IN_PROGRESS" th:selected="${filterStatus == 'IN_PROGRESS'}">Đang xử lý</option><option value="RESOLVED" th:selected="${filterStatus == 'RESOLVED'}">Đã xử lý</option></select><button class="button" type="submit">Lọc liên hệ</button>
-      </form>
-      <div class="table-wrap"><table><thead><tr><th>Ngày gửi</th><th>Khách hàng</th><th>Chủ đề</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>
-        <tr th:each="contact : ${contacts.content}"><td th:text="${#temporals.format(contact.createdAt, 'dd/MM/yyyy HH:mm')}"></td><td><b th:text="${contact.name}"></b><small class="table-sub" th:text="${contact.email}"></small></td><td th:text="${contact.subject}"></td><td><span class="status" th:text="${contact.statusLabel}"></span></td><td><a class="text-link" th:href="@{/admin/contacts/{id}(id=${contact.id})}">Xem &amp; xử lý</a></td></tr>
-        <tr th:if="${contacts.empty}"><td colspan="5" class="empty-cell">Không có liên hệ trong danh sách này.</td></tr>
-      </tbody></table></div>
-      <nav class="contact-admin-pages" aria-label="Phân trang liên hệ"><a class="text-link" th:if="${contacts.hasPrevious()}" th:href="@{/admin/contacts(status=${filterStatus},page=${contacts.number - 1})}">← Trang trước</a><span th:text="${'Trang ' + (contacts.number + 1) + ' / ' + (contacts.totalPages > 0 ? contacts.totalPages : 1)}"></span><a class="text-link" th:if="${contacts.hasNext()}" th:href="@{/admin/contacts(status=${filterStatus},page=${contacts.number + 1})}">Trang sau →</a></nav>
-    </main>
-  </body>
-</html>
+<head th:replace="~{admin/fragments/shell :: head('Quản lý liên hệ')}"></head>
+<body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('contacts')}"></header>
+<main class="staff-main">
+  <div class="staff-page-heading"><div><h1>Liên hệ của khách hàng</h1><p>Tiếp nhận lời nhắn và theo dõi quá trình xử lý.</p></div></div>
+  <section class="staff-panel">
+    <form class="staff-actions admin-inline-filter" th:action="@{/admin/contacts}" method="get">
+      <label class="staff-field"><span class="admin-sr-only">Trạng thái</span><select name="status">
+        <option value="" th:selected="${filterStatus == ''}">Tất cả</option>
+        <option value="NEW" th:selected="${filterStatus == 'NEW'}">Mới tiếp nhận</option>
+        <option value="IN_PROGRESS" th:selected="${filterStatus == 'IN_PROGRESS'}">Đang xử lý</option>
+        <option value="RESOLVED" th:selected="${filterStatus == 'RESOLVED'}">Đã xử lý</option>
+      </select></label><button class="staff-button">Lọc liên hệ</button>
+    </form>
+    <p class="staff-muted" th:text="${contacts.totalElements + ' liên hệ'}"></p>
+    <p class="staff-empty" th:if="${contacts.empty}">Không có liên hệ trong danh sách này.</p>
+    <div class="staff-table-wrap" th:unless="${contacts.empty}"><table class="staff-table"><thead><tr><th>Ngày gửi</th><th>Khách hàng</th><th>Chủ đề</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+      <tbody><tr th:each="contact : ${contacts.content}">
+        <td data-label="Ngày gửi" th:text="${#temporals.format(contact.createdAt,'dd/MM/yyyy HH:mm')}"></td>
+        <td data-label="Khách hàng"><strong th:text="${contact.name}"></strong><small th:text="${contact.email}"></small></td>
+        <td data-label="Chủ đề" th:text="${contact.subject}"></td><td data-label="Trạng thái"><span class="staff-badge" th:text="${contact.statusLabel}"></span></td>
+        <td data-label="Thao tác"><a class="staff-link" th:href="@{/admin/contacts/{id}(id=${contact.id})}">Xem &amp; xử lý</a></td>
+      </tr></tbody></table></div>
+    <nav class="staff-pagination" aria-label="Phân trang liên hệ" th:if="${contacts.totalPages > 1}">
+      <a class="staff-link" th:if="${contacts.hasPrevious()}" th:href="@{/admin/contacts(status=${filterStatus},page=${contacts.number - 1})}">Trang trước</a>
+      <span th:text="${'Trang ' + (contacts.number + 1) + ' / ' + contacts.totalPages}"></span>
+      <a class="staff-link" th:if="${contacts.hasNext()}" th:href="@{/admin/contacts(status=${filterStatus},page=${contacts.number + 1})}">Trang sau</a>
+    </nav>
+  </section>
+</main></body></html>

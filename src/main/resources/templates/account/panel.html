@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="theme-color" content="#171411" />
+    <title th:text="${pageTitle + ' | T3L Restaurant'}">Tài khoản | T3L Restaurant</title>
+    <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
+    <link rel="stylesheet" th:href="@{/css/account.css(v=20261120-typography)}" />
+  </head>
+  <body class="home account-page">
+    <a class="skip-link" href="#main">Chuyển đến nội dung</a>
+    <header th:replace="~{web/fragments/restaurant-shell :: header('account')}"></header>
+    <div class="account-area">
+      <div class="account-layout">
+        <aside class="account-sidebar">
+          <nav class="account-nav" aria-label="Khu vực tài khoản">
+            <th:block th:replace="~{account/fragments/navigation :: links(${section})}"></th:block>
+          </nav>
+        </aside>
+        <main class="account-content" id="main">
+          <h1 th:text="${pageTitle}"></h1>
+          <p class="account-notice" role="status" th:if="${accountNotice}" th:text="${accountNotice}"></p>
+          <th:block th:switch="${section}">
+            <th:block th:case="'profile'"><div th:replace="~{account/fragments/profile :: content}"></div></th:block>
+            <th:block th:case="'reservations'"><div th:replace="~{account/fragments/activity :: reservations}"></div></th:block>
+            <th:block th:case="'orders'"><div th:replace="~{account/fragments/activity :: orders}"></div></th:block>
+            <th:block th:case="'vouchers'"><div th:replace="~{account/fragments/activity :: vouchers}"></div></th:block>
+            <th:block th:case="'addresses'"><div th:replace="~{account/fragments/addresses :: content}"></div></th:block>
+            <th:block th:case="'invoices'"><div th:replace="~{account/fragments/invoices :: content}"></div></th:block>
+          </th:block>
+        </main>
+      </div>
+    </div>
+    <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
+    <th:block th:replace="~{web/fragments/restaurant-shell :: navigation}"></th:block>
+  </body>
+</html>

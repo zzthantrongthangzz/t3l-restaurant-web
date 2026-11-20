@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/fragments/shell :: head('Quản lý tài khoản')}"></head>
+<body class="staff-page admin-page">
+<header th:replace="~{admin/fragments/shell :: header('accounts')}"></header>
+<main class="staff-main">
+  <div class="staff-page-heading"><div><h1>Quản lý tài khoản</h1><p>Nhân viên, quyền quản trị và trạng thái tài khoản khách hàng.</p></div><a class="staff-button" th:href="@{/admin/accounts/new}">Thêm nhân viên</a></div>
+  <div th:replace="~{admin/fragments/shell :: messages}"></div>
+  <section class="staff-panel">
+    <form class="staff-filters" th:action="@{/admin/accounts}" method="get">
+      <label class="staff-field">Tìm tài khoản<input name="q" th:value="${q}" maxlength="120" placeholder="Tên, email hoặc điện thoại" /></label>
+      <label class="staff-field">Vai trò<select name="role"><option value="">Tất cả</option><option th:each="item : ${ {'CUSTOMER','STAFF','ADMIN'} }" th:text="${item}" th:selected="${item == role}"></option></select></label>
+      <label class="staff-field">Trạng thái<select name="enabled"><option value="">Tất cả</option><option value="true" th:selected="${enabled == true}">Hoạt động</option><option value="false" th:selected="${enabled == false}">Đã khóa</option></select></label>
+      <div class="staff-actions"><button class="staff-button">Tìm kiếm</button><a class="staff-link" th:href="@{/admin/accounts}">Bỏ lọc</a></div>
+    </form>
+    <p th:text="${rows.totalElements + ' tài khoản'}" class="staff-muted"></p>
+    <p class="staff-empty" th:if="${rows.empty}">Không có tài khoản phù hợp.</p>
+    <div class="staff-table-wrap" th:unless="${rows.empty}">
+      <table class="staff-table"><thead><tr><th>Tài khoản</th><th>Thông tin liên hệ</th><th>Vai trò</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>
+        <tr th:each="row : ${rows.content}">
+          <td data-label="Tài khoản"><a class="staff-link" th:href="@{/admin/accounts/{id}(id=${row.id})}" th:text="${row.fullName ?: row.username}"></a><small th:unless="${row.customer}" th:text="${row.username}"></small></td>
+          <td data-label="Liên hệ"><span th:text="${row.email ?: '—'}"></span><small th:if="${row.phone}" th:text="${row.phone}"></small></td>
+          <td data-label="Vai trò" th:text="${row.roleLabel}"></td>
+          <td data-label="Trạng thái"><span class="staff-badge" th:attr="data-status=${row.enabled ? 'OPEN' : 'INACTIVE'}" th:text="${row.enabled ? 'Hoạt động' : 'Đã khóa'}"></span></td>
+          <td data-label="Thao tác">
+            <form th:if="${row.username != actor}" th:action="@{/admin/accounts/{id}/availability(id=${row.id})}" method="post">
+              <button type="submit" class="staff-button is-outline" name="enabled" th:value="${!row.enabled}" th:text="${row.enabled ? 'Khóa' : 'Mở khóa'}"
+                  th:attr="data-confirm=${row.enabled ? 'Khóa tài khoản và kết thúc các phiên đăng nhập hiện tại?' : 'Mở khóa tài khoản này?'}"></button>
+            </form>
+          </td>
+        </tr>
+      </tbody></table>
+    </div>
+    <nav class="staff-pagination" th:if="${rows.totalPages > 1}" aria-label="Phân trang tài khoản">
+      <a class="staff-link" th:if="${rows.hasPrevious()}" th:href="@{/admin/accounts(q=${q},role=${role},enabled=${enabled},page=${rows.number - 1})}">Trang trước</a>
+      <span th:text="${'Trang ' + (rows.number + 1) + ' / ' + rows.totalPages}"></span>
+      <a class="staff-link" th:if="${rows.hasNext()}" th:href="@{/admin/accounts(q=${q},role=${role},enabled=${enabled},page=${rows.number + 1})}">Trang sau</a>
+    </nav>
+  </section>
+</main></body></html>

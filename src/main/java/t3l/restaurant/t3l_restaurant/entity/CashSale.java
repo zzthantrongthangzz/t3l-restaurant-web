@@ -39,9 +39,9 @@ public class CashSale {
   private String paymentMethod;
 
   @Column(name = "created_at", nullable = false)
-  private LocalDateTime createdAt = LocalDateTime.now();
+  private LocalDateTime createdAt;
 
-  public CashSale(StaffShift shift, Dish dish, int quantity, String paymentMethod) {
+  public CashSale(StaffShift shift, Dish dish, int quantity, String paymentMethod, LocalDateTime now) {
     this.shift = shift;
     this.dish = dish;
     this.dishName = dish.getName();
@@ -49,5 +49,6 @@ public class CashSale {
     this.unitPrice = dish.getPrice();
     this.totalAmount = dish.getPrice().multiply(BigDecimal.valueOf(quantity));
     this.paymentMethod = paymentMethod;
+    this.createdAt = now;
   }
 }

@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/fragments/shell :: head('Danh mục thực đơn')}"></head>
+<body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('dishes')}"></header>
+<main class="staff-main">
+  <a class="staff-link staff-back" th:href="@{/admin/dishes}">Danh sách món</a>
+  <div class="staff-page-heading"><div><h1>Danh mục thực đơn</h1><p>Ẩn một danh mục sẽ ẩn các món thuộc danh mục đó trên thực đơn và danh sách gọi món.</p></div></div>
+  <div th:replace="~{admin/fragments/shell :: messages}"></div>
+  <section th:replace="~{admin/fragments/sections :: editor(${categories}, '/admin/categories', 'MENU', 'Danh mục', 80)}"></section>
+</main></body></html>

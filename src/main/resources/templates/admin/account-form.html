@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/fragments/shell :: head('Tài khoản')}"></head>
+<body class="staff-page admin-page">
+<header th:replace="~{admin/fragments/shell :: header('accounts')}"></header>
+<main class="staff-main">
+  <a class="staff-link staff-back" th:href="@{/admin/accounts}">Danh sách tài khoản</a>
+  <div class="staff-page-heading"><h1 th:text="${account == null ? 'Thêm nhân viên' : 'Chi tiết tài khoản'}"></h1></div>
+  <section class="staff-panel staff-form-narrow" th:if="${account != null and account.customer}">
+    <h2>Tài khoản khách hàng</h2><dl class="staff-details"><div><dt>Họ tên</dt><dd th:text="${account.fullName ?: '—'}"></dd></div>
+      <div><dt>Email</dt><dd th:text="${account.email ?: '—'}"></dd></div><div><dt>Điện thoại</dt><dd th:text="${account.phone ?: '—'}"></dd></div>
+      <div><dt>Trạng thái</dt><dd th:text="${account.enabled ? 'Hoạt động' : 'Đã khóa'}"></dd></div></dl>
+    <p class="staff-muted">Hồ sơ và phương thức đăng nhập do khách hàng quản lý.</p>
+  </section>
+  <form class="staff-panel staff-form staff-form-narrow" th:if="${account == null or !account.customer}" th:object="${form}"
+      th:action="${account == null} ? @{/admin/accounts} : @{/admin/accounts/{id}(id=${account.id})}" method="post">
+    <div th:replace="~{admin/fragments/shell :: errors}"></div>
+    <div class="staff-form-grid">
+      <label class="staff-field">Tên đăng nhập<input th:field="*{username}" th:readonly="${account != null}" required maxlength="80" autocomplete="off" /></label>
+      <label class="staff-field">Họ và tên<input th:field="*{fullName}" required maxlength="120" /></label>
+      <label class="staff-field">Email<input th:field="*{email}" type="email" maxlength="254" /></label>
+      <label class="staff-field">Điện thoại<input th:field="*{phone}" type="tel" maxlength="30" /></label>
+      <label class="staff-field">Vai trò<select th:field="*{role}"><option value="STAFF">STAFF</option><option value="ADMIN">ADMIN</option></select></label>
+      <label class="staff-field">Mật khẩu<input type="password" name="password" minlength="12" maxlength="72" th:required="${account == null}" autocomplete="new-password" />
+        <small th:text="${account == null ? 'Ít nhất 12 ký tự.' : 'Để trống nếu giữ mật khẩu hiện tại.'}"></small></label>
+    </div>
+    <label class="staff-checkbox"><input th:field="*{enabled}" type="checkbox" /> Cho phép đăng nhập</label>
+    <div class="staff-actions"><button class="staff-button" type="submit" data-confirm="Lưu thông tin và quyền của tài khoản này?">Lưu tài khoản</button></div>
+  </form>
+</main></body></html>

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/fragments/shell :: head('Cấu hình nhà hàng')}"></head>
+<body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('settings')}"></header>
+<main class="staff-main">
+  <div class="staff-page-heading"><div><h1>Cấu hình nhà hàng</h1><p>Thông tin công khai và quy tắc đặt bàn dùng cho cả website.</p></div></div>
+  <div th:replace="~{admin/fragments/shell :: messages}"></div>
+  <form class="staff-stack" th:action="@{/admin/settings}" th:object="${form}" method="post">
+    <div th:replace="~{admin/fragments/shell :: errors}"></div>
+    <section class="staff-panel staff-form">
+      <h2>Thông tin và giới thiệu</h2>
+      <div class="staff-form-grid">
+        <label class="staff-field staff-full">Địa chỉ nhà hàng<input th:field="*{address}" maxlength="300" required /></label>
+        <label class="staff-field">Hotline<input th:field="*{phone}" type="tel" maxlength="30" /></label>
+        <label class="staff-field">Email liên hệ<input th:field="*{email}" type="email" maxlength="254" /></label>
+        <label class="staff-field staff-full">Nội dung trang giới thiệu<textarea th:field="*{aboutText}" maxlength="2000" rows="5"></textarea>
+          <small>Để trống để dùng nội dung mặc định.</small></label>
+        <label class="staff-field staff-full">URL ảnh trang giới thiệu<input th:field="*{aboutImageUrl}" type="url" maxlength="500" placeholder="https://" /></label>
+      </div>
+    </section>
+    <section class="staff-panel staff-form">
+      <h2>Giờ hoạt động và đặt bàn</h2>
+      <div class="staff-form-grid">
+        <label class="staff-field">Giờ mở cửa<input th:field="*{openingTime}" type="time" required /></label>
+        <label class="staff-field">Giờ đóng cửa<input th:field="*{closingTime}" type="time" required /></label>
+        <label class="staff-field">Thời lượng một lượt (phút)<input th:field="*{durationMinutes}" type="number" min="15" max="720" required /></label>
+        <label class="staff-field">Khoảng cách giữa các khung giờ (phút)<input th:field="*{slotMinutes}" type="number" min="5" max="120" required /></label>
+        <label class="staff-field">Báo trước để đổi hoặc hủy (phút)<input th:field="*{changeNoticeMinutes}" type="number" min="0" max="10080" required /></label>
+        <label class="staff-field">Cho phép check-in trước giờ (phút)<input th:field="*{checkInMinutes}" type="number" min="0" max="120" required /></label>
+        <label class="staff-field">Đánh dấu No-show sau giờ đặt (phút)<input th:field="*{noShowMinutes}" type="number" min="0" max="120" required /></label>
+      </div>
+    </section>
+    <div class="staff-actions"><button type="submit" class="staff-button" data-confirm="Áp dụng các quy tắc này cho website và khu vực vận hành?">Lưu cấu hình</button></div>
+  </form>
+</main></body></html>

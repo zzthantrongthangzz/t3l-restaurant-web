@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: head('Gọi món và thanh toán')}"></head>
+  <body class="staff-page" th:classappend="${opsBase == '/admin' ? 'admin-page' : ''}">
+    <header th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: header('orders')}"></header>
+    <main class="staff-main">
+      <div class="staff-page-heading">
+        <div><h1>Gọi món &amp; thanh toán</h1><p>Chọn lượt đang phục vụ để quản lý món và hóa đơn.</p></div>
+        <a class="staff-button is-outline" th:href="@{${opsBase + '/tables'}}">Xem sơ đồ bàn</a>
+      </div>
+      <p class="staff-empty" th:if="${#lists.isEmpty(serving)}">Chưa có bàn đang phục vụ.</p>
+      <div class="staff-table-grid">
+        <article class="staff-panel staff-table-card" th:each="item : ${serving}" th:with="booking=${item.booking},order=${item.order}">
+          <div class="staff-panel-heading"><h2 th:text="${booking.table.code}"></h2>
+            <span class="staff-badge" th:attr="data-status=${order == null ? booking.status : order.status}"
+                th:text="${order == null ? 'Chưa mở đơn' : order.statusLabel}"></span>
+          </div>
+          <p th:text="${booking.guestName + ' · ' + booking.guestCount + ' khách'}"></p>
+          <div class="staff-actions"><a class="staff-button" th:href="@{${opsBase + '/orders/{id}'}(id=${booking.id})}"
+              th:text="${order != null and order.status == 'FINALIZED' ? 'Xác nhận thu tiền' : 'Mở lượt phục vụ'}"></a></div>
+        </article>
+      </div>
+    </main>
+  </body>
+</html>

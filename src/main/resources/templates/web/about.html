@@ -6,15 +6,16 @@
     <meta name="description" content="Câu chuyện T3L Restaurant — Một lời mời ngồi lại, thưởng thức món ngon và dành thời gian cho những người bên cạnh." />
     <meta name="theme-color" content="#171411" />
     <title>Giới thiệu | T3L Restaurant</title>
-    <link rel="stylesheet" th:href="@{/css/home.css(v=20261117-fonts)}" />
-    <link rel="stylesheet" th:href="@{/css/about-contact.css(v=20261117-fonts)}" />
+    <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
+    <link rel="stylesheet" th:href="@{/css/about-contact.css(v=20261120-typography)}" />
   </head>
   <body class="home about-page">
     <a class="skip-link" href="#main">Chuyển đến nội dung</a>
     <header th:replace="~{web/fragments/restaurant-shell :: header('about')}"></header>
     <main id="main">
       <section class="about-hero" aria-labelledby="about-title">
-        <img class="about-hero-image" th:src="@{/images/home/dining-room.jpg}" alt="Nội thất nhà hàng với chất liệu gỗ và ánh sáng ấm — ảnh minh họa" width="1920" height="1280" fetchpriority="high" />
+        <img class="about-hero-image" th:if="${#strings.isEmpty(@restaurantInfo.aboutImageUrl)}" th:src="@{/images/home/dining-room.jpg}" alt="Nội thất nhà hàng với chất liệu gỗ và ánh sáng ấm — ảnh minh họa" width="1920" height="1280" fetchpriority="high" />
+        <img class="about-hero-image" th:unless="${#strings.isEmpty(@restaurantInfo.aboutImageUrl)}" th:src="${@restaurantInfo.aboutImageUrl}" alt="Ảnh giới thiệu T3L Restaurant" width="1920" height="1280" fetchpriority="high" referrerpolicy="no-referrer" />
         <div class="about-hero-shade"></div>
         <div class="home-container about-hero-copy">
           <p class="home-eyebrow">T3L RESTAURANT / OUR STORY</p>
@@ -29,9 +30,12 @@
         <div class="home-container about-story-grid">
           <div class="about-story-heading" data-reveal><p class="home-eyebrow">01 / MỘT LỜI MỜI TỪ T3L</p><h2 id="story-title">Bữa ăn ngon.<br /><em>Câu chuyện còn mãi.</em></h2><span class="gold-rule" aria-hidden="true"></span><span class="about-signature" aria-hidden="true">T3L.</span></div>
           <div class="about-story-copy" data-reveal>
+            <p class="about-custom-text" th:if="${!#strings.isEmpty(@restaurantInfo.aboutText)}" th:text="${@restaurantInfo.aboutText}"></p>
+            <th:block th:if="${#strings.isEmpty(@restaurantInfo.aboutText)}">
             <p class="about-lead">Có những buổi hẹn, điều ta nhớ không chỉ là món ăn.</p>
             <p>Đó còn là câu chuyện bên bàn, khoảng thời gian dành cho nhau và cảm giác được đón tiếp. T3L bắt đầu câu chuyện của mình bằng một lời mời giản dị: ngồi lại, chậm hơn một chút và tận hưởng bữa ăn cùng những người bên cạnh.</p>
             <p>Tinh thần steakhouse gợi mở cách T3L nghĩ về trải nghiệm dùng bữa: hương vị rõ ràng, không gian ấm và sự quan tâm vừa đủ. Từ một bữa tối thân mật đến dịp gặp gỡ đặc biệt, chúng tôi mong mỗi cuộc hẹn đều có ý nghĩa riêng.</p>
+            </th:block>
             <a class="home-text-link" th:href="@{/reservations/new}">Hẹn gặp bạn tại T3L <span aria-hidden="true">↗</span></a>
           </div>
         </div>

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+  <head th:fragment="head(title)">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title th:text="${title + ' | T3L Restaurant'}">T3L Restaurant</title>
+    <link rel="stylesheet" th:href="@{/css/site.css(v=20261120-typography)}" />
+    <link rel="stylesheet" th:href="@{/css/reservation-requests.css(v=20261120-staff)}" />
+    <link rel="stylesheet" th:href="@{/css/staff.css(v=20261120)}" />
+    <script defer th:src="@{/js/staff.js(v=20261120)}"></script>
+  </head>
+  <body>
+    <header class="staff-header" th:fragment="header(section)">
+      <div class="staff-header-inner">
+        <a class="staff-brand" th:href="@{/staff/dashboard}" aria-label="Tổng quan T3L Restaurant">
+          <span class="staff-brand-mark">T3L<span>.</span></span>
+          <span>T3L Restaurant<small>Vận hành nhà hàng</small></span>
+        </a>
+        <div class="staff-user">
+          <span sec:authentication="name"></span>
+          <form th:action="@{/logout}" method="post"><button class="staff-signout" type="submit">Đăng xuất</button></form>
+        </div>
+      </div>
+      <nav class="staff-nav" aria-label="Điều hướng nhân viên">
+        <a th:href="@{/staff/dashboard}" th:attr="aria-current=${section == 'dashboard' ? 'page' : null}">Tổng quan</a>
+        <a th:href="@{/staff/reservations}" th:attr="aria-current=${section == 'reservations' ? 'page' : null}">Đặt bàn</a>
+        <a th:href="@{/staff/tables}" th:attr="aria-current=${section == 'tables' ? 'page' : null}">Sơ đồ bàn</a>
+        <a th:href="@{/staff/orders}" th:attr="aria-current=${section == 'orders' ? 'page' : null}">Gọi món &amp; thanh toán</a>
+        <a th:href="@{/staff/shift}" th:attr="aria-current=${section == 'shift' ? 'page' : null}">Ca làm &amp; doanh thu</a>
+        <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/dashboard}">Quản trị</a>
+      </nav>
+    </header>
+    <div th:fragment="messages" th:remove="tag">
+      <p class="staff-notice is-success" th:if="${notice}" th:text="${notice}" role="status"></p>
+      <p class="staff-notice is-error" th:if="${error}" th:text="${error}" role="alert"></p>
+    </div>
+    <span class="staff-badge" th:fragment="status(booking)" th:attr="data-status=${booking.status}" th:text="${booking.statusLabel}"></span>
+    <th:block th:fragment="tableOptions(tableOptions, selected)">
+      <option th:each="table : ${tableOptions}" th:value="${table.id}" th:selected="${table.id == selected}"
+          th:text="${table.code + ' · ' + table.tableType + ' · ' + table.capacity + ' chỗ'}"></option>
+    </th:block>
+  </body>
+</html>

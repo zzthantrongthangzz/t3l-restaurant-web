@@ -1,0 +1,9 @@
+:root {
+  --text-body: 1rem;
+  --text-compact: 0.9375rem;
+  --text-label: 0.875rem;
+  --text-caption: 0.8125rem;
+  --leading-body: 1.6;
+  --leading-control: 1.45;
+  --control-height: 2.75rem;
+}

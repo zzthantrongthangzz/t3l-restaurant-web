@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<form th:fragment="filters(path, mode)" class="staff-filters admin-report-filters" th:action="@{${path}}" method="get">
+  <label class="staff-field">Từ ngày<input type="date" name="from" th:value="${filter.from}" required /></label>
+  <label class="staff-field">Đến ngày<input type="date" name="to" th:value="${filter.to}" required /></label>
+  <label class="staff-field"><span th:text="${mode == 'activity' ? 'Quản trị viên' : 'Nhân viên'}"></span>
+    <input name="employee" th:value="${filter.employee}" maxlength="80" placeholder="Tên đăng nhập" /></label>
+  <label class="staff-field" th:if="${mode == 'invoices' or mode == 'revenue'}">Phương thức<select name="method">
+    <option value="">Tất cả</option><option value="CASH" th:selected="${filter.method == 'CASH'}">Tiền mặt</option>
+    <option value="TRANSFER" th:selected="${filter.method == 'TRANSFER'}">Chuyển khoản</option>
+    <option value="CARD" th:if="${mode == 'revenue'}" th:selected="${filter.method == 'CARD'}">Thẻ</option>
+  </select></label>
+  <label class="staff-field" th:if="${mode == 'invoices'}">Trạng thái<select name="status">
+    <option value="">Tất cả</option><option value="DRAFT" th:selected="${query.status == 'DRAFT'}">Đang gọi món</option>
+    <option value="FINALIZED" th:selected="${query.status == 'FINALIZED'}">Chờ thanh toán</option>
+    <option value="PAID" th:selected="${query.status == 'PAID'}">Đã thanh toán</option>
+    <option value="VOID" th:selected="${query.status == 'VOID'}">Đã đóng đơn trống</option>
+  </select></label>
+  <label class="staff-field" th:if="${mode == 'invoices'}">Mã hóa đơn hoặc đặt bàn<input name="code" th:value="${query.code}" maxlength="32" /></label>
+  <label class="staff-field" th:if="${mode == 'shifts'}">Trạng thái ca<select name="status">
+    <option value="">Tất cả</option><option value="OPEN" th:selected="${query.status == 'OPEN'}">Đang mở</option>
+    <option value="CLOSED" th:selected="${query.status == 'CLOSED'}">Đã kết ca</option>
+  </select></label>
+  <div class="staff-actions"><button class="staff-button" type="submit">Lọc</button><a class="staff-link" th:href="@{${path}}">Bỏ lọc</a></div>
+</form>
+<nav th:fragment="pages(path)" class="staff-pagination" aria-label="Phân trang" th:if="${rows.previous or rows.next}">
+  <a class="staff-link" th:if="${rows.previous}" th:href="@{${path}(from=${filter.from},to=${filter.to},employee=${filter.employee},method=${filter.method},status=${query.status},code=${query.code},page=${rows.page - 1})}">Trang trước</a>
+  <span th:text="${'Trang ' + (rows.page + 1)}"></span>
+  <a class="staff-link" th:if="${rows.next}" th:href="@{${path}(from=${filter.from},to=${filter.to},employee=${filter.employee},method=${filter.method},status=${query.status},code=${query.code},page=${rows.page + 1})}">Trang sau</a>
+</nav>
+</body></html>

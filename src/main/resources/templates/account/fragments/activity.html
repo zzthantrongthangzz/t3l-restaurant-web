@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <body>
+    <div th:fragment="empty(icon, title, description)" class="account-empty">
+      <span class="account-empty-icon"><svg th:replace="~{account/fragments/navigation :: icon(${icon})}"></svg></span>
+      <strong th:text="${title}"></strong>
+      <p th:if="${description != null}" th:text="${description}"></p>
+    </div>
+
+    <div th:fragment="reservations">
+      <nav class="account-tabs" aria-label="Lịch đặt bàn">
+        <a th:href="@{/account/reservations}" th:attr="aria-current=${tab == 'upcoming' ? 'page' : null}">Sắp tới</a>
+        <a th:href="@{/account/reservations(tab='past')}" th:attr="aria-current=${tab == 'past' ? 'page' : null}">Đã qua</a>
+      </nav>
+      <th:block th:if="${bookings.isEmpty()}">
+        <div th:replace="~{account/fragments/activity :: empty('reservations',${tab == 'past' ? 'Chưa có lịch đặt bàn đã qua' : 'Chưa có lịch đặt bàn sắp tới'},'Các lịch được lưu vào tài khoản sẽ hiển thị tại đây.')}"></div>
+      </th:block>
+      <ul class="account-list" th:unless="${bookings.isEmpty()}">
+        <li class="account-record" th:each="booking : ${bookings}">
+          <div>
+            <p class="account-record-title" th:text="${#temporals.format(booking.reservationDate, 'dd/MM/yyyy') + ' · ' + #temporals.format(booking.reservationTime, 'HH:mm')}"></p>
+            <p class="account-muted" th:text="${booking.guestCount + ' khách · ' + booking.code}"></p>
+          </div>
+          <div class="account-record-actions">
+            <span class="account-status" th:text="${booking.statusLabel}"></span>
+            <a class="account-text-action" th:href="@{/reservations/lookup(code=${booking.code})}">Xem chi tiết</a>
+          </div>
+        </li>
+      </ul>
+      <div class="account-form-actions account-spaced-actions">
+        <a class="account-button" th:href="@{/reservations/lookup}">Tìm đặt bàn trước đây</a>
+        <a class="account-button is-primary" th:href="@{/reservations/new}">Đặt bàn</a>
+      </div>
+    </div>
+
+    <div th:fragment="orders">
+      <div th:replace="~{account/fragments/activity :: empty('orders','Chưa có đơn hàng','Đơn hàng gắn với tài khoản của bạn sẽ xuất hiện tại đây.')}"></div>
+    </div>
+
+    <div th:fragment="vouchers">
+      <nav class="account-tabs" aria-label="Trạng thái voucher">
+        <a th:href="@{/account/vouchers}" th:attr="aria-current=${tab == 'available' ? 'page' : null}">Đang có</a>
+        <a th:href="@{/account/vouchers(tab='used')}" th:attr="aria-current=${tab == 'used' ? 'page' : null}">Đã sử dụng</a>
+        <a th:href="@{/account/vouchers(tab='expired')}" th:attr="aria-current=${tab == 'expired' ? 'page' : null}">Hết hạn</a>
+      </nav>
+      <div th:replace="~{account/fragments/activity :: empty('vouchers',${tab == 'used' ? 'Chưa có voucher đã sử dụng' : (tab == 'expired' ? 'Chưa có voucher hết hạn' : 'Chưa có voucher khả dụng')},null)}"></div>
+    </div>
+  </body>
+</html>

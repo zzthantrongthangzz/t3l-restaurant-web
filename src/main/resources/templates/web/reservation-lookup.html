@@ -7,9 +7,9 @@
     <meta name="referrer" content="no-referrer" />
     <meta name="theme-color" content="#171411" />
     <title>Tra cứu đặt bàn | T3L Restaurant</title>
-    <link rel="stylesheet" th:href="@{/css/home.css(v=20261117-fonts)}" />
-    <link rel="stylesheet" th:href="@{/css/reservation.css(v=20261117-fonts)}" />
-    <link rel="stylesheet" th:href="@{/css/lookup.css(v=20261117)}" />
+    <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
+    <link rel="stylesheet" th:href="@{/css/reservation.css(v=20261120-typography)}" />
+    <link rel="stylesheet" th:href="@{/css/lookup.css(v=20261120-typography)}" />
   </head>
   <body class="home lookup-page">
     <a class="skip-link" href="#lookup-form">Chuyển đến form tra cứu</a>
@@ -21,7 +21,8 @@
           <p>Tra cứu thông tin, theo dõi xác nhận<br />và gửi yêu cầu cho buổi hẹn sắp tới.</p>
         </section>
 
-        <form id="lookup-form" class="lookup-form" th:action="@{/reservations/lookup}" th:object="${lookupForm}" method="post">
+        <a class="home-text-link" th:if="${ownedBooking}" th:href="@{/account/reservations}">Về thông tin đặt bàn</a>
+        <form id="lookup-form" class="lookup-form" th:unless="${ownedBooking}" th:action="@{/reservations/lookup}" th:object="${lookupForm}" method="post">
           <div class="lookup-form-top"><p class="home-eyebrow">TRA CỨU ĐẶT BÀN</p><span>Xác thực bằng thông tin đã dùng khi đặt bàn</span></div>
           <div class="lookup-search-fields">
             <div class="booking-field"><label for="code">Mã đặt bàn</label><input id="code" th:field="*{code}" placeholder="T3L-…" maxlength="20" autocomplete="off" spellcheck="false" required aria-describedby="code-error" th:attr="aria-invalid=${#fields.hasErrors('code')}" /><small id="code-error" class="booking-field-error" th:errors="*{code}"></small></div>
@@ -34,6 +35,9 @@
         <div class="lookup-alert is-success" role="status" th:if="${lookupNotice}" th:text="${lookupNotice}"></div>
 
         <th:block th:if="${reservation != null}">
+          <form class="lookup-alert" th:if="${canClaimBooking}" th:action="@{/reservations/lookup/{code}/claim(code=${reservation.code})}" method="post">
+            <button class="home-button" type="submit">Thêm đặt bàn vào tài khoản</button>
+          </form>
           <div class="lookup-result-heading"><div><p class="home-eyebrow">THÔNG TIN ĐẶT BÀN</p><h2>Hẹn bạn <em>tại T3L.</em></h2></div><a class="home-text-link" th:href="@{/reservations/lookup(code=${reservation.code})}">Cập nhật trạng thái <span aria-hidden="true">↻</span></a></div>
           <div class="lookup-result-grid">
             <section class="lookup-receipt" aria-labelledby="lookup-details-title">
@@ -50,7 +54,7 @@
               </dl>
               <a class="home-text-link" th:href="@{/reservations/confirmation(code=${reservation.code})}">Xem trang xác nhận <span aria-hidden="true">↗</span></a>
             </section>
-            <aside class="lookup-policy"><p class="home-eyebrow">LINH HOẠT CHO BUỔI HẸN</p><h2>Thay đổi kế hoạch?<br /><em>Để T3L hỗ trợ.</em></h2><div class="lookup-policy-time"><span>THỜI HẠN GỬI YÊU CẦU</span><strong th:text="${#temporals.format(deadline, 'HH:mm · dd/MM/yyyy')}"></strong></div><p>Yêu cầu hủy hoặc thay đổi cần được gửi và duyệt trước giờ đặt tối thiểu <strong>90 phút</strong>.</p><p>Lịch hiện tại vẫn được giữ chỗ trong thời gian chờ. Thay đổi chỉ có hiệu lực sau khi nhân viên duyệt và kiểm tra lại bàn trống.</p><a class="home-text-link" th:href="@{/faq}">Thông tin hỗ trợ <span aria-hidden="true">↗</span></a></aside>
+            <aside class="lookup-policy"><p class="home-eyebrow">LINH HOẠT CHO BUỔI HẸN</p><h2>Thay đổi kế hoạch?<br /><em>Để T3L hỗ trợ.</em></h2><div class="lookup-policy-time"><span>THỜI HẠN GỬI YÊU CẦU</span><strong th:text="${#temporals.format(deadline, 'HH:mm · dd/MM/yyyy')}"></strong></div><p>Yêu cầu hủy hoặc thay đổi cần được gửi và duyệt trước giờ đặt tối thiểu <strong th:text="${changeNoticeMinutes + ' phút'}"></strong>.</p><p>Lịch hiện tại vẫn được giữ chỗ trong thời gian chờ. Thay đổi chỉ có hiệu lực sau khi nhân viên duyệt và kiểm tra lại bàn trống.</p><a class="home-text-link" th:href="@{/faq}">Thông tin hỗ trợ <span aria-hidden="true">↗</span></a></aside>
           </div>
 
           <section class="lookup-request-actions" aria-label="Yêu cầu hỗ trợ đặt bàn">

@@ -17,13 +17,10 @@ public class AccountBootstrap {
       @Value("${app.admin.username}") String admin,
       @Value("${app.admin.password}") String adminPassword,
       @Value("${app.staff.username}") String staff,
-      @Value("${app.staff.password}") String staffPassword,
-      @Value("${app.buyer.username}") String buyer,
-      @Value("${app.buyer.password}") String buyerPassword) {
+      @Value("${app.staff.password}") String staffPassword) {
     return args -> {
       ensureDemoAccount(accounts, encoder, admin, adminPassword, "ADMIN");
       ensureDemoAccount(accounts, encoder, staff, staffPassword, "STAFF");
-      ensureDemoAccount(accounts, encoder, buyer, buyerPassword, "BUYER");
     };
   }
 
@@ -33,11 +30,8 @@ public class AccountBootstrap {
       String username,
       String password,
       String role) {
-    UserAccount account =
-        accounts
-            .findByUsername(username)
-            .orElseGet(() -> new UserAccount(username, encoder.encode(password), role));
-    account.setDemoCredentials(encoder.encode(password), role);
-    accounts.save(account);
+    if (!accounts.existsByUsernameIgnoreCase(username)) {
+      accounts.save(new UserAccount(username, encoder.encode(password), role));
+    }
   }
 }

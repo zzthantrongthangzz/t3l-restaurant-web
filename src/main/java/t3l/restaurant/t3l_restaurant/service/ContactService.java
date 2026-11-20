@@ -16,9 +16,10 @@ public class ContactService {
   private final ContactMessageRepository messages;
   private final ReservationSchedule schedule;
   private final Validator validator;
+  private final AdminAudit audit;
 
-  public ContactService(ContactMessageRepository messages, ReservationSchedule schedule, Validator validator) {
-    this.messages = messages; this.schedule = schedule; this.validator = validator;
+  public ContactService(ContactMessageRepository messages, ReservationSchedule schedule, Validator validator, AdminAudit audit) {
+    this.messages = messages; this.schedule = schedule; this.validator = validator; this.audit = audit;
   }
 
   @Transactional
@@ -49,5 +50,6 @@ public class ContactService {
     if (message.getVersion() != version) throw new IllegalArgumentException("Liên hệ đã được cập nhật. Vui lòng tải lại trước khi lưu.");
     message.handle(status, note, admin, LocalDateTime.now(schedule.getClock()));
     messages.flush();
+    audit.record("Xử lý liên hệ", "Liên hệ #" + id + " · " + message.getStatusLabel());
   }
 }
