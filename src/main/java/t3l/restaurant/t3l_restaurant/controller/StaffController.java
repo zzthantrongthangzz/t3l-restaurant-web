@@ -137,6 +137,14 @@ public class StaffController {
     return action(redirect, target, "Đã cập nhật lượt đặt bàn.", () -> bookings.staffStatus(id, status, actor.getName()));
   }
 
+  @PostMapping("/reservations/{id}/deposit")
+  public String verifyDeposit(@PathVariable Long id, @RequestParam boolean received,
+      Authentication actor, RedirectAttributes redirect) {
+    return action(redirect, RESERVATIONS + "/" + id,
+        received ? "Đã xác nhận nhận tiền cọc." : "Đã từ chối mã giao dịch cọc.",
+        () -> bookings.verifyDeposit(id, received, actor.getName()));
+  }
+
   @PostMapping("/reservations/{id}/table")
   public String moveTable(@PathVariable Long id, @RequestParam Long tableId,
       Authentication actor, RedirectAttributes redirect) {
@@ -154,8 +162,12 @@ public class StaffController {
   }
 
   @GetMapping("/tables")
-  public String tables(Model model) {
-    model.addAttribute("areas", workspace.board());
+  public String tables(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+      Model model) {
+    LocalDate selectedDate = date == null ? schedule.today() : date;
+    model.addAttribute("areas", workspace.board(selectedDate));
+    model.addAttribute("selectedDate", selectedDate);
+    model.addAttribute("today", schedule.today());
     return "staff/tables";
   }
 

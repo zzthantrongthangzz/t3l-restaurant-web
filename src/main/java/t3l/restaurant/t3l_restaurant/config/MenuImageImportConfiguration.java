@@ -20,10 +20,11 @@ public class MenuImageImportConfiguration {
       MenuImageImportService.ImportSummary result =
           importer.importCatalog(Path.of("img"), Path.of("database/menu-image-catalog.tsv"));
       logger.info(
-          "Imported {} menu images: {} new dishes, {} updated dishes.",
+          "Imported {} menu images: {} new dishes, {} updated dishes, {} catalog entries skipped (image file missing).",
           result.total(),
           result.created(),
-          result.updated());
+          result.updated(),
+          result.skipped());
     };
   }
 }

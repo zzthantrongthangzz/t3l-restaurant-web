@@ -1,5 +1,5 @@
 file_name	name	category	price	dietary	description
-mon_banhcuontomthit.png	Bánh cuốn tôm thịt	Món chính	129000		Bánh cuốn mềm cuộn tôm và thịt, ăn kèm rau thơm và nước mắm pha.
+optimized/BanhCuonTomThit.webp	Bánh cuốn tôm thịt	Món chính	129000		Bánh cuốn mềm cuộn tôm và thịt, ăn kèm rau thơm và nước mắm pha.
 mon_banhmoussechanhday.png	Bánh mousse chanh dây	Tráng miệng	69000		Mousse chanh dây chua dịu, mềm mịn và thơm nhẹ.
 mon_banhpancake.png	Pancake trái cây	Tráng miệng	79000		Bánh pancake mềm ăn cùng trái cây tươi và sốt ngọt.
 mon_banhquysocola.png	Bánh quy sô-cô-la	Tráng miệng	45000		Bánh quy bơ nướng giòn với sô-cô-la.
@@ -10,9 +10,9 @@ mon_bocuonraucu.png	Bò cuốn rau củ	Món chính	149000		Thịt bò cuộn ra
 mon_boluclac.png	Bò lúc lắc khoai tây	Món chính	189000		Thăn bò áp chảo cùng hành tây, ớt chuông và khoai tây.
 mon_bonuongtang.png	Bò nướng tảng sốt tiêu xanh	Món chính	269000		Tảng bò nướng thơm, dùng cùng sốt tiêu xanh và rau ăn kèm.
 mon_cahoiraucu.png	Cá hồi áp chảo	Món chính	219000		Cá hồi áp chảo dùng cùng rau củ và sốt bơ chanh.
-mon_chamuchalong.png	Chả mực Hạ Long	Khai vị	159000		Chả mực giã tay chiên vàng, thơm vị mực tươi.
-mon_chaotom.png	Chạo tôm mía	Khai vị	99000		Tôm quết bọc mía nướng, ăn cùng rau sống và nước chấm.
-mon_charam.png	Chả ram tôm đất	Khai vị	89000		Chả ram cuốn tôm đất chiên giòn, dùng khi còn nóng.
+optimized/ChaMucHaLong.webp	Chả mực Hạ Long	Khai vị	159000		Chả mực giã tay chiên vàng, thơm vị mực tươi.
+optimized/ChaoTomMia.webp	Chạo tôm mía	Khai vị	99000		Tôm quết bọc mía nướng, ăn cùng rau sống và nước chấm.
+optimized/ChaRamTomDat.webp	Chả ram tôm đất	Khai vị	89000		Chả ram cuốn tôm đất chiên giòn, dùng khi còn nóng.
 mon_chekhucbach.png	Chè khúc bạch	Tráng miệng	59000		Chè khúc bạch thanh mát với trái cây và hạnh nhân.
 mon_chelongnhan.png	Chè sen long nhãn	Tráng miệng	59000		Hạt sen bùi thanh, long nhãn và nước đường phèn.
 mon_comchien.png	Cơm chiên hải sản	Món chính	129000		Cơm chiên tơi với tôm, mực, trứng và rau củ.
@@ -21,24 +21,24 @@ mon_cuuhamruouvang.png	Cừu hầm rượu vang	Món chính	289000		Thịt cừu
 mon_gahamsam.png	Gà hầm sâm	Món chính	239000		Gà hầm chậm với nhân sâm và thảo mộc.
 mon_ganngong.png	Gan ngỗng áp chảo	Món chính	289000		Gan ngỗng áp chảo vàng mặt, dùng cùng sốt trái cây.
 mon_ganuongmatong.png	Gà nướng mật ong	Món chính	169000		Gà nướng mật ong vàng thơm, ăn cùng rau củ.
-mon_goibobopthau.png	Gỏi bò bóp thấu	Khai vị	119000		Bò tái trộn khế, chuối chát, rau thơm và đậu phộng.
-mon_goibongusac.png	Gỏi bông ngũ sắc	Khai vị	85000	Chay	Gỏi rau củ và hoa ăn được trộn sốt chua ngọt thanh.
-mon_goingosen.png	Gỏi ngó sen tôm thịt	Khai vị	99000		Ngó sen giòn trộn tôm, thịt và rau thơm.
+optimized/GoiBoBopThau.webp	Gỏi bò bóp thấu	Khai vị	119000		Bò tái trộn khế, chuối chát, rau thơm và đậu phộng.
+optimized/GoiBongNguSac.webp	Gỏi bông ngũ sắc	Khai vị	85000	Chay	Gỏi rau củ và hoa ăn được trộn sốt chua ngọt thanh.
+optimized/GoiNgoSenTomThit.webp	Gỏi ngó sen tôm thịt	Khai vị	99000		Ngó sen giòn trộn tôm, thịt và rau thơm.
 mon_hamburger.png	Burger bò phô mai	Món chính	129000		Burger bò áp chảo với phô mai, rau xanh và bánh mì mềm.
 mon_kemplan.png	Kem flan	Tráng miệng	39000		Bánh flan mềm mịn phủ caramel.
 mon_kemtraicay.png	Kem trái cây	Tráng miệng	59000		Kem mát lạnh ăn cùng trái cây theo mùa.
-mon_khoailangchien.png	Khoai lang chiên	Khai vị	59000		Khoai lang cắt que chiên vàng, ngoài giòn trong bùi.
+optimized/KhoaiLangChien.webp	Khoai lang chiên	Khai vị	59000		Khoai lang cắt que chiên vàng, ngoài giòn trong bùi.
 mon_lagubo.png	Lẩu gà bò nấm	Món chính	329000		Nồi lẩu nóng với gà, bò, nấm và rau theo mùa.
 mon_miongpenne.png	Mì ống penne sốt kem	Món chính	139000		Mì penne dùng cùng sốt kem béo nhẹ và rau thơm.
 mon_miramen.png	Mì ramen	Món chính	149000		Mì ramen trong nước dùng đậm vị, ăn cùng thịt và trứng.
 mon_mixao.png	Mì xào bò	Món chính	129000		Mì xào nóng với thịt bò và rau củ.
 mon_miyspageti.png	Mì Ý spaghetti bò bằm	Món chính	139000		Mì spaghetti dùng cùng sốt cà chua và bò bằm.
-mon_namxaohuongthao.png	Nấm xào hương thảo	Món chay	109000	Chay	Nấm theo mùa xào hương thảo và tỏi thơm.
+optimized/NamXaoHuongThao.webp	Nấm xào hương thảo	Món chay	109000	Chay	Nấm theo mùa xào hương thảo và tỏi thơm.
 mon_panacota.png	Panna cotta	Tráng miệng	49000		Panna cotta mát lạnh với sốt trái cây.
-mon_supcuathitbap.png	Súp cua thịt bắp	Khai vị	69000		Súp cua nóng nấu cùng thịt bắp và trứng.
-mon_supcuatoyen.png	Súp cua tổ yến	Khai vị	129000		Súp cua thanh vị dùng cùng tổ yến.
-mon_supcuatuyetnhi.png	Súp cua tuyết nhĩ	Khai vị	85000		Súp cua nóng với tuyết nhĩ giòn nhẹ.
-mon_tomchienxu.png	Tôm chiên xù	Khai vị	139000		Tôm tươi tẩm bột chiên xù vàng giòn.
+optimized/SupCuaThitBap.webp	Súp cua thịt bắp	Khai vị	69000		Súp cua nóng nấu cùng thịt bắp và trứng.
+optimized/SupCuaToYen.webp	Súp cua tổ yến	Khai vị	129000		Súp cua thanh vị dùng cùng tổ yến.
+optimized/SupCuaTuyetNhi.webp	Súp cua tuyết nhĩ	Khai vị	85000		Súp cua nóng với tuyết nhĩ giòn nhẹ.
+optimized/TomChienXu.webp	Tôm chiên xù	Khai vị	139000		Tôm tươi tẩm bột chiên xù vàng giòn.
 nuoc_7up.png	7Up	Đồ uống	25000		Nước giải khát 7Up ướp lạnh.
 nuoc_biaheneken.png	Bia Heineken	Đồ uống	45000		Bia Heineken ướp lạnh.
 nuoc_biatigerbac.png	Bia Tiger bạc	Đồ uống	39000		Bia Tiger bạc ướp lạnh.

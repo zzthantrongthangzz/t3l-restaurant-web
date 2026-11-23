@@ -3,6 +3,8 @@ package t3l.restaurant.t3l_restaurant.dto;
 import jakarta.validation.constraints.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -26,6 +28,11 @@ public class ReservationForm {
 
   @Size(max = 40, message = "Khu vực ưu tiên không hợp lệ.")
   private String preferredArea;
+
+  private Long tableId;
+
+  @Size(max = 30, message = "Chỉ có thể chọn tối đa 30 món đặt trước.")
+  private List<Long> preorderDishIds = new ArrayList<>();
 
   @NotNull(message = "Vui lòng chọn ngày đến.")
   @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+  <head>
+    <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#f4f7f6" /><title>Chọn bàn | T3L Restaurant</title>
+    <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
+    <link rel="stylesheet" th:href="@{/css/reservation.css(v=20261120-typography)}" />
+    <link rel="stylesheet" th:href="@{/css/table-plan.css(v=20261124)}" />
+  </head>
+  <body class="home table-plan-page">
+    <header th:replace="~{web/fragments/restaurant-shell :: header('reservation')}"></header>
+    <main class="home-container table-plan-main">
+      <div class="table-plan-heading">
+        <div><p class="home-eyebrow">T3L RESTAURANT / RESERVATIONS</p><h1>Chọn bàn cho buổi hẹn</h1>
+          <p>Chọn ngày để xem bàn. Nhấn vào bàn trống để gửi yêu cầu giữ chỗ.</p></div>
+        <form class="table-plan-date" method="get" th:action="@{/reservations/new}">
+          <label for="table-plan-date">Ngày xem bàn</label><input id="table-plan-date" type="date" name="date" th:value="${selectedDate}" th:min="${schedule.today}" />
+          <button class="home-button" type="submit">Xem sơ đồ</button>
+        </form>
+      </div>
+      <ul class="table-plan-legend" aria-label="Trạng thái bàn">
+        <li><span class="plan-dot is-free"></span>Trống</li><li><span class="plan-dot is-pending"></span>Đang chờ xác nhận</li><li><span class="plan-dot is-booked"></span>Đã đặt</li>
+      </ul>
+      <div class="table-plan-grid">
+        <article class="plan-table-card" th:each="item : ${tables}" th:with="tableImage=${item.state == 'FREE' ? (item.vip ? 'banXam_vip.png' : 'banXam_thuong.png') : (item.vip ? 'banVang_vip.png' : 'banVang_thuong.png')}" th:classappend="${' is-' + #strings.toLowerCase(item.state)}">
+          <a th:if="${item.state == 'FREE'}" class="plan-table-hit" th:href="@{/reservations/new(date=${selectedDate},tableId=${item.table.id})}" th:aria-label="${'Chọn bàn ' + item.table.code + ', ' + item.label}"></a>
+          <img class="plan-table-image" th:src="@{/images/tables/{image}(image=${tableImage})}" alt="" width="120" height="84" />
+          <h2 th:text="${item.table.code}"></h2><p class="plan-table-meta" th:text="${item.table.capacity + ' chỗ · ' + item.table.tableType}"></p>
+          <span class="plan-table-state" th:text="${item.label}"></span>
+        </article>
+      </div>
+      <p class="table-plan-privacy">Thông tin khách đặt chỉ hiển thị với nhân viên và quản lý nhà hàng.</p>
+    </main>
+    <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
+
+    <dialog class="plan-booking-dialog" id="booking-dialog" th:if="${openBookingDialog and selectedTable != null}" open aria-labelledby="plan-booking-title">
+      <div class="plan-dialog-heading"><div><p class="home-eyebrow">GIỮ CHỖ TẠI T3L</p><h2 id="plan-booking-title" th:text="${'Yêu cầu đặt ' + selectedTable.code}"></h2></div><a class="plan-dialog-close" th:href="@{/reservations/new(date=${selectedDate})}" aria-label="Đóng">×</a></div>
+      <p class="plan-dialog-note">Yêu cầu đang chờ nhân viên xác nhận. Đây là giữ chỗ, chưa phải đặt món.</p>
+      <form class="plan-booking-form" th:action="@{/reservations}" th:object="${form}" method="post">
+        <input type="hidden" th:field="*{tableId}" /><input type="hidden" name="draft" th:if="${bookingDraft != null}" th:value="${bookingDraft}" />
+        <div class="plan-booking-fields">
+          <label>Họ và tên <input th:if="${!bookingCustomer or bookingProfileMissing}" th:field="*{guestName}" required maxlength="120" autocomplete="name" />
+            <input th:if="${bookingCustomer and !bookingProfileMissing}" th:field="*{guestName}" required readonly /></label>
+          <label>Số điện thoại <input th:if="${!bookingCustomer or bookingProfileMissing}" th:field="*{guestPhone}" required maxlength="30" inputmode="tel" autocomplete="tel" />
+            <input th:if="${bookingCustomer and !bookingProfileMissing}" th:field="*{guestPhone}" required readonly /></label>
+          <label class="plan-field-full">Email <input th:field="*{guestEmail}" type="email" maxlength="254" autocomplete="email" /></label>
+          <label>Ngày đến <input type="date" th:field="*{date}" th:min="${today}" required /></label>
+          <label>Giờ đến <select th:field="*{time}" required><option value="">Chọn giờ</option><option th:each="slot : ${timeSlots}" th:value="${slot}" th:text="${#temporals.format(slot,'HH:mm')}"></option></select></label>
+          <label>Số khách <input type="number" th:field="*{guests}" min="1" th:max="${selectedTable.capacity}" required /></label>
+          <label class="plan-field-full">Ghi chú <textarea th:field="*{note}" rows="3" maxlength="500" placeholder="Yêu cầu đặc biệt (nếu có)"></textarea></label>
+        </div>
+        <fieldset class="plan-preorder" th:if="${bookingCustomer}">
+          <legend>Đặt trước món ăn <small>(tùy chọn)</small></legend>
+          <p th:text="${depositPolicy}"></p>
+          <label class="plan-preorder-item" th:each="dish : ${preorderDishes}">
+            <input type="checkbox" th:field="*{preorderDishIds}" th:value="${dish.id}" />
+            <span><strong th:text="${dish.name}"></strong><small th:text="${dish.categoryName}"></small></span>
+            <b th:text="${#numbers.formatInteger(dish.price,1,'POINT') + ' đ'}"></b>
+          </label>
+          <small class="plan-form-hint">Mỗi món được đặt một phần; nhân viên sẽ chuẩn bị theo yêu cầu.</small>
+        </fieldset>
+        <p class="plan-dialog-note" th:if="${!bookingCustomer}">Khách chưa có tài khoản được giữ chỗ bằng số điện thoại. Không cần đặt món hoặc thanh toán cọc.</p>
+        <label class="plan-consent"><input th:field="*{consentAccepted}" type="checkbox" required /><span>Tôi đồng ý với chính sách đặt bàn và quyền riêng tư của T3L.</span></label>
+        <p class="plan-form-error" th:if="${#fields.hasAnyErrors()}" th:each="error : ${#fields.allErrors()}" th:text="${error}"></p>
+        <button class="home-button" type="submit">Gửi yêu cầu giữ chỗ</button>
+      </form>
+    </dialog>
+    <script>
+      const bookingDialog = document.getElementById('booking-dialog');
+      if (bookingDialog && bookingDialog.showModal) { bookingDialog.removeAttribute('open'); bookingDialog.showModal(); }
+    </script>
+  </body>
+</html>

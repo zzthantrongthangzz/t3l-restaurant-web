@@ -1,44 +1,46 @@
 <!doctype html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
-  <head th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: head('Sơ đồ bàn')}"></head>
-  <body class="staff-page" th:classappend="${opsBase == '/admin' ? 'admin-page' : ''}">
+  <head th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: head('Quản lý đặt bàn')}"></head>
+  <body class="staff-page table-plan-page-staff" th:classappend="${opsBase == '/admin' ? 'admin-page' : ''}">
     <header th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: header('tables')}"></header>
     <main class="staff-main">
-      <div class="staff-page-heading">
-        <div><h1>Sơ đồ bàn</h1><p>Tình trạng hiện tại và lượt đặt tiếp theo trong ngày.</p></div>
-        <a class="staff-button" th:href="@{${opsBase + '/reservations/new'}(walkIn=true)}">Tiếp nhận khách tại chỗ</a>
-      </div>
+      <div class="staff-page-heading"><div><h1>Quản lý đặt bàn</h1><p>Sơ đồ bàn, thông tin khách và thao tác vận hành theo ngày đã chọn.</p></div>
+        <a class="staff-button" th:href="@{${opsBase + '/reservations/new'}(walkIn=true)}">Đặt bàn ngay</a></div>
       <div th:replace="~{staff/fragments/shell :: messages}"></div>
-      <ul class="staff-legend" aria-label="Trạng thái bàn">
-        <li class="staff-badge" data-status="FREE">Trống</li><li class="staff-badge" data-status="RESERVED">Đã đặt</li>
-        <li class="staff-badge" data-status="OCCUPIED">Đang phục vụ</li><li class="staff-badge" data-status="INACTIVE">Tạm ngưng</li>
+      <form class="table-plan-toolbar" method="get" th:action="@{${opsBase + '/tables'}}">
+        <label class="staff-field">Ngày xem<input type="date" name="date" th:value="${selectedDate}" /></label>
+        <button class="staff-button" type="submit">Lọc sơ đồ</button>
+        <a class="staff-button is-outline" th:href="@{${opsBase + '/reservations/new'}}">Đặt bàn chờ</a>
+        <a class="staff-button is-outline" th:href="@{${opsBase + '/reservations'}(date=${selectedDate},status='PENDING_CONFIRMATION')}">Nhận / duyệt bàn chờ</a>
+        <a class="staff-button is-outline" th:href="@{${opsBase + '/reservations'}(date=${selectedDate},status='CONFIRMED')}">Huỷ bàn chờ</a>
+      </form>
+      <ul class="table-plan-legend table-plan-staff-legend" aria-label="Trạng thái bàn">
+        <li><span class="plan-dot is-free"></span>Bàn trống</li><li><span class="plan-dot is-pending"></span>Chờ xác nhận</li>
+        <li><span class="plan-dot is-booked"></span>Đã đặt / khách đã đến</li><li><span class="plan-dot is-serving"></span>Đang phục vụ</li>
       </ul>
       <p class="staff-empty" th:if="${areas.isEmpty()}">Chưa có bàn trong hệ thống.</p>
-      <section class="staff-area" th:each="area : ${areas}">
-        <h2 th:text="${area.key}"></h2>
-        <div class="staff-table-grid">
-          <article class="staff-panel staff-table-card" th:each="item : ${area.value}" th:with="table=${item.table},booking=${item.current}">
-            <div class="staff-panel-heading"><h3 th:text="${table.code}"></h3><span class="staff-badge" th:attr="data-status=${item.state.name()}" th:text="${item.state.label}"></span></div>
-            <p class="staff-muted" th:text="${table.capacity + ' chỗ'}"></p>
-            <div class="staff-table-info" th:if="${booking != null}">
-              <a class="staff-link" th:href="@{${opsBase + '/reservations/{id}'}(id=${booking.id})}" th:text="${booking.guestName}"></a>
-              <p th:text="${booking.guestCount + ' khách · ' + booking.statusLabel}"></p>
+      <section class="staff-table-plan-group" th:each="group : ${areas}">
+        <h2 th:text="${group.key}"></h2>
+        <div class="table-plan-grid">
+          <article class="plan-table-card" th:each="item : ${group.value}" th:with="table=${item.table},booking=${item.current},tableImage=${item.state == 'FREE' ? (item.table.tableType.toLowerCase().contains('vip') ? 'banXam_vip.png' : 'banXam_thuong.png') : (item.state == 'OCCUPIED' ? (item.table.tableType.toLowerCase().contains('vip') ? 'banDo_vip.png' : 'banDo_thuong.png') : (item.table.tableType.toLowerCase().contains('vip') ? 'banVang_vip.png' : 'banVang_thuong.png'))}"
+              th:classappend="${item.state == 'FREE' ? ' is-free' : (item.state == 'PENDING' ? ' is-pending' : (item.state == 'OCCUPIED' ? ' is-serving' : ' is-booked'))}">
+            <a class="plan-table-hit" th:if="${booking != null}" th:href="@{${opsBase + '/reservations/{id}'}(id=${booking.id})}" th:aria-label="${'Chi tiết ' + table.code}"></a>
+            <a class="plan-table-hit" th:if="${booking == null and table.active}" th:href="@{${opsBase + '/reservations/new'}(tableId=${table.id},date=${selectedDate})}" th:aria-label="${'Đặt ' + table.code}"></a>
+            <img class="plan-table-image" th:src="@{/images/tables/{image}(image=${tableImage})}" alt="" width="120" height="84" />
+            <h3 th:text="${table.code}"></h3><p class="plan-table-meta" th:text="${table.capacity + ' chỗ · ' + table.tableType}"></p>
+            <span class="plan-table-state" th:text="${item.state == 'FREE' ? 'Bàn trống' : (item.state == 'PENDING' ? 'Chờ nhân viên xác nhận' : (item.state == 'OCCUPIED' ? 'Đang phục vụ' : 'Đã xác nhận đặt'))}"></span>
+            <div class="plan-table-customer" th:if="${booking != null}">
+              <strong th:text="${booking.guestName}"></strong><span th:text="${booking.guestPhone}"></span>
+              <span th:text="${#temporals.format(booking.startsAt,'dd/MM HH:mm') + ' · ' + booking.guestCount + ' khách · ' + booking.statusLabel + (booking.depositAmount.signum() > 0 ? ' · Cọc: ' + booking.depositStatusLabel : '')}"></span>
             </div>
-            <div class="staff-table-info" th:if="${item.next != null and table.active}">
-              <p><span class="staff-muted">Kế tiếp</span> <a class="staff-link" th:href="@{${opsBase + '/reservations/{id}'}(id=${item.next.id})}" th:text="${#temporals.format(item.next.startsAt, 'HH:mm')}"></a></p>
-            </div>
-            <div class="staff-actions">
-              <a class="staff-button is-outline" th:if="${item.state.name() == 'FREE'}" th:href="@{${opsBase + '/reservations/new'}(walkIn=true,tableId=${table.id})}">Nhận khách mới</a>
-              <form th:if="${booking != null and booking.status == 'CHECKED_IN' and table.active}"
-                  th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
-                <input type="hidden" name="from" value="table" /><button class="staff-button" name="status" value="SEATED">Nhận bàn</button>
-              </form>
-              <a class="staff-button is-outline" th:if="${item.state.name() == 'OCCUPIED'}" th:href="@{${opsBase + '/orders/{id}'}(id=${booking.id})}">Gọi món / thu tiền</a>
-              <a class="staff-link" th:if="${item.state.name() == 'OCCUPIED'}" th:href="@{${opsBase + '/reservations/{id}'}(id=${booking.id})}">Chuyển bàn / kết thúc</a>
-              <form th:if="${item.state.name() == 'FREE' or !table.active}" th:action="@{${opsBase + '/tables/{id}/availability'}(id=${table.id})}" method="post">
-                <button class="staff-link staff-link-button" name="active" th:value="${!table.active}" th:text="${table.active ? 'Tạm ngưng' : 'Mở lại bàn'}"></button>
+            <div class="plan-table-actions" th:if="${booking != null}">
+              <a class="staff-button is-outline" th:href="@{${opsBase + '/reservations/{id}'}(id=${booking.id})}">Chi tiết / chuyển bàn</a>
+              <a class="staff-button is-outline" th:if="${item.state == 'OCCUPIED'}" th:href="@{${opsBase + '/orders/{id}'}(id=${booking.id})}">Đặt món / tính tiền</a>
+              <form th:if="${booking.status == 'CHECKED_IN'}" th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
+                <input type="hidden" name="from" value="table" /><input type="hidden" name="returnDate" th:value="${selectedDate}" /><button class="staff-button" name="status" value="SEATED">Nhận bàn</button>
               </form>
             </div>
+            <p class="plan-table-inactive" th:if="${!table.active}">Tạm ngưng</p>
           </article>
         </div>
       </section>

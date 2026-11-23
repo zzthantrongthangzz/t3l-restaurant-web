@@ -4,6 +4,8 @@ import jakarta.validation.Validator;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.time.format.DateTimeFormatter;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -18,12 +20,14 @@ import org.springframework.transaction.annotation.Transactional;
 import t3l.restaurant.t3l_restaurant.dto.ReservationForm;
 import t3l.restaurant.t3l_restaurant.dto.ReservationUpdateForm;
 import t3l.restaurant.t3l_restaurant.entity.DiningOrder;
+import t3l.restaurant.t3l_restaurant.entity.Dish;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
 import t3l.restaurant.t3l_restaurant.entity.ReservationEvent;
 import t3l.restaurant.t3l_restaurant.entity.ReservationEmail.Kind;
 import t3l.restaurant.t3l_restaurant.entity.RestaurantTable;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.repository.ReservationRepository;
+import t3l.restaurant.t3l_restaurant.repository.DishRepository;
 import t3l.restaurant.t3l_restaurant.repository.ReservationEventRepository;
 import t3l.restaurant.t3l_restaurant.repository.DiningOrderRepository;
 import t3l.restaurant.t3l_restaurant.repository.RestaurantTableRepository;
@@ -42,6 +46,7 @@ public class ReservationService {
   private final ReservationEmailQueue emails;
   private final ReservationEventRepository events;
   private final DiningOrderRepository orders;
+  private final DishRepository dishes;
   private final StaffShiftService shifts;
   private final RestaurantSectionRepository sections;
   private final AdminAudit audit;
@@ -49,7 +54,7 @@ public class ReservationService {
   public ReservationService(ReservationRepository reservations, RestaurantTableRepository tables,
       ReservationSchedule schedule, Validator validator, ReservationEmailQueue emails,
       ReservationEventRepository events, DiningOrderRepository orders, StaffShiftService shifts,
-      RestaurantSectionRepository sections, AdminAudit audit) {
+      DishRepository dishes, RestaurantSectionRepository sections, AdminAudit audit) {
     this.reservations = reservations;
     this.tables = tables;
     this.schedule = schedule;
@@ -57,6 +62,7 @@ public class ReservationService {
     this.emails = emails;
     this.events = events;
     this.orders = orders;
+    this.dishes = dishes;
     this.shifts = shifts;
     this.sections = sections;
     this.audit = audit;
@@ -98,9 +104,10 @@ public class ReservationService {
     String preferred = form.getPreferredArea() == null ? "" : form.getPreferredArea().trim();
 
     // Locks are held until the booking commits. Status updates acquire the same locks first.
-    RestaurantTable assigned = tableId == null
+    Long requestedTableId = tableId == null ? form.getTableId() : tableId;
+    RestaurantTable assigned = requestedTableId == null
         ? selectTable(active, start, end, form.getGuests(), preferred, null, walkIn)
-        : requireTable(active, tableId, start, end, form.getGuests(), null, walkIn);
+        : requireTable(active, requestedTableId, start, end, form.getGuests(), null, walkIn);
 
     String code = "T3L-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase(Locale.ROOT);
     Reservation booking = new Reservation(code, form.getGuestName().trim(), form.getGuestPhone() == null ? "" : form.getGuestPhone().trim(),
@@ -109,17 +116,44 @@ public class ReservationService {
         form.getNote() == null ? null : form.getNote().trim(), form.isConsentAccepted());
     booking.setBookingDetails(end, preferred.isEmpty() ? null : preferred);
     booking.assignCustomer(customer);
+    List<Dish> preorder = customer == null || form.getPreorderDishIds() == null ? List.of()
+        : form.getPreorderDishIds().stream().filter(Objects::nonNull).distinct()
+            .map(id -> dishes.findSellable(id).orElseThrow(() -> new BookingException(null,
+                "Một món đặt trước không còn trong thực đơn. Vui lòng tải lại trang.")))
+            .toList();
+    boolean depositRequired = customer != null && requiresDeposit(assigned);
+    BigDecimal preorderTotal = preorder.stream().map(Dish::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
+    BigDecimal depositAmount = depositRequired
+        ? preorderTotal.multiply(new BigDecimal("0.70")).setScale(0, RoundingMode.CEILING)
+            .max(minimumDeposit(assigned))
+        : BigDecimal.ZERO;
+    booking.setDepositRequirement(depositAmount, depositRequired);
     if (actor != null) {
       booking.updateStatus(CONFIRMED);
       if (walkIn) booking.checkIn(start);
     }
     Reservation saved = reservations.saveAndFlush(booking);
+    if (!preorder.isEmpty()) {
+      DiningOrder preorderOrder = new DiningOrder(saved, "CUSTOMER", now());
+      preorder.forEach(dish -> preorderOrder.addItem(dish, 1));
+      orders.save(preorderOrder);
+    }
     if (actor == null) emails.enqueue(saved, Kind.RECEIVED, null, null);
     else {
       record(saved, actor, walkIn ? "Tiếp nhận khách đến trực tiếp." : "Tạo và xác nhận đặt bàn qua nhân viên.");
       if (!walkIn) emails.enqueue(saved, Kind.CONFIRMED, null, null);
     }
     return saved;
+  }
+
+  private boolean requiresDeposit(RestaurantTable table) {
+    String type = table.getTableType() == null ? "" : table.getTableType().toLowerCase(Locale.ROOT);
+    return type.contains("vip") || type.contains("lớn") || table.getCapacity() >= 9;
+  }
+
+  private BigDecimal minimumDeposit(RestaurantTable table) {
+    String type = table.getTableType() == null ? "" : table.getTableType().toLowerCase(Locale.ROOT);
+    return type.contains("vip") ? BigDecimal.valueOf(500_000) : BigDecimal.valueOf(300_000);
   }
 
   // Callers must hold the allocation locks for the lifetime of their transaction.
@@ -261,6 +295,9 @@ public class ReservationService {
     switch (status) {
       case CONFIRMED, CANCELLED -> decideBooking(booking, status, active, actor);
       case CHECKED_IN -> {
+        if (booking.getDepositAmount().signum() > 0 && !"PAID".equals(booking.getDepositStatus())) {
+          throw new BookingException(null, "Chưa xác nhận thanh toán cọc cho lượt đặt bàn này.");
+        }
         if (!CONFIRMED.equals(booking.getStatus()) || !booking.getReservationDate().equals(now.toLocalDate())
             || now.isBefore(booking.getStartsAt().minusMinutes(schedule.getCheckInMinutes())) || !inServiceHours(now)) {
           throw new BookingException(null, "Chỉ check-in lịch đã xác nhận trong giờ phục vụ, từ "
@@ -294,7 +331,32 @@ public class ReservationService {
       }
       default -> throw new BookingException(null, "Trạng thái không hợp lệ.");
     }
+    if (CONFIRMED.equals(status)) booking.approveDepositRequirement();
     if (!CONFIRMED.equals(status) && !CANCELLED.equals(status)) record(booking, actor, booking.getStatusLabel() + ".");
+  }
+
+  @Transactional(isolation = Isolation.READ_COMMITTED)
+  public void submitDepositReference(Long id, String reference) {
+    String normalized = reference == null ? "" : reference.strip();
+    if (normalized.length() < 4 || normalized.length() > 80) {
+      throw new BookingException(null, "Nhập mã giao dịch chuyển khoản (4–80 ký tự).");
+    }
+    Reservation booking = lockBooking(id);
+    if (!"WAITING_PAYMENT".equals(booking.getDepositStatus()) || !CONFIRMED.equals(booking.getStatus())) {
+      throw new BookingException(null, "Đặt bàn chưa được duyệt hoặc không còn chờ thanh toán cọc.");
+    }
+    booking.submitDepositReference(normalized);
+  }
+
+  @PreAuthorize("hasAnyRole('STAFF', 'ADMIN') and #actor == authentication.name")
+  @Transactional(isolation = Isolation.READ_COMMITTED)
+  public void verifyDeposit(Long id, boolean received, String actor) {
+    Reservation booking = lockBooking(id);
+    if (!"TRANSFER_SUBMITTED".equals(booking.getDepositStatus())) {
+      throw new BookingException(null, "Chưa có giao dịch cọc đang chờ xác nhận.");
+    }
+    booking.verifyDeposit(received);
+    record(booking, actor, received ? "Xác nhận đã nhận tiền cọc." : "Từ chối giao dịch cọc, yêu cầu khách kiểm tra lại.");
   }
 
   @PreAuthorize("hasAnyRole('STAFF', 'ADMIN') and #actor == authentication.name")

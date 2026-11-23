@@ -1,6 +1,7 @@
 package t3l.restaurant.t3l_restaurant.entity;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -84,6 +85,15 @@ public class Reservation {
   @Column(name = "consent_accepted", nullable = false)
   private boolean consentAccepted;
 
+  @Column(name = "deposit_amount", nullable = false, precision = 16, scale = 0)
+  private BigDecimal depositAmount = BigDecimal.ZERO;
+
+  @Column(name = "deposit_status", nullable = false, length = 32)
+  private String depositStatus = "NOT_REQUIRED";
+
+  @Column(name = "deposit_reference", length = 80)
+  private String depositReference;
+
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -152,6 +162,38 @@ public class Reservation {
   public void setBookingDetails(LocalDateTime endsAt, String preferredArea) {
     this.endsAt = endsAt;
     this.preferredArea = preferredArea;
+  }
+
+  public void setDepositRequirement(BigDecimal amount, boolean required) {
+    depositAmount = required ? amount : BigDecimal.ZERO;
+    depositStatus = required ? "PENDING_STAFF_CONFIRMATION" : "NOT_REQUIRED";
+  }
+
+  public void approveDepositRequirement() {
+    if ("PENDING_STAFF_CONFIRMATION".equals(depositStatus)) depositStatus = "WAITING_PAYMENT";
+  }
+
+  public void submitDepositReference(String reference) {
+    depositReference = reference;
+    depositStatus = "TRANSFER_SUBMITTED";
+  }
+
+  public void verifyDeposit(boolean received) {
+    if (received) depositStatus = "PAID";
+    else {
+      depositStatus = "WAITING_PAYMENT";
+      depositReference = null;
+    }
+  }
+
+  public String getDepositStatusLabel() {
+    return switch (depositStatus) {
+      case "PENDING_STAFF_CONFIRMATION" -> "Chờ duyệt đặt bàn";
+      case "WAITING_PAYMENT" -> "Chờ thanh toán cọc";
+      case "TRANSFER_SUBMITTED" -> "Chờ xác nhận giao dịch";
+      case "PAID" -> "Đã thanh toán cọc";
+      default -> "Không yêu cầu cọc";
+    };
   }
 
   public void reschedule(RestaurantTable table, LocalDate date, LocalTime time,

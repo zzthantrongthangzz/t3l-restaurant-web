@@ -26,17 +26,18 @@ public class MenuImageImportService {
   public ImportSummary importCatalog(Path imageDirectory, Path catalogFile) {
     List<CatalogItem> items = readCatalog(catalogFile);
     Path root = imageDirectory.toAbsolutePath().normalize();
-    for (CatalogItem item : items) {
-      Path image = root.resolve(item.fileName()).normalize();
-      if (!image.startsWith(root) || !Files.isRegularFile(image)) {
-        throw new IllegalStateException("Không tìm thấy ảnh theo catalog: " + item.fileName());
-      }
-    }
-
     int created = 0;
     int updated = 0;
+    int skipped = 0;
     for (CatalogItem item : items) {
       Path imagePath = root.resolve(item.fileName()).normalize();
+      if (!imagePath.startsWith(root)) {
+        throw new IllegalStateException("Đường dẫn ảnh không hợp lệ trong catalog: " + item.fileName());
+      }
+      if (!Files.isRegularFile(imagePath)) {
+        skipped++;
+        continue;
+      }
       Dish dish = dishes.findByName(item.name()).orElseGet(Dish::new);
       boolean isNew = dish.getId() == null;
       String publicId = baseName(item.fileName());
@@ -57,7 +58,7 @@ public class MenuImageImportService {
         updated++;
       }
     }
-    return new ImportSummary(items.size(), created, updated);
+    return new ImportSummary(created + updated, created, updated, skipped);
   }
 
   private List<CatalogItem> readCatalog(Path catalogFile) {
@@ -103,5 +104,5 @@ public class MenuImageImportService {
       String dietaryLabel,
       String description) {}
 
-  public record ImportSummary(int total, int created, int updated) {}
+  public record ImportSummary(int total, int created, int updated, int skipped) {}
 }

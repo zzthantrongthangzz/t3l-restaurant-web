@@ -29,6 +29,39 @@ public class PhoneCustomerService {
         && accounts.countLegacyPhoneMatches(phone, "84" + phone.substring(1)) > 0;
   }
 
+  public boolean canRegister(String phone) {
+    return phone != null
+        && accounts.findByVerifiedPhone(phone).isEmpty()
+        && !canRecover(phone);
+  }
+
+  @Transactional(isolation = Isolation.READ_COMMITTED)
+  public UserAccount register(String fullName, String inputPhone, boolean local) {
+    String name = fullName == null ? "" : fullName.strip().replaceAll("\\s+", " ");
+    String phone = SmsOtpService.normalizePhone(inputPhone);
+    if (name.isBlank() || name.length() > 120 || phone == null) {
+      throw new OtpException("Vui lòng nhập họ tên và số điện thoại hợp lệ.");
+    }
+
+    if (local) {
+      String username = LOCAL_PREFIX + phone;
+      var existing = accounts.findByUsername(username);
+      if (existing.isPresent()) {
+        UserAccount account = requireCustomer(existing.get());
+        account.updateCustomerContact(name, account.getEmail(), phone);
+        return accounts.saveAndFlush(account);
+      }
+    } else if (!canRegister(phone)) {
+      throw new OtpException("Số điện thoại đã có tài khoản. Vui lòng đăng nhập hoặc khôi phục tài khoản.");
+    }
+
+    String username = (local ? LOCAL_PREFIX + phone : "sms:" + UUID.randomUUID());
+    UserAccount account = UserAccount.customer(name, null, phone, username,
+        passwords.encode(UUID.randomUUID().toString()));
+    if (!local) account.verifyPhone(phone);
+    return accounts.saveAndFlush(account);
+  }
+
   @Transactional(isolation = Isolation.READ_COMMITTED)
   public UserAccount signIn(String phone, boolean local) {
     String username = (local ? LOCAL_PREFIX : "sms:") + UUID.randomUUID();

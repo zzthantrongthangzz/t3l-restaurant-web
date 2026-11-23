@@ -8,6 +8,7 @@
     <link rel="stylesheet" th:href="@{/css/site.css(v=20261120-typography)}" />
     <link rel="stylesheet" th:href="@{/css/reservation-requests.css(v=20261120-staff)}" />
     <link rel="stylesheet" th:href="@{/css/staff.css(v=20261120)}" />
+    <link rel="stylesheet" th:href="@{/css/table-plan.css(v=20261124)}" />
     <script defer th:src="@{/js/staff.js(v=20261120)}"></script>
   </head>
   <body>
@@ -25,7 +26,7 @@
       <nav class="staff-nav" aria-label="Điều hướng nhân viên">
         <a th:href="@{/staff/dashboard}" th:attr="aria-current=${section == 'dashboard' ? 'page' : null}">Tổng quan</a>
         <a th:href="@{/staff/reservations}" th:attr="aria-current=${section == 'reservations' ? 'page' : null}">Đặt bàn</a>
-        <a th:href="@{/staff/tables}" th:attr="aria-current=${section == 'tables' ? 'page' : null}">Sơ đồ bàn</a>
+        <a th:href="@{/staff/tables}" th:attr="aria-current=${section == 'tables' ? 'page' : null}">Quản lý đặt bàn</a>
         <a th:href="@{/staff/orders}" th:attr="aria-current=${section == 'orders' ? 'page' : null}">Gọi món &amp; thanh toán</a>
         <a th:href="@{/staff/shift}" th:attr="aria-current=${section == 'shift' ? 'page' : null}">Ca làm &amp; doanh thu</a>
         <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/dashboard}">Quản trị</a>

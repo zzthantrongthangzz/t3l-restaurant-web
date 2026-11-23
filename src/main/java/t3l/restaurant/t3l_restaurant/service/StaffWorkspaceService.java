@@ -45,7 +45,7 @@ public class StaffWorkspaceService {
   private final ReservationSchedule schedule;
 
   public enum TableState {
-    FREE("Trống"), RESERVED("Đã đặt"), OCCUPIED("Đang phục vụ"), INACTIVE("Tạm ngưng");
+    FREE("Trống"), PENDING("Chờ nhân viên xác nhận"), RESERVED("Đã đặt"), OCCUPIED("Đang phục vụ"), INACTIVE("Tạm ngưng");
 
     private final String label;
     TableState(String label) { this.label = label; }
@@ -64,7 +64,7 @@ public class StaffWorkspaceService {
     LocalDateTime now = LocalDateTime.now(schedule.getClock());
     LocalDate today = now.toLocalDate();
     var bookings = reservations.findByReservationDateOrderByReservationTimeAscIdAsc(today);
-    var board = boardAt(now).values().stream().flatMap(List::stream).toList();
+    var board = boardAt(today, now).values().stream().flatMap(List::stream).toList();
     var upcoming = Stream.concat(bookings.stream()
         .filter(booking -> SCHEDULED.contains(booking.getStatus()) && !booking.getStartsAt().isBefore(now)),
         reservations.findTop10ByStatusInAndReservationDateGreaterThanOrderByReservationDateAscReservationTimeAscIdAsc(SCHEDULED, today).stream())
@@ -81,13 +81,18 @@ public class StaffWorkspaceService {
 
   @Transactional(readOnly = true)
   public Map<String, List<TableView>> board() {
-    return boardAt(LocalDateTime.now(schedule.getClock()));
+    return boardAt(schedule.today(), LocalDateTime.now(schedule.getClock()));
   }
 
-  private Map<String, List<TableView>> boardAt(LocalDateTime now) {
-    var today = now.toLocalDate();
-    var scheduledByTable = reservations.findByReservationDateBetweenAndStatusNot(today.minusDays(1), today, CANCELLED)
-        .stream().filter(booking -> booking.getTable() != null && SCHEDULED.contains(booking.getStatus()))
+  @Transactional(readOnly = true)
+  public Map<String, List<TableView>> board(LocalDate date) {
+    return boardAt(date, LocalDateTime.now(schedule.getClock()));
+  }
+
+  private Map<String, List<TableView>> boardAt(LocalDate date, LocalDateTime now) {
+    var scheduledByTable = reservations.findByReservationDateBetweenAndStatusNot(date, date, CANCELLED)
+        .stream().filter(booking -> booking.getTable() != null
+            && List.of(PENDING, CONFIRMED, CHECKED_IN, SEATED, COMPLETED).contains(booking.getStatus()))
         .sorted(Comparator.comparing(Reservation::getStartsAt))
         .collect(Collectors.groupingBy(booking -> booking.getTable().getId()));
     var arrivedByTable = reservations.findByStatusInAndTableIsNotNull(List.of(SEATED, CHECKED_IN)).stream()
@@ -99,14 +104,13 @@ public class StaffWorkspaceService {
     for (RestaurantTable table : tables.findAllByOrderByTableTypeAscCodeAsc()) {
       var arrived = arrivedByTable.getOrDefault(table.getId(), List.of());
       var scheduled = scheduledByTable.getOrDefault(table.getId(), List.of());
-      var serving = arrived.stream().filter(booking -> SEATED.equals(booking.getStatus())).findFirst();
-      Reservation current = serving.orElseGet(() -> arrived.stream().findFirst().orElseGet(() -> scheduled.stream()
-          .filter(booking -> !booking.getStartsAt().isAfter(now)
-              && booking.effectiveEndsAt(schedule.getDurationMinutes()).isAfter(now))
-          .findFirst().orElse(null)));
-      var next = scheduled.stream().filter(booking -> booking.getStartsAt().isAfter(now)).findFirst().orElse(null);
+      var serving = date.equals(now.toLocalDate())
+          ? arrived.stream().filter(booking -> SEATED.equals(booking.getStatus())).findFirst()
+          : java.util.Optional.<Reservation>empty();
+      Reservation current = serving.orElseGet(() -> scheduled.stream().findFirst().orElse(null));
+      var next = scheduled.stream().skip(current == null ? 0 : 1).findFirst().orElse(null);
       TableState state = !activeIds.contains(table.getId()) ? TableState.INACTIVE : serving.isPresent() ? TableState.OCCUPIED
-          : current != null ? TableState.RESERVED : TableState.FREE;
+          : current == null ? TableState.FREE : PENDING.equals(current.getStatus()) ? TableState.PENDING : TableState.RESERVED;
       board.computeIfAbsent(table.getTableType(), key -> new ArrayList<>()).add(new TableView(table, state, current, next));
     }
     return board;
@@ -152,8 +156,9 @@ public class StaffWorkspaceService {
     boolean serving = SEATED.equals(booking.getStatus());
     boolean future = booking.getStartsAt().isAfter(now);
     boolean serviceHours = !now.toLocalTime().isBefore(schedule.getOpeningTime()) && now.toLocalTime().isBefore(schedule.getClosingTime());
+    boolean depositCleared = booking.getDepositAmount().signum() == 0 || "PAID".equals(booking.getDepositStatus());
     return new BookingActions(pending && future, pending || confirmed || checkedIn,
-        confirmed && serviceHours && booking.getReservationDate().equals(now.toLocalDate()) && !now.isBefore(booking.getStartsAt().minusMinutes(schedule.getCheckInMinutes())),
+        confirmed && depositCleared && serviceHours && booking.getReservationDate().equals(now.toLocalDate()) && !now.isBefore(booking.getStartsAt().minusMinutes(schedule.getCheckInMinutes())),
         checkedIn && serviceHours, serving, confirmed && !now.isBefore(booking.getStartsAt().plusMinutes(schedule.getNoShowMinutes())),
         ((pending || confirmed) && future) || checkedIn || serving, pending || confirmed);
   }

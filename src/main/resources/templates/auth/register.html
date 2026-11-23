@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+    th:replace="~{auth/fragments/customer-shell :: page('Tạo tài khoản', ~{::content})}">
+  <body>
+    <th:block th:fragment="content">
+      <p class="auth-help">Tạo tài khoản khách hàng bằng số điện thoại. Họ tên và số điện thoại là thông tin bắt buộc.</p>
+      <p class="login-notice login-notice-error" role="alert"
+          th:if="${registrationError != null}" th:text="${registrationError}"></p>
+      <p class="login-notice login-notice-success" role="status"
+          th:if="${registrationNotice != null}" th:text="${registrationNotice}"></p>
+      <div class="login-notice" th:if="${localCode != null}" role="status">
+        <p>Chế độ kiểm thử cục bộ. Chưa gửi SMS.</p>
+        <strong th:text="${'Mã kiểm thử: ' + localCode}"></strong>
+      </div>
+      <p class="login-notice login-notice-error" th:unless="${smsAvailable}" role="status">
+        Đăng ký bằng SMS hiện chưa khả dụng. Vui lòng thử lại sau.
+      </p>
+      <form class="login-form register-form" method="post" th:action="@{/register}"
+          th:object="${registrationForm}" th:if="${smsAvailable}">
+        <div class="login-field register-wide">
+          <label for="fullName">Họ và tên <span aria-hidden="true">*</span></label>
+          <input id="fullName" th:field="*{fullName}" autocomplete="name" maxlength="120"
+              placeholder="Nguyễn Văn An" required th:attr="aria-invalid=${#fields.hasErrors('fullName')}" />
+          <small class="register-error" th:errors="*{fullName}"></small>
+        </div>
+        <div class="login-field register-wide">
+          <label for="phone">Số điện thoại <span aria-hidden="true">*</span></label>
+          <input id="phone" th:field="*{phone}" type="tel" autocomplete="tel" maxlength="30"
+              placeholder="090 123 4567" required th:attr="aria-invalid=${#fields.hasErrors('phone')}" />
+          <small class="register-error" th:errors="*{phone}"></small>
+        </div>
+        <button class="home-button login-submit register-wide" type="submit">Gửi mã xác thực</button>
+      </form>
+      <section class="register-wide" th:if="${registrationPending}" aria-labelledby="registration-code-title">
+        <p class="auth-help" id="registration-code-title">
+          Mã đã gửi tới <strong th:text="${registrationPhone}"></strong> để đăng ký cho
+          <strong th:text="${registrationName}"></strong>.
+        </p>
+        <form class="login-form" method="post" th:action="@{/register/verify}">
+          <div class="login-field">
+            <label for="registration-code">Mã xác thực</label>
+            <input id="registration-code" name="code" type="text" inputmode="numeric"
+                autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus />
+          </div>
+          <button class="home-button login-submit" type="submit">Xác nhận và tạo tài khoản</button>
+        </form>
+      </section>
+      <a class="login-home-link" th:href="@{/login}">Đã có tài khoản? Đăng nhập</a>
+    </th:block>
+  </body>
+</html>

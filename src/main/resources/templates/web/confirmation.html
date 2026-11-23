@@ -8,7 +8,7 @@
     <meta name="theme-color" content="#171411" />
     <title>Xác nhận đặt bàn | T3L Restaurant</title>
     <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
-    <link rel="stylesheet" th:href="@{/css/confirmation.css(v=20261120-typography)}" />
+    <link rel="stylesheet" th:href="@{/css/confirmation.css(v=20261124-deposit)}" />
   </head>
   <body class="home confirmation-page">
     <a class="skip-link" href="#main">Chuyển đến thông tin đặt bàn</a>
@@ -23,7 +23,7 @@
             <svg th:unless="${confirmed or closedEarly}" viewBox="0 0 32 32"><circle cx="16" cy="16" r="10" /><path d="M16 10v6l4 3" /></svg>
           </div>
           <th:block th:switch="${reservation.status}">
-            <th:block th:case="'CONFIRMED'"><h1 id="receipt-title">Cuộc hẹn đã được <em>xác nhận.</em></h1><p>Thông tin đặt bàn của bạn đã được nhân viên xác nhận.<br /> T3L mong được đón tiếp bạn trong buổi hẹn sắp tới.</p></th:block>
+            <th:block th:case="'CONFIRMED'"><h1 id="receipt-title" th:text="${reservation.depositStatus == 'WAITING_PAYMENT' or reservation.depositStatus == 'TRANSFER_SUBMITTED' ? 'Chỗ ngồi đã duyệt, chờ hoàn tất tiền cọc.' : 'Cuộc hẹn đã được xác nhận.'}"></h1><p th:text="${reservation.depositStatus == 'WAITING_PAYMENT' or reservation.depositStatus == 'TRANSFER_SUBMITTED' ? 'Nhân viên đã duyệt chỗ. Vui lòng thanh toán cọc và chờ đối chiếu để hoàn tất đặt bàn.' : 'Thông tin đặt bàn của bạn đã được nhân viên xác nhận. T3L mong được đón tiếp bạn trong buổi hẹn sắp tới.'}"></p></th:block>
             <th:block th:case="'CANCELLED'"><h1 id="receipt-title">Yêu cầu đặt bàn <em>đã được hủy.</em></h1><p>Yêu cầu này đã được hủy và không còn giữ chỗ.<br /> Hẹn gặp bạn tại T3L trong một dịp khác.</p></th:block>
             <th:block th:case="'CHECKED_IN'"><h1 id="receipt-title">T3L đã <em>đón tiếp bạn.</em></h1><p>Nhân viên đã ghi nhận bạn đến và sẽ hướng dẫn bạn nhận bàn.</p></th:block>
             <th:block th:case="'SEATED'"><h1 id="receipt-title">Bàn của bạn <em>đang được phục vụ.</em></h1><p>Chúc bạn có một buổi hẹn trọn vẹn tại T3L.</p></th:block>
@@ -32,6 +32,7 @@
             <th:block th:case="*"><h1 id="receipt-title">Đã tiếp nhận <em>yêu cầu của bạn.</em></h1><p>Yêu cầu đặt bàn đã được lưu thành công và đang chờ xác nhận.<br /> Nhân viên T3L sẽ liên hệ qua số điện thoại bạn cung cấp.</p></th:block>
           </th:block>
         </section>
+        <p class="receipt-deposit" th:if="${notice != null}" th:text="${notice}" role="status"></p>
 
         <div class="receipt-layout">
           <section class="reservation-receipt" id="reservation-details" aria-labelledby="details-title">
@@ -49,6 +50,23 @@
               <div><dt>Khu vực ưu tiên</dt><dd th:text="${reservation.preferredArea != null and !reservation.preferredArea.isBlank() ? reservation.preferredArea : 'Để T3L sắp xếp'}"></dd></div>
               <div class="receipt-note"><dt>Ghi chú đặc biệt</dt><dd th:text="${reservation.note != null and !reservation.note.isBlank() ? reservation.note : 'Không có ghi chú đặc biệt.'}"></dd></div>
             </dl>
+            <section class="receipt-deposit" th:if="${preorder != null and !preorder.items.isEmpty()}">
+              <h2>Món bạn đã đặt trước</h2>
+              <ul><li th:each="item : ${preorder.items}" th:text="${item.dishName + ' · ' + #numbers.formatInteger(item.unitPrice,1,'POINT') + ' đ'}"></li></ul>
+              <p th:if="${reservation.depositAmount.signum() > 0}">Tiền cọc được tính bằng 70% tổng giá món đặt trước, tối thiểu theo chính sách của loại bàn.</p>
+            </section>
+            <section class="receipt-deposit" th:if="${reservation.depositAmount.signum() > 0}">
+              <h2>Đặt cọc món đặt trước</h2>
+              <p>Số tiền cọc: <strong th:text="${#numbers.formatInteger(reservation.depositAmount,1,'POINT') + ' đ'}"></strong></p>
+              <p>Trạng thái: <strong th:text="${reservation.depositStatusLabel}"></strong></p>
+              <p th:if="${reservation.depositStatus == 'WAITING_PAYMENT'}">Chuyển khoản theo hướng dẫn của nhân viên nhà hàng, sau đó nhập mã giao dịch bên dưới. Cọc chỉ được ghi nhận sau khi nhân viên đối chiếu.</p>
+              <form class="receipt-deposit-form" th:if="${reservation.depositStatus == 'WAITING_PAYMENT'}"
+                  th:action="@{/reservations/{code}/deposit-reference(code=${reservation.code})}" method="post">
+                <label for="deposit-reference">Mã giao dịch chuyển khoản</label><input id="deposit-reference" name="reference" minlength="4" maxlength="80" required autocomplete="off" />
+                <button class="home-button" type="submit">Gửi mã giao dịch</button>
+              </form>
+              <p th:if="${reservation.depositStatus == 'TRANSFER_SUBMITTED'}" th:text="${'Mã giao dịch ' + reservation.depositReference + ' đang chờ nhân viên xác nhận.'}"></p>
+            </section>
             <p class="receipt-area-note" th:if="${reservation.preferredArea != null and !reservation.preferredArea.isBlank()}">Khu vực ưu tiên được sắp xếp theo tình trạng chỗ ngồi thực tế.</p>
             <div class="receipt-actions">
               <a class="home-button" th:href="@{/reservations/lookup(code=${reservation.code})}">Tra cứu đặt bàn <span aria-hidden="true">↗</span></a>
