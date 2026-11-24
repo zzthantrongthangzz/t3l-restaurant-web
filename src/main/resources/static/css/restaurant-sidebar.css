@@ -17,9 +17,7 @@
   line-height: 1.3;
 }
 .restaurant-sidebar .home-nav > a::after { content: none; }
-.restaurant-sidebar .home-nav > a:is(:hover, [aria-current="page"]),
-.restaurant-sidebar .home-nav .logout-link:hover { color: var(--accent-text); background: var(--accent-wash); }
-.restaurant-sidebar .home-nav > a[aria-current="page"] { font-weight: 700; }
+.restaurant-sidebar .home-nav > a:not([aria-current]):hover { color: inherit; }
 .restaurant-nav-group { width: 100%; }
 .restaurant-nav-group > summary { list-style: none; cursor: pointer; }
 .restaurant-nav-group > summary::-webkit-details-marker { display: none; }
@@ -28,10 +26,6 @@
   border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg);
 }
 .restaurant-nav-group[open] > summary::after { transform: rotate(225deg); }
-.restaurant-nav-group > summary:hover, .restaurant-nav-group.is-current > summary {
-  background: var(--accent-wash); color: var(--accent-text);
-}
-.restaurant-nav-group.is-current > summary { font-weight: 700; box-shadow: inset 3px 0 var(--accent); }
 .restaurant-nav-children {
   display: grid; margin: 4px 0 4px 20px; padding-inline-start: 7px; border-inline-start: 1px solid var(--border);
 }
@@ -39,8 +33,6 @@
   display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 7px 8px;
   border-radius: 7px; line-height: 1.3;
 }
-.restaurant-nav-children > a:is(:hover, [aria-current="page"]) { color: var(--accent-text); background: var(--accent-wash); }
-.restaurant-nav-children > a[aria-current="page"] { font-weight: 700; }
 .restaurant-nav-children .customer-icon { width: 16px; height: 16px; color: var(--accent); }
 .home-space { scroll-margin-top: 105px; }
 
@@ -171,8 +163,9 @@
   .staff-header .staff-user .sidebar-employee { width: 100%; }
 }
 
-.restaurant-sidebar-actions .restaurant-login-link,
-.restaurant-sidebar .home-nav > a[aria-current="page"] {
+.restaurant-sidebar-actions .restaurant-login-link[aria-current],
+.restaurant-sidebar .home-nav > a[aria-current],
+.restaurant-sidebar .restaurant-nav-children > a[aria-current] {
   background: var(--accent-wash);
   color: var(--accent-text);
   box-shadow: inset 3px 0 var(--accent);

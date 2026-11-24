@@ -10,18 +10,20 @@
         <span class="nav-toggle-lines" aria-hidden="true"></span><span class="nav-toggle-label">Mở menu</span>
       </button>
       <nav class="home-nav" id="home-nav" aria-label="Điều hướng chính"
-           th:with="systemPage=${activePage == 'home' or activePage == 'about' or activePage == 'contact' or activePage == 'faq'},
+           th:with="visitorMenu=${#authorization.expression('isAnonymous() or hasRole(''BUYER'')')},
+                    systemPage=${activePage == 'home' or activePage == 'about' or activePage == 'contact' or activePage == 'faq'},
                     bookingPage=${activePage == 'reservation' or activePage == 'lookup'}">
-        <details class="restaurant-nav-group" th:open="${systemPage}" th:classappend="${systemPage ? 'is-current' : ''}">
+        <details class="restaurant-nav-group" th:open="${visitorMenu or systemPage}">
           <summary><svg th:replace="~{web/fragments/restaurant-shell :: icon('home')}"></svg>Hệ thống</summary>
           <div class="restaurant-nav-children">
-            <a th:href="@{/}" th:attr="aria-current=${activePage == 'home' or activePage == 'about' ? 'page' : null}">Giới thiệu</a>
-            <a th:href="@{/#space}">Không gian</a>
+            <a th:href="@{/}" th:attr="aria-current=${activePage == 'home' or activePage == 'about' ? 'page' : null},
+                                    data-home-section=${activePage == 'home' ? 'intro' : null}">Giới thiệu</a>
+            <a th:href="@{/#space}" data-home-section="space">Không gian</a>
             <a th:href="@{/contact}" th:attr="aria-current=${activePage == 'contact' ? 'page' : null}">Liên hệ</a>
             <a th:href="@{/faq}" th:attr="aria-current=${activePage == 'faq' ? 'page' : null}">Câu hỏi thường gặp</a>
           </div>
         </details>
-        <details class="restaurant-nav-group" th:open="${bookingPage}" th:classappend="${bookingPage ? 'is-current' : ''}">
+        <details class="restaurant-nav-group" th:open="${visitorMenu or bookingPage}">
           <summary><svg th:replace="~{web/fragments/restaurant-shell :: icon('calendar')}"></svg>Đặt bàn</summary>
           <div class="restaurant-nav-children">
             <a th:href="@{/reservations/new}" th:attr="aria-current=${activePage == 'reservation' ? 'page' : null}">Chọn bàn và đặt lịch</a>
@@ -29,8 +31,7 @@
           </div>
         </details>
         <a th:href="@{/menu}" th:attr="aria-current=${activePage == 'menu' ? 'page' : null}"><svg th:replace="~{web/fragments/restaurant-shell :: icon('menu')}"></svg>Thực đơn</a>
-        <details sec:authorize="hasRole('BUYER')" class="restaurant-nav-group" th:open="${activePage == 'account'}"
-                 th:classappend="${activePage == 'account' ? 'is-current' : ''}">
+        <details sec:authorize="hasRole('BUYER')" class="restaurant-nav-group" open>
           <summary><svg th:replace="~{web/fragments/restaurant-shell :: icon('account')}"></svg>Tài khoản</summary>
           <div class="restaurant-nav-children">
             <th:block th:replace="~{account/fragments/navigation :: links(${activePage == 'account' ? section : null})}"></th:block>
@@ -92,6 +93,17 @@
         const header = document.getElementById('home-header');
         const toggle = document.querySelector('.nav-toggle');
         const nav = document.getElementById('home-nav');
+        const intro = nav.querySelector('[data-home-section="intro"]');
+        if (intro) {
+          const space = nav.querySelector('[data-home-section="space"]');
+          const updateHomeSelection = () => {
+            const isSpace = window.location.hash === '#space';
+            (isSpace ? intro : space).removeAttribute('aria-current');
+            (isSpace ? space : intro).setAttribute('aria-current', isSpace ? 'location' : 'page');
+          };
+          updateHomeSelection();
+          window.addEventListener('hashchange', updateHomeSelection);
+        }
         const mobile = window.matchMedia('(max-width: 1100px)');
         const setMenu = (open) => {
           toggle.setAttribute('aria-expanded', String(open));
