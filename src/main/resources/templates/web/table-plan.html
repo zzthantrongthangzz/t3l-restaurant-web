@@ -7,6 +7,8 @@
     <link rel="stylesheet" th:href="@{/css/reservation.css(v=20261120-typography)}" />
     <link rel="stylesheet" th:href="@{/css/account.css(v=20261120-typography)}" />
     <link rel="stylesheet" th:href="@{/css/table-plan.css(v=20261124-slots)}" />
+    <link rel="stylesheet" th:href="@{/css/preorder.css}" />
+    <script th:src="@{/js/preorder.js}" defer></script>
   </head>
   <body class="home table-plan-page">
     <header th:replace="~{web/fragments/restaurant-shell :: header('reservation')}"></header>
@@ -74,24 +76,14 @@
           <label>Số khách <input type="number" th:field="*{guests}" readonly /></label>
           <label class="plan-field-full">Ghi chú <textarea th:field="*{note}" rows="3" maxlength="500" placeholder="Yêu cầu đặc biệt (nếu có)"></textarea></label>
         </div>
-        <fieldset class="plan-preorder" th:if="${bookingCustomer}">
-          <legend>Đặt trước món ăn <small>(tùy chọn)</small></legend>
-          <p th:if="${minimumDeposit.signum() > 0}"
-              th:text="${'Cọc tối thiểu ' + #numbers.formatInteger(minimumDeposit,1,'POINT') + ' đ hoặc 70% tiền món đặt trước, lấy mức cao hơn. Gửi mã giao dịch sau khi nhân viên duyệt.'}"></p>
-          <p th:unless="${minimumDeposit.signum() > 0}">Cọc bằng 70% giá trị món đặt trước. Nếu chỉ đặt bàn này thì không cần cọc.</p>
-          <label class="plan-preorder-item" th:each="dish : ${preorderDishes}">
-            <input type="checkbox" th:field="*{preorderDishIds}" th:value="${dish.id}" />
-            <span><strong th:text="${dish.name}"></strong><small th:text="${dish.categoryName}"></small></span>
-            <b th:text="${#numbers.formatInteger(dish.price,1,'POINT') + ' đ'}"></b>
-          </label>
-          <small class="plan-form-hint">Mỗi món được đặt một phần; nhân viên sẽ chuẩn bị theo yêu cầu.</small>
-        </fieldset>
+        <section th:replace="~{web/fragments/preorder-picker :: picker(${preorderCards},${minimumDeposit},${pickerPaid},${bookingCustomer},${form.preorderNote})}"></section>
         <p class="plan-dialog-note" th:if="${!bookingCustomer and minimumDeposit.signum() > 0}"
             th:text="${'Bàn này yêu cầu cọc ' + #numbers.formatInteger(minimumDeposit,1,'POINT') + ' đ. Gửi mã giao dịch qua trang xác nhận sau khi nhân viên duyệt.'}"></p>
         <p class="plan-form-hint" th:text="${depositRefundTerms}"></p>
         <label class="plan-consent"><input th:field="*{consentAccepted}" type="checkbox" th:required="${!bookingProfileMissing}" /><span>Tôi đồng ý với chính sách đặt bàn và quyền riêng tư của T3L.</span></label>
         <p class="plan-form-error" role="alert" th:each="error : ${#fields.allErrors()}" th:text="${error}"></p>
-        <button class="home-button" type="submit" th:text="${bookingProfileMissing ? 'Hoàn thiện hồ sơ' : 'Gửi yêu cầu giữ chỗ'}"></button>
+        <button class="home-button" type="submit" data-preorder-booking-submit data-default-label="Gửi yêu cầu giữ chỗ"
+            th:text="${bookingProfileMissing ? 'Hoàn thiện hồ sơ' : 'Gửi yêu cầu giữ chỗ'}"></button>
         <div class="plan-booking-actions">
           <button class="home-text-link" name="choose" value="true" type="submit" formnovalidate>Đổi khung giờ hoặc bàn</button>
           <button th:unless="${bookingCustomer}" class="home-text-link" name="loginOnly" value="true" type="submit" formnovalidate>Đăng nhập để tiếp tục</button>

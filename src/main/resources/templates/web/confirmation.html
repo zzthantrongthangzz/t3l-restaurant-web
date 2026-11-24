@@ -50,12 +50,19 @@
               <div><dt>Khu vực ưu tiên</dt><dd th:text="${reservation.preferredArea != null and !reservation.preferredArea.isBlank() ? reservation.preferredArea : 'Để T3L sắp xếp'}"></dd></div>
               <div class="receipt-note"><dt>Ghi chú đặc biệt</dt><dd th:text="${reservation.note != null and !reservation.note.isBlank() ? reservation.note : 'Không có ghi chú đặc biệt.'}"></dd></div>
             </dl>
-            <section class="receipt-deposit" th:if="${preorder != null and !preorder.items.isEmpty()}">
-              <h2 th:text="${payment != null ? 'Chi tiết hóa đơn' : 'Món bạn đã đặt trước'}"></h2>
-              <ul><li th:each="item : ${preorder.items}" th:text="${item.dishName + ' · ' + #numbers.formatInteger(item.unitPrice,1,'POINT') + ' đ'}"></li></ul>
-              <p th:if="${reservation.depositAmount.signum() > 0}">Tiền cọc được tính bằng 70% tổng giá món đặt trước, tối thiểu theo chính sách của loại bàn.</p>
+            <section class="receipt-deposit" th:if="${preorder != null and !preorder.preorderItems.isEmpty()}">
+              <h2>Món bạn đã đặt trước</h2>
+              <ul><li th:each="item : ${preorder.preorderItems}" th:text="${item.dishName + ' × ' + item.quantity + ' · ' + #numbers.formatInteger(item.amount,1,'POINT') + ' đ'}"></li></ul>
+              <p th:if="${preorder.preorderNote != null}" th:text="${'Ghi chú cho bếp: ' + preorder.preorderNote}"></p>
+              <p th:text="${'Tổng món đặt trước: ' + #numbers.formatInteger(preorder.preorderTotal,1,'POINT') + ' đ'}"></p>
+              <p th:if="${preorder.status == 'VOID'}">Đơn đã hủy.</p>
             </section>
             <section th:replace="~{web/fragments/deposit :: details(${reservation})}"></section>
+            <section class="receipt-deposit" th:if="${preorder != null and preorder.legacyCustomerOrder}">
+              <h2>Chi tiết đơn cũ</h2>
+              <ul><li th:each="item : ${preorder.items}" th:unless="${item.cancelled}"
+                  th:text="${item.dishName + ' × ' + item.quantity + ' · ' + #numbers.formatInteger(item.amount,1,'POINT') + ' đ'}"></li></ul>
+            </section>
             <section class="receipt-deposit" th:if="${payment != null}">
               <p th:text="${'Tổng hóa đơn: ' + #numbers.formatInteger(preorder.totalAmount,1,'POINT') + ' đ'}"></p>
               <p th:text="${'Cọc đã khấu trừ: ' + #numbers.formatInteger(payment.depositApplied,1,'POINT') + ' đ'}"></p>

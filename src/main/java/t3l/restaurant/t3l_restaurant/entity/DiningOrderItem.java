@@ -34,12 +34,21 @@ public class DiningOrderItem {
   @Column(nullable = false)
   private boolean cancelled;
 
+  @Column(nullable = false)
+  @org.hibernate.annotations.ColumnDefault("false")
+  private boolean preordered;
+
   public DiningOrderItem(DiningOrder order, Dish dish, int quantity) {
+    this(order, dish.getId(), dish.getName(), dish.getPrice(), quantity, false);
+  }
+
+  DiningOrderItem(DiningOrder order, Long dishId, String dishName, BigDecimal unitPrice, int quantity, boolean preordered) {
     this.order = order;
-    this.dishId = dish.getId();
-    this.dishName = dish.getName();
-    this.unitPrice = dish.getPrice();
+    this.dishId = dishId;
+    this.dishName = dishName;
+    this.unitPrice = unitPrice;
     this.quantity = quantity;
+    this.preordered = preordered;
   }
 
   public BigDecimal getAmount() { return unitPrice.multiply(BigDecimal.valueOf(quantity)); }

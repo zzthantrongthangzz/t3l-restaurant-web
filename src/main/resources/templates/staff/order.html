@@ -25,14 +25,15 @@
           <div class="staff-panel-heading"><h2>Chi tiết món</h2>
             <strong class="staff-total" th:text="${#numbers.formatInteger(view.total, 1, 'POINT') + ' đ'}"></strong>
           </div>
-          <p class="staff-empty" th:if="${order.openedBy == 'CUSTOMER' and booking.status != 'SEATED'}">Danh sách này do khách đặt trước. Có thể xem tại đây; thao tác gọi món bổ sung mở khi khách đã nhận bàn.</p>
+          <p class="staff-empty" th:if="${order.openedBy == 'CUSTOMER' and booking.status != 'SEATED'}">Món đã đặt trước nằm trong đơn này. Có thể gọi thêm khi khách đã nhận bàn.</p>
+          <p th:if="${order.preorderNote != null}" th:text="${'Ghi chú cho bếp: ' + order.preorderNote}"></p>
           <p class="staff-empty" th:if="${order.items.isEmpty()}">Chưa có món trong đơn.</p>
           <div class="staff-table-wrap" th:unless="${order.items.isEmpty()}">
             <table class="staff-table">
               <thead><tr><th scope="col">Món</th><th scope="col">Đơn giá</th><th scope="col">Số lượng</th><th scope="col">Thành tiền</th>
                 <th scope="col" th:if="${order.status == 'DRAFT' and booking.status == 'SEATED'}">Thao tác</th></tr></thead>
               <tbody><tr th:each="item : ${order.items}" th:classappend="${item.cancelled ? 'staff-cancelled' : ''}">
-                <td data-label="Món"><strong th:text="${item.dishName}"></strong><small th:if="${item.cancelled}">Đã hủy món</small></td>
+                <td data-label="Món"><strong th:text="${item.dishName}"></strong><small th:if="${item.preordered}">Món đặt trước</small><small th:if="${item.cancelled}">Đã hủy món</small></td>
                 <td data-label="Đơn giá" th:text="${#numbers.formatInteger(item.unitPrice, 1, 'POINT') + ' đ'}"></td>
                 <td data-label="Số lượng" th:text="${item.quantity}"></td>
                 <td data-label="Thành tiền" th:text="${item.cancelled ? '—' : #numbers.formatInteger(item.amount, 1, 'POINT') + ' đ'}"></td>

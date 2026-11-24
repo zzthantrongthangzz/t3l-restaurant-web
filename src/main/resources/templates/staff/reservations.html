@@ -11,7 +11,7 @@
       <div th:replace="~{staff/fragments/shell :: messages}"></div>
       <section class="staff-panel" aria-labelledby="reservation-list-title">
         <div class="staff-panel-heading"><h2 id="reservation-list-title">Danh sách đặt bàn</h2>
-          <a class="staff-link" href="#request-queue-title" th:text="${'Đổi lịch / hủy (' + #lists.size(changeRequests) + ')'}"></a>
+          <a class="staff-link" href="#request-queue-title" th:text="${'Yêu cầu thay đổi (' + #lists.size(changeRequests) + ')'}"></a>
         </div>
         <form class="staff-filters" th:action="@{${opsBase + '/reservations'}}" method="get">
           <label class="staff-field">Ngày đến <input type="date" name="date" th:value="${date}" /></label>

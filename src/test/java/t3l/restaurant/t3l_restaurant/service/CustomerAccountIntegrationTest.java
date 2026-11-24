@@ -505,6 +505,10 @@ class CustomerAccountIntegrationTest {
     var session = new MockHttpSession();
     String date = "2098-12-09";
     Long tableId = jdbc.queryForObject("select id from restaurant_tables where code='GOOGLE-QA-TABLE'", Long.class);
+    jdbc.update("insert into dishes(name,description,price,category_name,available) values (?,?,?,'Món chính',true)",
+        "Món giỏ Google QA", "", 100000);
+    Long dishId = jdbc.queryForObject("select id from dishes where name='Món giỏ Google QA'", Long.class);
+    String quantityField = "preorderQuantities[" + dishId + "]";
     String guestDraft = (String) mvc.perform(get("/reservations/new").session(session)
         .param("date", date).param("time", "18:30").param("guests", "3").param("tableId", tableId.toString()))
         .andExpect(view().name("web/table-plan")).andExpect(content().string(containsString("Yêu cầu đặt GOOGLE-QA-TABLE")))
@@ -512,6 +516,7 @@ class CustomerAccountIntegrationTest {
     String start = mvc.perform(post("/reservations").session(session).with(csrf()).param("date", date)
         .param("draft", guestDraft).param("tableId", tableId.toString())
         .param("time", "18:30").param("guests", "3").param("note", "Ghi chú của lịch Google")
+        .param(quantityField, "3").param("preorderNote", "Để sốt riêng")
         .param("consentAccepted", "true").param("loginOnly", "true")).andReturn().getResponse().getRedirectedUrl();
     assertNotNull(start);
     String target = URLDecoder.decode(UriComponentsBuilder.fromUriString(start).build()
@@ -546,13 +551,17 @@ class CustomerAccountIntegrationTest {
     assertEquals(tableId, resumed.getTableId());
     assertTrue(resumed.isConsentAccepted());
     assertEquals(identity.getEmail(), resumed.getGuestEmail());
+    assertEquals(Map.of(dishId, 3), resumed.getPreorderQuantities());
+    assertEquals("Để sốt riêng", resumed.getPreorderNote());
     mvc.perform(post("/reservations").session(session).with(csrf()).param("draft", draft)
         .param("tableId", tableId.toString())
+        .param(quantityField, "3").param("preorderNote", "Để sốt riêng").param("preorderExpectedTotal", "300000")
         .param("date", date).param("time", "18:30").param("guests", "3").param("consentAccepted", "true"))
         .andExpect(redirectedUrlPattern("/reservations/confirmation?code=*"));
     Long owner = profiles.findAccountIdByGoogleSubject(identity.getSubject()).orElseThrow();
     var saved = bookings.findByCustomerIdOrderByReservationDateAscReservationTimeAscIdAsc(owner).getFirst();
     assertEquals(identity.getEmail(), saved.getGuestEmail());
+    assertEquals(new java.math.BigDecimal("210000"), saved.getDepositAmount());
     assertEquals(tableId, bookings.findOneById(saved.getId()).orElseThrow().getTable().getId());
     mvc.perform(get("/account/reservations").session(session)).andExpect(content().string(containsString(saved.getCode())));
   }

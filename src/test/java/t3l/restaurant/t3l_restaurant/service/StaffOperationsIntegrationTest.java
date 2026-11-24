@@ -62,6 +62,7 @@ class StaffOperationsIntegrationTest {
   @Autowired ReservationService bookings;
   @Autowired ReservationManagementService changes;
   @Autowired UserAccountRepository accounts;
+  @Autowired PreorderService preorders;
   private Long tableOne;
   private Long tableTwo;
   private Long smallTable;
@@ -329,6 +330,126 @@ class StaffOperationsIntegrationTest {
     assertEquals("FORFEITED", closed.getDepositStatus());
     assertEquals(new BigDecimal("500000"), closed.getDepositRetained());
     assertEquals(BigDecimal.ZERO, closed.getRefundRemaining());
+  }
+
+  @Test
+  void buyerRequestsMorePortionsOldPricesAndCreditAreKeptAndServingReusesTheOrder() throws Exception {
+    var buyer = preorderBuyer();
+    var other = accounts.findByUsername("other-preorder-buyer").orElseGet(() -> accounts.save(
+        UserAccount.customer("Khách khác", null, "0923456789", "other-preorder-buyer", "unused")));
+    var booking = preorderBooking(buyer, "14:00", 2);
+    long id = booking.getId();
+    String code = booking.getCode();
+    String page = "/account/reservations/" + code + "/preorder";
+    long orderId = preorders.order(id).getId();
+    assertEquals(new BigDecimal("350000"), booking.getDepositAmount());
+    step(id, "CONFIRMED").andExpect(flash().attributeExists("notice"));
+    bookings.submitDepositReference(id, buyer.getId(), "QA-PREORDER-BASE");
+    verifyDeposit(id, "QA-PREORDER-BASE", "350000", true).andExpect(flash().attributeExists("notice"));
+
+    jdbc.update("update dishes set price=300000 where id=?", dishId);
+    mvc.perform(get(page).with(user(buyer.getUsername()).roles("BUYER")))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Để sốt riêng")));
+    mvc.perform(get(page).with(user(other.getUsername()).roles("BUYER"))).andExpect(status().isNotFound());
+    mvc.perform(post(page).with(user(buyer.getUsername()).roles("BUYER")).with(csrf())
+        .param("preorderQuantities[" + dishId + "]", "3").param("preorderNote", "Không hành")
+        .param("preorderExpectedTotal", "800000")).andExpect(redirectedUrl(page));
+    long requestId = id("select id from reservation_change_requests");
+    staff(get("/staff/reservations")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("Giỏ món đề nghị")));
+    staff(post("/staff/reservations/requests/" + requestId + "/review").param("decision", "APPROVE"))
+        .andExpect(flash().attributeExists("notice"));
+
+    var adjusted = reservations.findOneById(id).orElseThrow();
+    assertEquals(new BigDecimal("560000"), adjusted.getDepositAmount());
+    assertEquals(new BigDecimal("210000"), adjusted.getDepositRemaining());
+    var order = preorders.order(id);
+    assertEquals(orderId, order.getId());
+    assertEquals(new BigDecimal("800000"), order.getPreorderTotal());
+    assertEquals(List.of(new BigDecimal("250000"), new BigDecimal("300000")),
+        order.getPreorderItems().stream().map(item -> item.getUnitPrice()).toList());
+    assertEquals("Không hành", order.getPreorderNote());
+    bookings.submitDepositReference(id, buyer.getId(), "QA-PREORDER-EXTRA");
+    verifyDeposit(id, "QA-PREORDER-EXTRA", "210000", true).andExpect(flash().attributeExists("notice"));
+
+    clock.at(TODAY.atTime(13, 45));
+    staff(post("/staff/shift/open").param("openingCash", "0")).andExpect(flash().attributeExists("notice"));
+    step(id, "CHECKED_IN").andExpect(flash().attributeExists("notice"));
+    step(id, "SEATED").andExpect(flash().attributeExists("notice"));
+    staff(post("/staff/orders/" + id + "/open")).andExpect(flash().attributeExists("notice"));
+    staff(post("/staff/orders/" + id + "/finalize")).andExpect(flash().attributeExists("notice"));
+    payCash("/staff/orders/" + id).andExpect(flash().attributeExists("notice"));
+    assertEquals(1L, id("select count(*) from dining_orders"));
+    assertEquals(800000L, id("select total_amount from dining_orders"));
+    assertEquals(240000L, id("select amount from dining_payments"));
+  }
+
+  @Test
+  void rejectsInvalidCartAndStalePriceAndDoesNotApplyAnUnavailableProposedDish() throws Exception {
+    var buyer = preorderBuyer();
+    var form = preorderForm("14:00", 21);
+    assertThrows(BookingException.class, () -> bookings.create(form, buyer));
+    form.setPreorderQuantities(Map.of(dishId, 2));
+    form.setPreorderExpectedTotal(new BigDecimal("1"));
+    assertThrows(BookingException.class, () -> bookings.create(form, buyer));
+    form.setPreorderExpectedTotal(null);
+    var booking = bookings.create(form, buyer);
+    form.setPreorderQuantities(Map.of(dishId, 3));
+    var request = changes.requestPreorder(booking.getCode(), buyer.getId(), form);
+    jdbc.update("update dishes set price=300000 where id=?", dishId);
+    staff(post("/staff/reservations/requests/" + request.getId() + "/review").param("decision", "APPROVE"))
+        .andExpect(flash().attributeExists("error"));
+    jdbc.update("update dishes set available=false where id=?", dishId);
+    mvc.perform(get("/admin/reservations/" + booking.getId()).with(user("admin").roles("ADMIN")))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Hết hoặc ngừng bán")));
+    staff(post("/staff/reservations/" + booking.getId() + "/preorder/unavailable"))
+        .andExpect(flash().attributeExists("notice"));
+    assertEquals(BigDecimal.ZERO, preorders.order(booking.getId()).getPreorderTotal());
+    assertEquals(BigDecimal.ZERO, reservations.findOneById(booking.getId()).orElseThrow().getDepositAmount());
+    staff(post("/staff/reservations/requests/" + request.getId() + "/review").param("decision", "APPROVE"))
+        .andExpect(flash().attributeExists("error"));
+  }
+
+  private UserAccount preorderBuyer() {
+    return accounts.findByUsername("preorder-buyer").orElseGet(() -> accounts.save(
+        UserAccount.customer("Khách đặt món QA", "preorder@example.test", "0912345678", "preorder-buyer", "unused")));
+  }
+
+  @Test
+  void cancellingOrMissingReservationClosesPreorderWithoutBillingIt() throws Exception {
+    var buyer = preorderBuyer();
+    var cancelled = preorderBooking(buyer, "12:00", 2);
+    step(cancelled.getId(), "CANCELLED").andExpect(flash().attributeExists("notice"));
+    var missed = preorderBooking(buyer, "14:00", 2);
+    step(missed.getId(), "CONFIRMED").andExpect(flash().attributeExists("notice"));
+    bookings.submitDepositReference(missed.getId(), buyer.getId(), "QA-PREORDER-NOSHOW");
+    verifyDeposit(missed.getId(), "QA-PREORDER-NOSHOW", "350000", true)
+        .andExpect(flash().attributeExists("notice"));
+    clock.at(TODAY.atTime(14, 30));
+    step(missed.getId(), "NO_SHOW").andExpect(flash().attributeExists("notice"));
+    assertEquals("VOID", preorders.order(cancelled.getId()).getStatus());
+    assertEquals("VOID", preorders.order(missed.getId()).getStatus());
+    assertEquals(new BigDecimal("500000"), preorders.order(missed.getId()).getPreorderTotal());
+    assertEquals(new BigDecimal("350000"), reservations.findOneById(missed.getId()).orElseThrow().getDepositRetained());
+    assertEquals(0L, id("select count(*) from dining_payments"));
+  }
+
+  private Reservation preorderBooking(UserAccount buyer, String time, int quantity) {
+    return bookings.create(preorderForm(time, quantity), buyer);
+  }
+
+  private ReservationForm preorderForm(String time, int quantity) {
+    var form = new ReservationForm();
+    form.setGuestName("Khách đặt món QA");
+    form.setGuestPhone("0912345678");
+    form.setDate(TODAY);
+    form.setTime(LocalTime.parse(time));
+    form.setTableId(tableOne);
+    form.setGuests(3);
+    form.setConsentAccepted(true);
+    form.setPreorderQuantities(Map.of(dishId, quantity));
+    form.setPreorderNote("Để sốt riêng");
+    return form;
   }
 
   private long depositGuest(Long table, String time, String reference) throws Exception {

@@ -25,10 +25,12 @@ public class ReservationManagementService {
   private final ReservationEmailQueue emails;
   private final AdminAudit audit;
   private final DepositPolicy deposits;
+  private final PreorderService preorders;
 
   public ReservationManagementService(ReservationRepository reservations, ReservationChangeRequestRepository requests,
       RestaurantTableRepository tables, ReservationService bookings, ReservationSchedule schedule,
-      ReservationChangePolicy policy, Validator validator, ReservationEmailQueue emails, AdminAudit audit, DepositPolicy deposits) {
+      ReservationChangePolicy policy, Validator validator, ReservationEmailQueue emails, AdminAudit audit,
+      DepositPolicy deposits, PreorderService preorders) {
     this.reservations = reservations;
     this.requests = requests;
     this.tables = tables;
@@ -39,6 +41,7 @@ public class ReservationManagementService {
     this.emails = emails;
     this.audit = audit;
     this.deposits = deposits;
+    this.preorders = preorders;
   }
 
   static String canonicalPhone(String value) {
@@ -67,6 +70,31 @@ public class ReservationManagementService {
     String reason = policy.blockedReason(booking);
     return reason != null ? reason : requests.existsByReservation_IdAndStatus(booking.getId(), "PENDING")
         ? "Bạn đã có một yêu cầu đang chờ nhân viên duyệt. Lịch hiện tại được giữ nguyên đến khi có kết quả." : null;
+  }
+
+  @Transactional(readOnly = true)
+  public String preorderBlockedReason(Reservation booking) {
+    String reason = requestBlockedReason(booking);
+    if (reason == null && "TRANSFER_SUBMITTED".equals(booking.getDepositStatus())) {
+      return "Vui lòng đợi đối soát tiền cọc trước khi đổi món.";
+    }
+    return reason;
+  }
+
+  @Transactional(isolation = Isolation.READ_COMMITTED)
+  public ReservationChangeRequest requestPreorder(String code, Long customerId, PreorderForm form) {
+    validate(form);
+    tables.lockInventory();
+    var booking = lockBooking(code);
+    if (customerId == null) throw new BookingException(null, "Vui lòng đăng nhập để đổi món.");
+    requireOwner(booking, customerId);
+    if (booking.getTable() == null) throw new BookingException(null, "Lượt đặt chưa có bàn được phân.");
+    requireNewRequest(booking);
+    bookings.requireDepositChangeAllowed(booking);
+    var order = preorders.order(booking.getId());
+    var quote = preorders.quote(form, order);
+    if (quote.equals(preorders.current(order))) throw new BookingException(null, "Giỏ món và ghi chú chưa thay đổi.");
+    return requests.saveAndFlush(ReservationChangeRequest.preorder(booking, preorders.encode(quote), policy.now()));
   }
 
   private <T> void validate(T form) {
@@ -144,17 +172,26 @@ public class ReservationManagementService {
 
   private String normalizeArea(String area) { return area == null ? "" : area.trim(); }
 
-  public record ReviewItem(ReservationChangeRequest request, String blockedReason) {}
+  public record ReviewItem(ReservationChangeRequest request, String blockedReason, PreorderService.Quote preorder) {}
 
   @Transactional(readOnly = true)
   public List<ReviewItem> pendingReviews() {
     return requests.findByStatusOrderByCreatedAtAscIdAsc("PENDING").stream().map(request -> {
       String reason = policy.blockedReason(request.getReservation());
+      var preorder = preorders.decode(request.getPreorderPayload());
+      if (preorder != null && reason == null) {
+        try {
+          bookings.requireDepositChangeAllowed(request.getReservation());
+          verifyPreorderQuote(request.getReservation(), preorder, preorders.order(request.getReservation().getId()));
+        } catch (BookingException exception) {
+          reason = exception.getMessage();
+        }
+      }
       if (reason == null && "CHANGE".equals(request.getRequestType())
           && request.getRequestedDate().atTime(request.getRequestedTime()).isBefore(policy.now().plusMinutes(policy.noticeMinutes()))) {
         reason = "Giờ mới không còn đủ thời gian báo trước " + policy.noticeMinutes() + " phút.";
       }
-      return new ReviewItem(request, reason);
+      return new ReviewItem(request, reason, preorder);
     }).toList();
   }
 
@@ -171,6 +208,7 @@ public class ReservationManagementService {
     if (!"PENDING".equals(request.getStatus())) throw new BookingException(null, "Yêu cầu đã được xử lý trước đó.");
     boolean approve = "APPROVE".equals(decision);
     boolean cancellation = "CANCEL".equals(request.getRequestType());
+    boolean preorder = "PREORDER".equals(request.getRequestType());
     if (approve) {
       if (booking.hasExpiredDeposit(policy.now())) throw new BookingException(null, "Lượt đặt đã quá hạn cọc.");
       policy.requireEligible(booking);
@@ -183,6 +221,14 @@ public class ReservationManagementService {
       if (cancellation) {
         booking.updateStatus("CANCELLED");
         booking.closeDeposit(deposits.cancellationPercent(booking, request.getCreatedAt()), false, policy.now());
+        preorders.close(booking.getId());
+      } else if (preorder) {
+        bookings.requireDepositChangeAllowed(booking);
+        var quote = preorders.decode(request.getPreorderPayload());
+        var order = preorders.order(booking.getId());
+        verifyPreorderQuote(booking, quote, order);
+        preorders.apply(booking, order, quote, policy.now());
+        bookings.repriceDeposit(booking);
       } else {
         bookings.requireDepositChangeAllowed(booking);
         var form = request.updateForm();
@@ -199,10 +245,20 @@ public class ReservationManagementService {
     reservations.flush();
     requests.flush();
     Kind kind;
-    if (approve) kind = cancellation ? Kind.CANCELLATION_APPROVED : Kind.RESCHEDULED;
+    if (preorder) kind = approve ? Kind.PREORDER_CHANGED : Kind.PREORDER_DECLINED;
+    else if (approve) kind = cancellation ? Kind.CANCELLATION_APPROVED : Kind.RESCHEDULED;
     else kind = cancellation ? Kind.CANCELLATION_DECLINED : Kind.CHANGE_DECLINED;
     emails.enqueue(booking, kind, requestId, request.getReviewNote());
     audit.record("Xét duyệt yêu cầu", booking.getCode() + " · " + request.getTypeLabel()
         + (approve ? " · Đã duyệt" : " · Đã từ chối"));
+  }
+
+  private void verifyPreorderQuote(Reservation booking, PreorderService.Quote requested, DiningOrder order) {
+    if (booking.getCustomerId() == null) throw new BookingException(null, "Yêu cầu đổi món thiếu tài khoản đặt bàn.");
+    if (booking.getTable() == null) throw new BookingException(null, "Lượt đặt chưa có bàn được phân.");
+    var current = preorders.quote(requested.quantities(), requested.note(), order);
+    if (!requested.equals(current)) {
+      throw new BookingException(null, "Giá hoặc thông tin món đã thay đổi. Vui lòng từ chối và yêu cầu khách xác nhận lại.");
+    }
   }
 }

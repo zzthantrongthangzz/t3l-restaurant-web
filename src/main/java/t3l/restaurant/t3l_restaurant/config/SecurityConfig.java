@@ -117,7 +117,7 @@ public class SecurityConfig {
                 .permitAll()
                 .requestMatchers("/chat/**").access(new org.springframework.security.web.access.expression.WebExpressionAuthorizationManager(
                     "isAnonymous() or hasRole('BUYER')"))
-                .requestMatchers("/js/chatbox.js").permitAll()
+                .requestMatchers("/js/chatbox.js", "/js/preorder.js").permitAll()
                 .requestMatchers(
                     "/", "/menu", "/about", "/contact", "/faq", "/reservations/**", "/css/**", "/fonts/**", "/images/**", "/error")
                 .permitAll()

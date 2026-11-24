@@ -185,6 +185,12 @@ public class ReservationEmailSender {
           "Thời hạn thanh toán hoặc đối soát đã hết. Nếu đã chuyển khoản, vui lòng xem chi tiết để theo dõi hoàn cọc.");
       case DEPOSIT_APPLIED -> new Message("Đã đối trừ tiền cọc vào hóa đơn",
           "Vui lòng xem chi tiết đặt bàn để kiểm tra tiền cọc đã khấu trừ và số tiền cần hoàn, nếu có.");
+      case PREORDER_CHANGED -> new Message("Đã cập nhật món đặt trước",
+          "Nhà hàng đã duyệt giỏ món mới. Vui lòng xem chi tiết để kiểm tra món và khoản cọc còn phải thanh toán, nếu có.");
+      case PREORDER_DECLINED -> new Message("Yêu cầu đổi món chưa được duyệt",
+          "Nhà hàng giữ giỏ món hiện tại. Bạn có thể xem phản hồi và gửi một yêu cầu khác nếu còn thời hạn.");
+      case PREORDER_UNAVAILABLE -> new Message("Một số món đặt trước đã hết",
+          "Nhà hàng đã cập nhật những món có thể phục vụ. Vui lòng xem lại món và số tiền cọc trong chi tiết đặt bàn.");
     };
   }
 

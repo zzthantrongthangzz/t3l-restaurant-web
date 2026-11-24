@@ -55,6 +55,20 @@
                 <button class="staff-button" type="submit">Ghi nhận đã hoàn tiền</button>
               </form>
             </section>
+            <section class="staff-deposit-panel" th:if="${order != null and !order.preorderItems.isEmpty()}">
+              <h3>Món đặt trước</h3>
+              <ul><li th:each="item : ${order.preorderItems}">
+                <span th:text="${item.dishName + ' × ' + item.quantity + ' · ' + #numbers.formatInteger(item.amount,1,'POINT') + ' đ'}"></span>
+                <strong th:if="${unavailablePreorders.contains(item.dishId)}">Hết hoặc ngừng bán</strong>
+              </li></ul>
+              <p th:text="${'Tổng món đặt trước: ' + #numbers.formatInteger(order.preorderTotal,1,'POINT') + ' đ'}"></p>
+              <p th:if="${order.preorderNote != null}" th:text="${'Ghi chú cho bếp: ' + order.preorderNote}"></p>
+              <p th:if="${order.status == 'VOID'}">Đơn đã hủy.</p>
+              <form th:if="${!unavailablePreorders.isEmpty() and booking.depositStatus != 'TRANSFER_SUBMITTED'}"
+                  th:action="@{${opsBase + '/reservations/{id}/preorder/unavailable'}(id=${booking.id})}" method="post">
+                <button class="staff-button is-outline" type="submit">Bỏ món hết và cập nhật cọc</button>
+              </form>
+            </section>
             <div class="staff-actions" th:if="${actions.complete or order != null}"><a class="staff-button" th:href="@{${opsBase + '/orders/{id}'}(id=${booking.id})}" th:text="${order != null ? 'Xem đơn &amp; hóa đơn' : 'Gọi món'}"></a></div>
             <form class="staff-actions" th:if="${actions.confirm or actions.cancel or actions.checkIn or actions.seat or actions.complete or actions.noShow}"
                 th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
@@ -107,7 +121,7 @@
             </ul>
           </section>
           <section class="staff-panel"><div class="staff-panel-heading"><h2>Yêu cầu từ khách</h2><a class="staff-link" th:href="@{${opsBase + '/reservations'}} + '#request-queue-title'">Hàng chờ duyệt</a></div>
-            <p class="staff-empty" th:if="${#lists.isEmpty(changes)}">Chưa có yêu cầu đổi lịch hoặc hủy.</p>
+            <p class="staff-empty" th:if="${#lists.isEmpty(changes)}">Chưa có yêu cầu đổi lịch, đổi món hoặc hủy.</p>
             <ul class="staff-feed">
               <li th:each="change : ${changes}"><div><strong th:text="${change.typeLabel + ' · ' + change.statusLabel}"></strong>
                 <p th:text="${#temporals.format(change.createdAt, 'dd/MM/yyyy HH:mm')}"></p>

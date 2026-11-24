@@ -25,6 +25,8 @@ public class ReservationDrafts {
           form.getPreferredArea(), form.getNote(), form.isConsentAccepted(), form.getTableId(),
           form.getPreorderDishIds() == null ? java.util.List.of()
               : form.getPreorderDishIds().stream().filter(java.util.Objects::nonNull).toList(),
+          form.getPreorderQuantities() == null ? Map.of() : new LinkedHashMap<>(form.getPreorderQuantities()),
+          bounded(form.getPreorderNote(), 500),
           bounded(form.getGuestName(), 120), bounded(form.getGuestPhone(), 30), bounded(form.getGuestEmail(), 254),
           Instant.now().plusSeconds(1800)));
       while (entries.size() > 5) entries.remove(entries.keySet().iterator().next());
@@ -41,7 +43,8 @@ public class ReservationDrafts {
       if (draft == null || !draft.valid() || !draft.belongsTo(customerId)) return null;
       if (draft.customerId() == null && customerId != null) {
         entries.put(id, new Draft(customerId, draft.date(), draft.time(), draft.guests(), draft.area(), draft.note(),
-            draft.consent(), draft.tableId(), draft.preorderDishIds(), draft.guestName(), draft.guestPhone(),
+            draft.consent(), draft.tableId(), draft.preorderDishIds(), draft.preorderQuantities(), draft.preorderNote(),
+            draft.guestName(), draft.guestPhone(),
             draft.guestEmail(), draft.expires()));
         session.setAttribute(KEY, entries);
       }
@@ -54,6 +57,8 @@ public class ReservationDrafts {
       form.setConsentAccepted(draft.consent());
       form.setTableId(draft.tableId());
       form.setPreorderDishIds(new java.util.ArrayList<>(draft.preorderDishIds()));
+      if (draft.preorderQuantities() != null) form.setPreorderQuantities(new LinkedHashMap<>(draft.preorderQuantities()));
+      form.setPreorderNote(draft.preorderNote());
       form.setGuestName(draft.guestName());
       form.setGuestPhone(draft.guestPhone());
       form.setGuestEmail(draft.guestEmail());
@@ -81,7 +86,8 @@ public class ReservationDrafts {
   }
 
   private record Draft(Long customerId, LocalDate date, LocalTime time, Integer guests, String area, String note,
-      boolean consent, Long tableId, java.util.List<Long> preorderDishIds, String guestName, String guestPhone,
+      boolean consent, Long tableId, java.util.List<Long> preorderDishIds, Map<Long, Integer> preorderQuantities, String preorderNote,
+      String guestName, String guestPhone,
       String guestEmail, Instant expires) implements Serializable {
     boolean valid() { return Instant.now().isBefore(expires); }
     boolean belongsTo(Long customer) { return customerId == null || customerId.equals(customer); }

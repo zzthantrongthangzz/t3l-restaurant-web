@@ -19,14 +19,12 @@ import org.springframework.transaction.annotation.Transactional;
 import t3l.restaurant.t3l_restaurant.dto.ReservationForm;
 import t3l.restaurant.t3l_restaurant.dto.ReservationUpdateForm;
 import t3l.restaurant.t3l_restaurant.entity.DiningOrder;
-import t3l.restaurant.t3l_restaurant.entity.Dish;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
 import t3l.restaurant.t3l_restaurant.entity.ReservationEvent;
 import t3l.restaurant.t3l_restaurant.entity.ReservationEmail.Kind;
 import t3l.restaurant.t3l_restaurant.entity.RestaurantTable;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.repository.ReservationRepository;
-import t3l.restaurant.t3l_restaurant.repository.DishRepository;
 import t3l.restaurant.t3l_restaurant.repository.ReservationEventRepository;
 import t3l.restaurant.t3l_restaurant.repository.DiningOrderRepository;
 import t3l.restaurant.t3l_restaurant.repository.RestaurantTableRepository;
@@ -45,7 +43,7 @@ public class ReservationService {
   private final ReservationEmailQueue emails;
   private final ReservationEventRepository events;
   private final DiningOrderRepository orders;
-  private final DishRepository dishes;
+  private final PreorderService preorders;
   private final StaffShiftService shifts;
   private final RestaurantSectionRepository sections;
   private final AdminAudit audit;
@@ -55,7 +53,7 @@ public class ReservationService {
   public ReservationService(ReservationRepository reservations, RestaurantTableRepository tables,
       ReservationSchedule schedule, Validator validator, ReservationEmailQueue emails,
       ReservationEventRepository events, DiningOrderRepository orders, StaffShiftService shifts,
-      DishRepository dishes, RestaurantSectionRepository sections, AdminAudit audit,
+      PreorderService preorders, RestaurantSectionRepository sections, AdminAudit audit,
       DepositPolicy depositPolicy, PaymentReferences references) {
     this.reservations = reservations;
     this.tables = tables;
@@ -64,7 +62,7 @@ public class ReservationService {
     this.emails = emails;
     this.events = events;
     this.orders = orders;
-    this.dishes = dishes;
+    this.preorders = preorders;
     this.shifts = shifts;
     this.sections = sections;
     this.audit = audit;
@@ -120,27 +118,18 @@ public class ReservationService {
         form.getNote() == null ? null : form.getNote().trim(), form.isConsentAccepted());
     booking.setBookingDetails(end, preferred.isEmpty() ? null : preferred);
     booking.assignCustomer(customer);
-    if (customer == null && form.getPreorderDishIds() != null && form.getPreorderDishIds().stream().anyMatch(Objects::nonNull)) {
-      throw new BookingException("preorderDishIds", "Vui lòng đăng nhập để đặt món trước.");
+    if (customer == null && !preorders.selection(form).isEmpty()) {
+      throw new BookingException("preorderQuantities", "Vui lòng đăng nhập để đặt món trước.");
     }
-    List<Dish> preorder = form.getPreorderDishIds() == null ? List.of()
-        : form.getPreorderDishIds().stream().filter(Objects::nonNull).distinct()
-            .map(id -> dishes.findSellable(id).orElseThrow(() -> new BookingException(null,
-                "Một món đặt trước không còn trong thực đơn. Vui lòng tải lại trang.")))
-            .toList();
-    BigDecimal preorderTotal = preorder.stream().map(Dish::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
+    var preorder = preorders.quote(form, null);
     if (actor != null) {
       booking.updateStatus(CONFIRMED);
       if (walkIn) booking.checkIn(start);
     }
-    booking.priceDeposit(walkIn ? BigDecimal.ZERO : depositPolicy.required(assigned, preorderTotal),
+    booking.priceDeposit(walkIn ? BigDecimal.ZERO : depositPolicy.required(assigned, preorder.total()),
         depositPolicy.paymentDeadline(booking, now()));
     Reservation saved = reservations.saveAndFlush(booking);
-    if (!preorder.isEmpty()) {
-      DiningOrder preorderOrder = new DiningOrder(saved, "CUSTOMER", now());
-      preorder.forEach(dish -> preorderOrder.addItem(dish, 1));
-      orders.save(preorderOrder);
-    }
+    preorders.apply(saved, null, preorder, now());
     if (actor == null) emails.enqueue(saved, Kind.RECEIVED, null, null);
     else {
       record(saved, actor, walkIn ? "Tiếp nhận khách đến trực tiếp." : "Tạo và xác nhận đặt bàn qua nhân viên.");
@@ -303,8 +292,13 @@ public class ReservationService {
         booking.effectiveEndsAt(schedule.getDurationMinutes()), booking.getGuestCount(), booking.getId(), false);
     Kind kind = CONFIRMED.equals(status) ? Kind.CONFIRMED : PENDING.equals(booking.getStatus()) ? Kind.REJECTED : Kind.CANCELLED;
     booking.updateStatus(status);
-    if (CONFIRMED.equals(status)) booking.approveDepositRequirement(depositPolicy.paymentDeadline(booking, now()));
-    else booking.closeDeposit(100, false, now());
+    if (CONFIRMED.equals(status)) {
+      booking.approveDepositRequirement(depositPolicy.paymentDeadline(booking, now()));
+      removeUnavailablePreorders(booking, actor, true);
+    } else {
+      booking.closeDeposit(100, false, now());
+      preorders.close(booking.getId());
+    }
     record(booking, actor, booking.getStatusLabel() + ".");
     emails.enqueue(booking, kind, null, null);
   }
@@ -336,6 +330,7 @@ public class ReservationService {
         LocalDateTime end = expectedServiceEnd(booking, now);
         requireTable(active, tableId(booking), now, end, booking.getGuestCount(), id, true);
         booking.seat(shifts.requireOpenShiftForUpdate(actor), now, end);
+        removeUnavailablePreorders(booking, actor, false);
       }
       case COMPLETED -> {
         if (!SEATED.equals(booking.getStatus())) throw new BookingException(null, "Chỉ kết thúc lượt đang phục vụ.");
@@ -354,6 +349,7 @@ public class ReservationService {
         }
         booking.updateStatus(NO_SHOW);
         booking.closeDeposit(depositPolicy.noShowPercent(), false, now);
+        preorders.close(id);
         emails.enqueue(booking, Kind.NO_SHOW, null, null);
       }
       default -> throw new BookingException(null, "Trạng thái không hợp lệ.");
@@ -422,6 +418,7 @@ public class ReservationService {
     if (!booking.hasExpiredDeposit(now)) return false;
     booking.updateStatus(CANCELLED);
     booking.closeDeposit(100, true, now);
+    preorders.close(booking.getId());
     record(booking, null, "Giải phóng bàn do quá hạn cọc.");
     emails.enqueue(booking, Kind.DEPOSIT_EXPIRED, null, null);
     return true;
@@ -435,8 +432,28 @@ public class ReservationService {
   }
 
   void repriceDeposit(Reservation booking) {
-    var preorderTotal = orders.findByReservation_Id(booking.getId()).map(DiningOrder::getCurrentTotal).orElse(BigDecimal.ZERO);
+    var preorderTotal = orders.findByReservation_Id(booking.getId()).map(DiningOrder::getPreorderTotal).orElse(BigDecimal.ZERO);
     booking.priceDeposit(depositPolicy.required(booking.getTable(), preorderTotal), depositPolicy.paymentDeadline(booking, now()));
+  }
+
+  @PreAuthorize("hasAnyRole('STAFF', 'ADMIN') and #actor == authentication.name")
+  @Transactional(isolation = Isolation.READ_COMMITTED)
+  public void removeUnavailablePreorders(Long id, String actor) {
+    tables.lockInventory();
+    var booking = lockBooking(id);
+    if (!booking.isOpenBooking()) throw new BookingException(null, "Chỉ cập nhật món trước khi khách check-in.");
+    requireDepositChangeAllowed(booking);
+    if (!removeUnavailablePreorders(booking, actor, true)) throw new BookingException(null, "Không có món đặt trước đã hết hoặc ngừng bán.");
+  }
+
+  private boolean removeUnavailablePreorders(Reservation booking, String actor, boolean reprice) {
+    var removed = preorders.removeUnavailable(preorders.order(booking.getId()));
+    if (removed.isEmpty()) return false;
+    if (reprice) repriceDeposit(booking);
+    String note = "Đã bỏ " + removed.size() + " món đặt trước không còn phục vụ.";
+    var event = record(booking, actor, note);
+    emails.enqueue(booking, Kind.PREORDER_UNAVAILABLE, event.getId(), note);
+    return true;
   }
 
   @PreAuthorize("hasAnyRole('STAFF', 'ADMIN') and #actor == authentication.name")

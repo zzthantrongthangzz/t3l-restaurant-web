@@ -35,6 +35,7 @@ import t3l.restaurant.t3l_restaurant.service.CustomerAccountService;
 import t3l.restaurant.t3l_restaurant.service.CustomerAccountService.DuplicateEmailException;
 import t3l.restaurant.t3l_restaurant.service.ReservationDrafts;
 import t3l.restaurant.t3l_restaurant.service.PublicTableBoardService;
+import t3l.restaurant.t3l_restaurant.service.PreorderService;
 
 @Controller
 public class WebController {
@@ -50,6 +51,7 @@ public class WebController {
   private final PublicTableBoardService publicTableBoard;
   private final DiningOrderRepository diningOrders;
   private final DiningPaymentRepository diningPayments;
+  private final PreorderService preorders;
 
   public WebController(
       DishRepository dishes,
@@ -59,7 +61,8 @@ public class WebController {
       ReservationConfirmationAccess confirmationAccess,
       FaqRepository faqs,
       CustomerAccountService customers, ReservationDrafts drafts, Validator validator,
-      PublicTableBoardService publicTableBoard, DiningOrderRepository diningOrders, DiningPaymentRepository diningPayments) {
+      PublicTableBoardService publicTableBoard, DiningOrderRepository diningOrders, DiningPaymentRepository diningPayments,
+      PreorderService preorders) {
     this.dishes = dishes;
     this.restaurantTables = restaurantTables;
     this.reservationService = reservationService;
@@ -72,6 +75,7 @@ public class WebController {
     this.publicTableBoard = publicTableBoard;
     this.diningOrders = diningOrders;
     this.diningPayments = diningPayments;
+    this.preorders = preorders;
   }
 
   @GetMapping("/")
@@ -196,9 +200,17 @@ public class WebController {
       Model model, RedirectAttributes redirect) {
     UserAccount customer = customers.signedInCustomer(authentication);
     boolean incompleteProfile = customer != null && customers.needsBookingProfile(customer);
-    boolean saveForLogin = customer == null && loginOnly;
-    boolean draftOnly = choose || saveForLogin || incompleteProfile;
     if (customer != null && !incompleteProfile) fillContact(form, customer);
+    boolean hasPreorder = false;
+    if (!result.hasFieldErrors("preorderQuantities")) {
+      try {
+        hasPreorder = !preorders.selection(form).isEmpty();
+      } catch (BookingException exception) {
+        result.rejectValue("preorderQuantities", "booking.invalid", exception.getMessage());
+      }
+    }
+    boolean saveForLogin = customer == null && (loginOnly || (!choose && hasPreorder));
+    boolean draftOnly = choose || saveForLogin || incompleteProfile;
 
     for (var violation : validator.validate(form)) {
       String field = violation.getPropertyPath().toString();
@@ -326,8 +338,9 @@ public class WebController {
     model.addAttribute("selectedTable", selectedTable);
     if (selectedTable != null) {
       model.addAttribute("minimumDeposit", reservationService.minimumDeposit(selectedTable));
+      model.addAttribute("pickerPaid", java.math.BigDecimal.ZERO);
       model.addAttribute("depositRefundTerms", reservationService.depositRefundTerms());
-      if (customer != null) model.addAttribute("preorderDishes", dishes.findByAvailableTrueOrderByCategoryNameAscNameAsc());
+      model.addAttribute("preorderCards", preorders.picker(form, null));
     }
     return "web/table-plan";
   }

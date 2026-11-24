@@ -34,7 +34,7 @@
         <section class="staff-panel">
           <div class="staff-panel-heading"><h2>Việc cần xử lý</h2></div>
           <a class="staff-task-link" th:href="@{/staff/reservations} + '#request-queue-title'">
-            <span>Yêu cầu đổi lịch hoặc hủy</span><strong th:text="${dashboard.changeRequests}"></strong>
+            <span>Yêu cầu đổi lịch, đổi món hoặc hủy</span><strong th:text="${dashboard.changeRequests}"></strong>
           </a>
           <a class="staff-task-link" th:href="@{/staff/orders}" th:if="${dashboard.awaitingPayment > 0}">
             <span>Hóa đơn chờ thu tiền</span><strong th:text="${dashboard.awaitingPayment}"></strong>

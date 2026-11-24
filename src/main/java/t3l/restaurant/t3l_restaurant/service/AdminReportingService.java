@@ -182,7 +182,8 @@ public class AdminReportingService {
             JOIN reservations r ON r.id=e.reservation_id
           UNION ALL SELECT p.paid_at, p.received_by, 'Xác nhận thanh toán', CONCAT('T3L-HD-',p.order_id) FROM dining_payments p
           UNION ALL SELECT c.reviewed_at, c.reviewed_by,
-              CASE WHEN c.request_type='CANCEL' THEN 'Xử lý yêu cầu hủy bàn' ELSE 'Xử lý yêu cầu đổi lịch' END, r.code
+              CASE c.request_type WHEN 'CANCEL' THEN 'Xử lý yêu cầu hủy bàn'
+                WHEN 'PREORDER' THEN 'Xử lý yêu cầu đổi món' ELSE 'Xử lý yêu cầu đổi lịch' END, r.code
             FROM reservation_change_requests c JOIN reservations r ON r.id=c.reservation_id WHERE c.reviewed_at IS NOT NULL
           UNION ALL SELECT s.closed_at, a.username, 'Kết ca', CONCAT('Ca #',s.id)
             FROM staff_shifts s JOIN app_users a ON a.id=s.employee_id WHERE s.closed_at IS NOT NULL

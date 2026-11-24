@@ -83,6 +83,12 @@ Gemini dùng mặc định `gemini-3.1-flash-lite` và `gemini-embedding-001` v�
 - Yêu cầu hủy đủ 24 giờ được hoàn 100%, hủy muộn được hoàn 50%, không đến được hoàn 0% theo mặc định. Quy định thời gian gửi yêu cầu đổi/hủy vẫn áp dụng. Nhà hàng hủy hoặc hết hạn giữ bàn hoàn đủ tiền đã nhận. Đổi lịch và chuyển bàn trước check-in tính lại mức cọc, giữ tiền đã nhận để khấu trừ và yêu cầu nộp thêm nếu thiếu. Chuyển bàn lúc đang phục vụ giữ nguyên chính sách đã chốt.
 - Điều chỉnh thời hạn và tỷ lệ hoàn trong các biến `DEPOSIT_*` của `.env.example`. Khi hoàn tiền, nhân viên chuyển hoàn bên ngoài hệ thống rồi ghi lại số tiền và mã giao dịch. Doanh thu ghi nhận phần cọc đã khấu trừ tại lúc chốt thanh toán hoặc phần cọc giữ theo chính sách.
 
+## Món đặt trước
+
+- Giỏ nhận tối đa 30 loại món và 20 phần mỗi loại. Giỏ và ghi chú bếp được giữ khi khách đăng nhập, đăng ký hoặc bổ sung hồ sơ.
+- Khách có thể gửi yêu cầu đổi món trước thời hạn đổi lịch hiện hành, khi chưa check-in và cọc không trong quá trình đối soát. Nhân viên duyệt giỏ mới sau khi kiểm tra giá và trạng thái bán. Phần đã đặt giữ giá cũ, phần thêm theo giá hiện hành.
+- Cọc đã nhận được giữ để đối trừ. Khi cọc mới cao hơn, khách nộp phần thiếu. Món hết được loại khỏi đơn trước khi tính tiền. Đơn đặt trước được tiếp tục khi nhận bàn và được đóng nếu lượt đặt bị hủy hoặc khách không đến.
+
 ## Script database
 
 - `database/mysql/01_schema_seed.sql`: cấu trúc cho cài mới, 18 bàn và 3 yêu cầu đặt bàn mẫu; Docker chạy tiếp `04` để đồng bộ danh mục 54 món.
@@ -92,6 +98,7 @@ Gemini dùng mặc định `gemini-3.1-flash-lite` và `gemini-embedding-001` v�
 - `database/mysql/05_clear_menu_images.sql`: gỡ URL/ID ảnh khỏi các món để hiển thị ảnh minh họa trong lúc chuẩn bị ảnh mới.
 - `database/mysql/15_reservation_deposits.sql`: bổ sung số tiền, trạng thái và mã giao dịch cọc vào đặt bàn.
 - `database/mysql/16_deposit_settlement.sql`: bổ sung hạn cọc, ghi nhận hoàn tiền, khấu trừ hóa đơn và mã giao dịch duy nhất. Chạy sau `15` khi nâng cấp một database đã tồn tại.
+- `database/mysql/17_preorder_cart.sql`: thêm nhận diện món đặt trước, ghi chú bếp và yêu cầu đổi món, giữ nguyên dòng hóa đơn cũ.
 - `database/menu-image-catalog.tsv`: ánh xạ tên file ảnh sang tên món, danh mục, mô tả và giá.
 - `database/mongodb/01_faq_seed.js`: dữ liệu FAQ mẫu.
 

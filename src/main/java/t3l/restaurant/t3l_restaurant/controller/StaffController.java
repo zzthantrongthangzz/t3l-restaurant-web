@@ -50,6 +50,7 @@ public class StaffController {
   private final StaffShiftService shifts;
   private final DishRepository dishes;
   private final ReservationSchedule schedule;
+  private final t3l.restaurant.t3l_restaurant.service.PreorderService preorders;
   private final HttpServletRequest request;
 
   @ModelAttribute("opsBase")
@@ -124,6 +125,7 @@ public class StaffController {
     model.addAttribute("booking", booking);
     model.addAttribute("actions", workspace.actions(booking));
     model.addAttribute("order", view.order());
+    model.addAttribute("unavailablePreorders", booking.isOpenBooking() ? preorders.unavailable(view.order()) : java.util.Set.of());
     model.addAttribute("history", workspace.history(id));
     model.addAttribute("changes", changes.history(id));
     bookingOptions(model);
@@ -160,6 +162,12 @@ public class StaffController {
       Authentication actor, RedirectAttributes redirect) {
     return action(redirect, RESERVATIONS + "/" + id, "Đã ghi nhận hoàn tiền cọc.",
         () -> bookings.refundDeposit(id, amount, reference, actor.getName()));
+  }
+
+  @PostMapping("/reservations/{id}/preorder/unavailable")
+  public String removeUnavailablePreorder(@PathVariable Long id, Authentication actor, RedirectAttributes redirect) {
+    return action(redirect, RESERVATIONS + "/" + id, "Đã bỏ món không còn phục vụ và cập nhật tiền cọc.",
+        () -> bookings.removeUnavailablePreorders(id, actor.getName()));
   }
 
   @PostMapping("/reservations/{id}/table")
