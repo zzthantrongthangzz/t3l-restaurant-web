@@ -1,27 +1,26 @@
 <!doctype html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{admin/fragments/shell :: head('Bàn và khu vực')}"></head>
+<head th:replace="~{admin/fragments/shell :: head('Danh mục bàn')}"></head>
 <body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('inventory')}"></header>
 <main class="staff-main">
-  <div class="staff-page-heading"><div><h1>Bàn &amp; khu vực</h1><p>Quản lý khu vực, sức chứa và các bàn được đưa vào phục vụ.</p></div>
-    <div class="staff-actions"><a class="staff-button is-outline" th:href="@{/admin/tables}">Xem sơ đồ đang hoạt động</a>
+  <div class="staff-page-heading"><h1>Danh mục bàn</h1>
+    <div class="staff-actions"><a class="staff-button is-outline" th:href="@{/admin/tables}">Mở sơ đồ bàn</a>
     <a class="staff-button" th:href="@{/admin/inventory/new}">Thêm bàn</a></div></div>
   <div th:replace="~{admin/fragments/shell :: messages}"></div>
-  <div class="staff-stack">
-    <section class="staff-panel">
-      <div class="staff-panel-heading"><h2>Danh sách bàn</h2><form class="staff-actions admin-inline-filter" th:action="@{/admin/inventory}" method="get">
-        <label class="staff-field"><span class="admin-sr-only">Khu vực</span><select name="area"><option value="">Tất cả khu vực</option>
-          <option th:each="item : ${areas}" th:value="${item.name}" th:selected="${item.name == area}" th:text="${item.name}"></option>
-        </select></label><button type="submit" class="staff-button is-outline">Lọc</button></form></div>
-      <p class="staff-empty" th:if="${tables.isEmpty()}">Chưa có bàn trong khu vực này.</p>
-      <div class="staff-table-wrap" th:unless="${tables.isEmpty()}"><table class="staff-table"><thead><tr><th>Mã bàn</th><th>Khu vực</th><th>Loại bàn</th><th>Sức chứa</th><th>Trạng thái</th></tr></thead>
-        <tbody><tr th:each="table : ${tables}">
-          <td data-label="Mã bàn"><a class="staff-link" th:href="@{/admin/inventory/{id}/edit(id=${table.id})}" th:text="${table.code}"></a></td>
-          <td data-label="Khu vực" th:text="${table.tableType}"></td><td data-label="Loại bàn" th:text="${table.tableKind ?: '—'}"></td>
-          <td data-label="Sức chứa" th:text="${table.capacity + ' chỗ'}"></td>
-          <td data-label="Trạng thái" th:text="${!table.active ? 'Bàn tạm ngưng' : (inactiveAreas.contains(table.tableType) ? 'Khu vực tạm ngưng' : 'Bàn được sử dụng')}"></td>
-        </tr></tbody></table></div>
-    </section>
-    <section th:replace="~{admin/fragments/sections :: editor(${areas}, '/admin/areas', 'AREA', 'Khu vực nhà hàng', 40)}"></section>
-  </div>
+  <section class="staff-panel">
+    <div class="staff-panel-heading"><h2>Danh sách bàn</h2><form class="staff-actions admin-inline-filter" th:action="@{/admin/inventory}" method="get">
+      <label class="staff-field">Loại bàn<select name="kind"><option value="">Tất cả</option>
+        <option th:each="option : ${tableKinds}" th:value="${option.name()}" th:selected="${option == selectedKind}" th:text="${option.label}"></option>
+      </select></label><button type="submit" class="staff-button is-outline">Lọc</button></form></div>
+    <p class="staff-empty" th:if="${tables.isEmpty()}">Không có bàn phù hợp.</p>
+    <div class="staff-table-wrap" th:unless="${tables.isEmpty()}"><table class="staff-table">
+      <thead><tr><th scope="col">Mã bàn</th><th scope="col">Loại bàn</th><th scope="col">Sức chứa</th><th scope="col">Trạng thái</th></tr></thead>
+      <tbody><tr th:each="table : ${tables}">
+        <td data-label="Mã bàn"><a class="staff-link" th:href="@{/admin/inventory/{id}/edit(id=${table.id})}" th:text="${table.code}"></a></td>
+        <td data-label="Loại bàn" th:text="${table.kind.label}"></td>
+        <td data-label="Sức chứa" th:text="${table.capacity + ' chỗ'}"></td>
+        <td data-label="Trạng thái" th:text="${activeTableIds.contains(table.id) ? 'Đang hoạt động' : 'Tạm ngưng'}"></td>
+      </tr></tbody>
+    </table></div>
+  </section>
 </main></body></html>

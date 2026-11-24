@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
 import t3l.restaurant.t3l_restaurant.entity.RestaurantTable;
+import t3l.restaurant.t3l_restaurant.entity.TableKind;
 import t3l.restaurant.t3l_restaurant.repository.ReservationRepository;
 import t3l.restaurant.t3l_restaurant.repository.RestaurantTableRepository;
 
@@ -45,7 +46,7 @@ public class PublicTableBoardService {
 
   public record TableView(RestaurantTable table, String state, String label) {
     public boolean isVip() {
-      return table.getTableType() != null && table.getTableType().toLowerCase().contains("vip");
+      return table.getKind() == TableKind.VIP;
     }
   }
 }

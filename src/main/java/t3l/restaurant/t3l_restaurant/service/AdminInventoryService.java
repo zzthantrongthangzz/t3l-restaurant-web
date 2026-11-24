@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import t3l.restaurant.t3l_restaurant.dto.AdminTableForm;
 import t3l.restaurant.t3l_restaurant.entity.RestaurantSection;
 import t3l.restaurant.t3l_restaurant.entity.RestaurantTable;
+import t3l.restaurant.t3l_restaurant.entity.TableKind;
 import t3l.restaurant.t3l_restaurant.repository.DishRepository;
 import t3l.restaurant.t3l_restaurant.repository.ReservationChangeRequestRepository;
 import t3l.restaurant.t3l_restaurant.repository.ReservationRepository;
@@ -51,12 +52,16 @@ public class AdminInventoryService {
   public List<RestaurantTable> tables() { return tables.findAllByOrderByTableTypeAscCodeAsc(); }
 
   @Transactional(readOnly = true)
+  public List<Long> activeTableIds() { return tables.activeIds(); }
+
+  @Transactional(readOnly = true)
   public AdminTableForm tableForm(Long id) {
     var table = tables.findById(id).orElseThrow(() -> new IllegalArgumentException("Không tìm thấy bàn."));
     var form = new AdminTableForm();
     form.setCode(table.getCode());
     form.setArea(table.getTableType());
     form.setKind(table.getTableKind());
+    form.setClassification(table.getKind());
     form.setCapacity(table.getCapacity());
     form.setActive(table.isActive());
     return form;
@@ -66,13 +71,6 @@ public class AdminInventoryService {
   public void saveTable(Long id, AdminTableForm form) {
     validator.validate(form).stream().findFirst().ifPresent(error -> { throw new IllegalArgumentException(error.getMessage()); });
     var inventory = tables.lockInventory();
-    var knownAreas = sections.lockByKind(RestaurantSection.AREA);
-    String area = form.getArea().strip();
-    var configured = knownAreas.stream().filter(item -> item.getName().equalsIgnoreCase(area)).findFirst().orElse(null);
-    String canonicalArea = configured == null
-        ? inventory.stream().map(RestaurantTable::getTableType).filter(area::equalsIgnoreCase).findFirst().orElse(null)
-        : configured.getName();
-    if (canonicalArea == null) throw new IllegalArgumentException("Hãy chọn khu vực đã được tạo.");
     String code = form.getCode().strip();
     if (inventory.stream().anyMatch(table -> !Objects.equals(id, table.getId()) && code.equalsIgnoreCase(table.getCode()))) {
       throw new IllegalArgumentException("Mã bàn đã được dùng.");
@@ -80,13 +78,35 @@ public class AdminInventoryService {
     var table = id == null ? new RestaurantTable()
         : inventory.stream().filter(item -> item.getId().equals(id)).findFirst()
             .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy bàn."));
-    if (id != null && (!table.getCode().equals(code) || !table.getTableType().equals(canonicalArea)
-        || form.getCapacity() < table.getCapacity() || (table.isActive() && !form.isActive())) && bookings.tableInUse(id)) {
-      throw new IllegalArgumentException("Bàn đang phục vụ hoặc giữ chỗ. Hãy xử lý các lượt đặt trước khi đổi mã, khu vực, giảm sức chứa hoặc ngừng sử dụng.");
+    TableKind classification = form.getClassification();
+    String area;
+    String kind;
+    int capacity = form.getCapacity();
+    if (form.getArea() != null && !form.getArea().isBlank()) {
+      area = legacyArea(form.getArea().strip(), inventory);
+      kind = AdminInput.optional(form.getKind());
+      classification = TableKind.fromInventory(kind, area, capacity);
+    } else {
+      if (classification == null) throw new IllegalArgumentException("Hãy chọn loại bàn.");
+      area = id == null ? classification.getLabel() : table.getTableType();
+      kind = classification.name();
+      if (classification != TableKind.VIP) capacity = classification.getFixedCapacity();
     }
-    table.configure(code, canonicalArea, AdminInput.optional(form.getKind()), form.getCapacity(), form.isActive());
+    if (id != null && (!table.getCode().equals(code) || !table.getTableType().equals(area)
+        || table.getKind() != classification || capacity < table.getCapacity()
+        || (table.isActive() && !form.isActive())) && bookings.tableInUse(id)) {
+      throw new IllegalArgumentException("Bàn đang phục vụ hoặc giữ chỗ. Hãy xử lý các lượt đặt trước khi đổi mã, đổi loại, giảm sức chứa hoặc ngừng sử dụng.");
+    }
+    table.configure(code, area, kind, capacity, form.isActive());
     tables.save(table);
-    audit.record(id == null ? "Tạo bàn" : "Cập nhật bàn", code + " · " + canonicalArea);
+    audit.record(id == null ? "Tạo bàn" : "Cập nhật bàn", code + " · " + classification.getLabel());
+  }
+
+  private String legacyArea(String name, List<RestaurantTable> inventory) {
+    return sections.lockByKind(RestaurantSection.AREA).stream().map(RestaurantSection::getName)
+        .filter(name::equalsIgnoreCase).findFirst()
+        .or(() -> inventory.stream().map(RestaurantTable::getTableType).filter(name::equalsIgnoreCase).findFirst())
+        .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy khu vực cũ của bàn."));
   }
 
   @Transactional(isolation = Isolation.READ_COMMITTED)

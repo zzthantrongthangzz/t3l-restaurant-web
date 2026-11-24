@@ -5,6 +5,7 @@
     <header th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: header('orders')}"></header>
     <main class="staff-main" th:with="booking=${view.booking},order=${view.order},payment=${view.payment}">
       <a class="staff-link staff-back" th:href="@{${opsBase + '/orders'}}">← Các bàn đang phục vụ</a>
+      <a class="staff-link staff-back" th:href="@{${opsBase + '/tables'}}">Sơ đồ bàn</a>
       <div class="staff-page-heading">
         <div><p class="staff-kicker" th:text="${booking.table == null ? booking.code : booking.table.code + ' · ' + booking.code}"></p>
           <h1 th:text="${order == null ? 'Đơn gọi món' : order.invoiceNumber}"></h1>
@@ -18,14 +19,14 @@
         <form th:if="${booking.status == 'SEATED'}" class="staff-actions" th:action="@{${opsBase + '/orders/{id}/open'}(id=${booking.id})}" method="post">
           <button type="submit" class="staff-button">Mở đơn cho bàn này</button>
         </form>
-        <p class="staff-empty" th:unless="${booking.status == 'SEATED'}">Lượt đặt bàn này chưa có đơn gọi món.</p>
+        <p class="staff-empty">Lượt đặt bàn này chưa có món.</p>
       </section>
       <div class="staff-stack" th:if="${order != null}">
         <section class="staff-panel">
           <div class="staff-panel-heading"><h2>Chi tiết món</h2>
             <strong class="staff-total" th:text="${#numbers.formatInteger(order.currentTotal, 1, 'POINT') + ' đ'}"></strong>
           </div>
-          <p class="staff-empty" th:if="${order.openedBy == 'CUSTOMER' and booking.status != 'SEATED'}">Danh sách này do khách đặt trước. Có thể xem tại đây; thao tác gọi món bổ sung mở khi khách đã nhận bàn.</p>
+          <p class="staff-empty" th:if="${order.openedBy == 'CUSTOMER' and booking.openBooking}">Danh sách này do khách đặt trước. Nhân viên có thể thêm món từ trang chi tiết đặt bàn.</p>
           <p class="staff-empty" th:if="${order.items.isEmpty()}">Chưa có món trong đơn.</p>
           <div class="staff-table-wrap" th:unless="${order.items.isEmpty()}">
             <table class="staff-table">
@@ -54,11 +55,11 @@
             <label class="staff-field">Số lượng <input type="number" name="quantity" value="1" min="1" max="100" required /></label>
             <button class="staff-button is-outline" type="submit">Thêm món</button>
           </form>
-          <form class="staff-actions" th:if="${order.status == 'DRAFT' and order.hasItems() and booking.status == 'SEATED'}" th:action="@{${opsBase + '/orders/{id}/finalize'}(id=${booking.id})}" method="post">
-            <button class="staff-button" type="submit" data-confirm="Chốt hóa đơn? Sau khi chốt, số lượng và món sẽ được khóa.">Chốt hóa đơn</button>
+          <form id="checkout" class="staff-actions" th:if="${order.status == 'DRAFT' and order.hasItems() and booking.status == 'SEATED'}" th:action="@{${opsBase + '/orders/{id}/finalize'}(id=${booking.id})}" method="post">
+            <button class="staff-button" type="submit" data-confirm="Chốt hóa đơn cho các món đã phục vụ? Hãy hủy món chưa phục vụ trước khi chốt.">Chốt hóa đơn</button>
           </form>
         </section>
-        <section class="staff-panel staff-form-narrow" th:if="${order.status == 'FINALIZED'}">
+        <section id="checkout" class="staff-panel staff-form-narrow" th:if="${order.status == 'FINALIZED'}">
           <h2>Xác nhận thu tiền</h2>
           <form class="staff-form" th:action="@{${opsBase + '/orders/{id}/pay'}(id=${booking.id})}" method="post" data-payment-form>
             <label class="staff-field">Phương thức <select name="method" data-payment-method>
@@ -70,7 +71,7 @@
             <div class="staff-actions"><button class="staff-button" type="submit">Xác nhận đã thanh toán</button></div>
           </form>
         </section>
-        <section class="staff-panel" th:if="${payment != null}">
+        <section id="checkout" class="staff-panel" th:if="${payment != null}">
           <h2>Thông tin thanh toán</h2>
           <dl class="staff-details">
             <div><dt>Đã thu</dt><dd th:text="${#numbers.formatInteger(payment.amount, 1, 'POINT') + ' đ'}"></dd></div>
@@ -84,6 +85,14 @@
           </form>
         </section>
       </div>
+      <section id="checkout" class="staff-panel" th:if="${booking.status == 'SEATED' and (order == null or (order.status == 'DRAFT' and !order.hasItems()))}">
+        <h2>Kết thúc bàn không phát sinh món</h2>
+        <form class="staff-actions" th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
+          <input type="hidden" name="from" value="table" />
+          <button class="staff-button" name="status" value="COMPLETED" type="submit"
+                  data-confirm="Bàn chưa có món cần thanh toán. Kết thúc phục vụ?">Kết thúc phục vụ</button>
+        </form>
+      </section>
     </main>
   </body>
 </html>

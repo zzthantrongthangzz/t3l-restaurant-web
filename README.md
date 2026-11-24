@@ -68,6 +68,7 @@ Mở <http://localhost:8085>. MySQL được publish ở cổng `3307`, MongoDB 
 ## Script database
 
 - `database/mysql/01_schema_seed.sql`: cấu trúc cho cài mới, 18 bàn và 3 yêu cầu đặt bàn mẫu; Docker chạy tiếp `04` để đồng bộ danh mục 54 món.
+- `database/mysql/16_table_kinds.sql` chuẩn hóa loại bàn. Chạy sau bản nâng cấp `14_admin_workspace.sql` nếu đang dùng database đã tạo trước bản này. Docker chạy tập lệnh khi khởi tạo database mới.
 - `database/mysql/02_single_restaurant_migration.sql`: chuyển database cũ có chi nhánh/khu sang mô hình một nhà hàng; giữ một bản của mỗi mã bàn và trỏ reservation cũ sang bàn đó.
 - `database/mysql/03_sample_data.sql`: nạp bàn, món và reservation mẫu cho database đã migrate.
 - `database/mysql/04_menu_catalog_seed.sql`: đồng bộ 54 món ăn/nước theo danh mục ảnh; dọn món cũ ngoài danh mục và an toàn khi chạy lại. Nếu món cũ đã có giao dịch bán hàng, khóa ngoại sẽ giữ dữ liệu để bảo toàn lịch sử.

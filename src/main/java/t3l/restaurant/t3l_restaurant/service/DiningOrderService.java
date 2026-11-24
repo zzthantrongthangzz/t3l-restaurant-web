@@ -21,12 +21,15 @@ import t3l.restaurant.t3l_restaurant.repository.DiningOrderRepository;
 import t3l.restaurant.t3l_restaurant.repository.DiningPaymentRepository;
 import t3l.restaurant.t3l_restaurant.repository.DishRepository;
 import t3l.restaurant.t3l_restaurant.repository.ReservationRepository;
+import t3l.restaurant.t3l_restaurant.repository.RestaurantTableRepository;
 
 @Service
 @RequiredArgsConstructor
 @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
 public class DiningOrderService {
   private final ReservationRepository reservations;
+  private final RestaurantTableRepository tables;
+  private final ReservationService bookingService;
   private final DiningOrderRepository orders;
   private final DiningPaymentRepository payments;
   private final DishRepository dishes;
@@ -105,6 +108,7 @@ public class DiningOrderService {
   public void collect(Long reservationId, String method, String reference, boolean received, String actor) {
     if (!received) throw new BookingException(null, "Hãy xác nhận đã thực nhận tiền trước khi ghi thanh toán.");
     String transferReference = paymentReference(method, reference);
+    tables.lockInventory();
     Reservation booking = lockBooking(reservationId);
     DiningOrder order = requireOrder(reservationId);
     if (DiningOrder.PAID.equals(order.getStatus())) {
@@ -118,8 +122,10 @@ public class DiningOrderService {
     if (transferReference != null && payments.existsByTransferReference(transferReference)) {
       throw new BookingException(null, "Mã giao dịch đã được dùng cho một hóa đơn khác.");
     }
-    payments.saveAndFlush(new DiningPayment(order, shift, method, transferReference, actor, now()));
+    LocalDateTime paidAt = now();
+    payments.saveAndFlush(new DiningPayment(order, shift, method, transferReference, actor, paidAt));
     order.markPaid();
+    bookingService.finishService(booking, actor, paidAt);
   }
 
   private String paymentReference(String method, String value) {

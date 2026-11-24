@@ -181,12 +181,10 @@ public class ReservationLookupController {
       change.setDate(booking.getReservationDate());
       change.setTime(booking.getReservationTime());
       change.setGuests(booking.getGuestCount());
-      change.setPreferredArea(booking.getPreferredArea() == null ? "" : booking.getPreferredArea());
       model.addAttribute("changeForm", change);
     }
     if (!model.containsAttribute("cancelForm")) model.addAttribute("cancelForm", new ReservationCancellationForm());
     var active = tables.findByActiveTrueOrderByCodeAsc();
-    model.addAttribute("areas", active.stream().map(t -> t.getTableType()).distinct().sorted().toList());
     model.addAttribute("maxGuests", Math.min(20, active.stream().mapToInt(t -> t.getCapacity()).max().orElse(20)));
     model.addAttribute("today", schedule.today());
     model.addAttribute("timeSlots", schedule.getTimeSlots());

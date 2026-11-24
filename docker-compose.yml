@@ -24,6 +24,7 @@ services:
       - ./database/mysql/12_reservation_emails.sql:/docker-entrypoint-initdb.d/12_reservation_emails.sql:ro
       - ./database/mysql/13_staff_operations.sql:/docker-entrypoint-initdb.d/13_staff_operations.sql:ro
       - ./database/mysql/14_admin_workspace.sql:/docker-entrypoint-initdb.d/14_admin_workspace.sql:ro
+      - ./database/mysql/16_table_kinds.sql:/docker-entrypoint-initdb.d/16_table_kinds.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${MYSQL_ROOT_PASSWORD:-change-this-root-password}"]
       interval: 10s

@@ -378,18 +378,17 @@ public class WebController {
       if (selectedTable == null || !selectedTable.isActive()) {
         throw new ResponseStatusException(HttpStatus.NOT_FOUND);
       }
-      String tableType = selectedTable == null || selectedTable.getTableType() == null ? ""
-          : selectedTable.getTableType().toLowerCase(Locale.ROOT);
+      var tableKind = selectedTable.getKind();
       addTableBoardData(model, selectedDate, form.getTime());
       model.addAttribute("selectedTable", selectedTable);
       model.addAttribute("openBookingDialog", true);
       model.addAttribute("today", reservationSchedule.today());
-      model.addAttribute("maxGuests", selectedTable == null ? 20 : selectedTable.getCapacity());
-      model.addAttribute("depositPolicy", customer == null ? null : tableType.contains("vip")
-          ? "Bàn VIP: cọc tối thiểu 500.000 đ hoặc 70% giá trị món đặt trước (lấy mức cao hơn). Sau khi nhân viên duyệt, bạn gửi mã giao dịch để xác nhận cọc."
-          : selectedTable != null && (tableType.contains("lớn") || selectedTable.getCapacity() >= 9)
-              ? "Bàn lớn: cọc tối thiểu 300.000 đ hoặc 70% giá trị món đặt trước (lấy mức cao hơn). Sau khi nhân viên duyệt, bạn gửi mã giao dịch để xác nhận cọc."
-              : "Bàn này không bắt buộc đặt cọc trước.");
+      model.addAttribute("maxGuests", selectedTable.getCapacity());
+      model.addAttribute("depositPolicy", customer == null ? null : switch (tableKind) {
+        case VIP -> "Bàn VIP: cọc tối thiểu 500.000 đ hoặc 70% giá trị món đặt trước (lấy mức cao hơn). Sau khi nhân viên duyệt, bạn gửi mã giao dịch để xác nhận cọc.";
+        case LARGE -> "Bàn lớn: cọc tối thiểu 300.000 đ hoặc 70% giá trị món đặt trước (lấy mức cao hơn). Sau khi nhân viên duyệt, bạn gửi mã giao dịch để xác nhận cọc.";
+        default -> "Bàn này không bắt buộc đặt cọc trước.";
+      });
       return "web/table-plan";
     }
     addReservationPageData(model);
@@ -425,8 +424,6 @@ public class WebController {
 
   private void addReservationPageData(Model model) {
     var activeTables = restaurantTables.findByActiveTrueOrderByCodeAsc();
-    model.addAttribute("areas", activeTables.stream().map(RestaurantTable::getTableType)
-        .distinct().sorted().toList());
     model.addAttribute("maxGuests", Math.min(20, activeTables.stream()
         .mapToInt(RestaurantTable::getCapacity).max().orElse(20)));
     model.addAttribute("schedule", reservationSchedule);

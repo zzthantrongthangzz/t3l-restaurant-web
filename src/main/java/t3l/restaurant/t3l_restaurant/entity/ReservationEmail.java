@@ -103,8 +103,7 @@ public class ReservationEmail {
     this.bookingCode = reservation.getCode();
     this.startsAt = reservation.getStartsAt();
     this.guestCount = reservation.getGuestCount();
-    this.area = reservation.getTable() != null ? reservation.getTable().getTableType() : reservation.getPreferredArea();
-    if (area == null || area.isBlank()) area = "Chờ sắp xếp";
+    this.area = reservation.getTable() == null ? "Chờ sắp xếp" : reservation.getTable().getKind().getLabel();
     this.bookingStatus = reservation.getStatusLabel();
     this.reviewNote = reviewNote;
     this.status = status;

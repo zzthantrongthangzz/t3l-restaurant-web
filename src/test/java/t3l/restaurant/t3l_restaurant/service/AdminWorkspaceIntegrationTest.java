@@ -266,6 +266,18 @@ class AdminWorkspaceIntegrationTest {
   }
 
   @Test
+  void savesCanonicalTableCapacityAndAllowsConfigurableVipSeats() throws Exception {
+    for (var kind : java.util.Map.of("SMALL", 4, "MEDIUM", 8, "LARGE", 16, "VIP", 10).entrySet()) {
+      admin(post("/admin/inventory").param("code", "QA-" + kind.getKey()).param("classification", kind.getKey())
+          .param("capacity", "10").param("active", "true")).andExpect(redirectedUrl("/admin/inventory"));
+      assertEquals(kind.getValue(), jdbc.queryForObject("select capacity from restaurant_tables where code=?", Integer.class,
+          "QA-" + kind.getKey()));
+    }
+    admin(get("/admin/inventory").param("kind", "LARGE")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("QA-LARGE"))).andExpect(content().string(not(containsString("QA-VIP"))));
+  }
+
+  @Test
   void reportsOnlyCollectedRevenueAndKeepsPaidInvoiceImmutable() throws Exception {
     var first = bookings.create(booking());
     var next = booking();

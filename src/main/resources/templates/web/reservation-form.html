@@ -41,7 +41,7 @@
             </div>
             <div class="booking-how">
               <span class="booking-how-mark" aria-hidden="true">↗</span>
-              <div><h3>Chỗ ngồi được sắp xếp tự động</h3><p>T3L chọn bàn theo số khách và lịch trống. Nếu khu vực ưu tiên hết chỗ, hệ thống sẽ sắp xếp khu vực khác còn phù hợp.</p></div>
+              <div><h3>Chỗ ngồi được sắp xếp tự động</h3><p>T3L chọn bàn phù hợp với số khách theo lịch còn trống.</p></div>
             </div>
             <a class="home-text-link" th:href="@{/menu}">Khám phá thực đơn <span aria-hidden="true">→</span></a>
           </aside>
@@ -78,14 +78,6 @@
                   <input type="number" min="1" th:max="${maxGuests}" th:field="*{guests}" required aria-describedby="guests-error guests-hint" th:attr="aria-invalid=${#fields.hasErrors('guests')}" />
                   <small class="booking-field-error" id="guests-error" th:errors="*{guests}"></small>
                   <small class="booking-hint" id="guests-hint" th:text="${'Tối đa ' + maxGuests + ' khách cho một bàn.'}"></small>
-                </div>
-                <div class="booking-field">
-                  <label for="preferredArea">Khu vực ưu tiên <small>(tùy chọn)</small></label>
-                  <select th:field="*{preferredArea}" aria-describedby="area-error" th:attr="aria-invalid=${#fields.hasErrors('preferredArea')}">
-                    <option value="">Để T3L sắp xếp</option>
-                    <option th:each="area : ${areas}" th:value="${area}" th:text="${area}"></option>
-                  </select>
-                  <small class="booking-field-error" id="area-error" th:errors="*{preferredArea}"></small>
                 </div>
               </div>
               <p class="booking-duration-note">Mỗi lượt giữ bàn <strong th:text="${schedule.durationMinutes + ' phút'}"></strong>. Giờ nhận khách cuối: <strong th:text="${#temporals.format(schedule.lastArrival, 'HH:mm')}"></strong>.</p>

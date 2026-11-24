@@ -4,8 +4,8 @@
   <body class="staff-page" th:classappend="${opsBase == '/admin' ? 'admin-page' : ''}">
     <header th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: header('reservations')}"></header>
     <main class="staff-main">
-      <a class="staff-link staff-back" th:href="@{${opsBase + '/reservations'}}">← Danh sách đặt bàn</a>
-      <div class="staff-page-heading"><div><h1>Tạo đặt bàn</h1><p>Ghi nhận khách đến trực tiếp hoặc đặt trước qua điện thoại.</p></div></div>
+      <a class="staff-link staff-back" th:href="@{${opsBase + '/tables'}(date=${bookingForm.date})}">← Sơ đồ bàn</a>
+      <div class="staff-page-heading"><h1 th:text="${walkIn ? 'Đặt bàn ngay' : 'Đặt bàn chờ'}"></h1></div>
       <form class="staff-panel staff-form staff-form-narrow" th:action="@{${opsBase + '/reservations'}}" th:object="${bookingForm}" method="post" data-booking-form>
         <div class="staff-notice is-error" th:if="${#fields.hasAnyErrors()}" role="alert">
           <ul><li th:each="message : ${#fields.allErrors()}" th:text="${message}"></li></ul>

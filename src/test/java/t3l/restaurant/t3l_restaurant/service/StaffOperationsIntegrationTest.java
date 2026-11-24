@@ -110,9 +110,12 @@ class StaffOperationsIntegrationTest {
         .andExpect(status().isOk()).andExpect(content().string(containsString("Nguyễn Thu Linh")));
     staff(get(detail)).andExpect(status().isOk()).andExpect(content().string(containsString("Lịch sử xử lý")));
     step(booking, "SEATED").andExpect(flash().attributeExists("error"));
-    step(booking, "CHECKED_IN").andExpect(flash().attributeExists("notice"));
-    staff(get("/staff/dashboard")).andExpect(status().isOk()).andExpect(content().string(containsString("Nguyễn Thu Linh")));
-    step(booking, "SEATED").andExpect(flash().attributeExists("notice"));
+    step(booking, "RECEIVE").andExpect(flash().attributeExists("notice"));
+    var seated = reservations.findOneById(booking).orElseThrow();
+    assertEquals("SEATED", seated.getStatus());
+    assertEquals(seated.getCheckedInAt(), seated.getSeatedAt());
+    clock.at(TODAY.atTime(11, 4, 30));
+    staff(get(detail)).andExpect(content().string(containsString("data-service-seconds=\"270\"")));
     staff(get("/staff/tables")).andExpect(status().isOk()).andExpect(content().string(containsString("Đang phục vụ")));
     staff(get("/staff/orders")).andExpect(status().isOk()).andExpect(content().string(containsString("S01")));
 
@@ -129,6 +132,10 @@ class StaffOperationsIntegrationTest {
         .andExpect(flash().attributeExists("notice"));
     jdbc.update("update dishes set price=300000 where id=?", dishId);
     staff(post(detail + "/table").param("tableId", smallTable.toString())).andExpect(flash().attributeExists("error"));
+    jdbc.update("insert into restaurant_tables(code,table_type,capacity,active) values ('M01','Bàn vừa',8,true)");
+    var otherKind = id("select id from restaurant_tables where code='M01'");
+    staff(get(detail).param("move", "true")).andExpect(content().string(containsString("id=\"move-table\"")));
+    staff(post(detail + "/table").param("tableId", otherKind.toString())).andExpect(flash().attributeExists("error"));
     staff(post(detail + "/table").param("tableId", tableTwo.toString())).andExpect(flash().attributeExists("notice"));
     assertEquals(tableTwo, reservations.findOneById(booking).orElseThrow().getTable().getId());
     staff(get(order)).andExpect(status().isOk()).andExpect(content().string(containsString("500.000 đ")));
@@ -149,8 +156,8 @@ class StaffOperationsIntegrationTest {
     }
     assertEquals(1L, id("select count(*) from dining_payments"));
     staff(get(order)).andExpect(status().isOk()).andExpect(content().string(containsString("Thông tin thanh toán")));
-    step(booking, "COMPLETED").andExpect(flash().attributeExists("notice"));
     assertEquals("COMPLETED", reservations.findOneById(booking).orElseThrow().getStatus());
+    step(booking, "COMPLETED").andExpect(flash().attributeExists("notice"));
 
     staff(post("/staff/shift/sales").param("dishId", dishId.toString()).param("quantity", "1")
         .param("paymentMethod", "TRANSFER").param("received", "true")).andExpect(flash().attributeExists("notice"));
@@ -212,6 +219,7 @@ class StaffOperationsIntegrationTest {
 
   @Test
   void staffAddsMenuItemsToTheInvoiceForBothWaitingAndWalkInBookings() throws Exception {
+    staff(post("/staff/shift/open").param("openingCash", "0")).andExpect(flash().attributeExists("notice"));
     long reserved = createPhone("Khách đặt bàn chờ", "18:00", tableOne, 2);
     long arrived = walkIn("Khách đến ngay", tableTwo);
     for (long id : List.of(reserved, arrived)) {
@@ -224,6 +232,7 @@ class StaffOperationsIntegrationTest {
           .param("items[0].note", "Ít cay")).andExpect(redirectedUrl(details));
       staff(get("/staff/orders/" + id)).andExpect(status().isOk())
           .andExpect(content().string(containsString("Ghi chú: Ít cay")));
+      staff(get(details)).andExpect(content().string(containsString("2 × Bít tết")));
     }
     assertEquals(2L, id("select count(distinct reservation_id) from dining_orders where status='DRAFT'"));
     assertEquals(2L, id("select count(*) from dining_order_items"));
@@ -241,21 +250,29 @@ class StaffOperationsIntegrationTest {
     assertEquals(List.of("RECEIVED", "CONFIRMED", "NO_SHOW"),
         jdbc.queryForList("select kind from reservation_emails where reservation_id=? order by id", String.class, missed));
     var rejected = publicBooking("Khách chờ xác nhận", "16:30");
+    staff(get("/staff/tables")).andExpect(content().string(containsString("Đợi xác nhận")))
+        .andExpect(content().string(containsString("Duyệt đặt bàn")))
+        .andExpect(content().string(not(containsString("Sửa thông tin bàn"))));
+    mvc.perform(get("/admin/tables").with(user("admin").roles("ADMIN")))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Sửa thông tin bàn")));
     step(rejected, "CANCELLED").andExpect(flash().attributeExists("notice"));
     assertEquals(List.of("RECEIVED", "REJECTED"),
         jdbc.queryForList("select kind from reservation_emails where reservation_id=? order by id", String.class, rejected));
 
     staff(get("/staff/reservations/new").param("walkIn", "true")).andExpect(status().isOk())
         .andExpect(content().string(containsString("Khách đến trực tiếp")));
-    long first = walkIn("Khách tại chỗ", tableOne);
-    step(first, "SEATED").andExpect(flash().attributeExists("error"));
+    staff(post("/staff/reservations").param("walkIn", "true").param("guestName", "Khách tại chỗ")
+        .param("tableId", tableOne.toString()).param("guests", "3")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("Hãy mở ca làm việc")));
+    assertEquals(0L, id("select count(*) from reservations where guest_name='Khách tại chỗ'"));
     staff(post("/staff/shift/open").param("openingCash", "0")).andExpect(flash().attributeExists("notice"));
-    step(first, "SEATED").andExpect(flash().attributeExists("notice"));
+    long first = walkIn("Khách tại chỗ", tableOne);
+    assertEquals("SEATED", reservations.findOneById(first).orElseThrow().getStatus());
     staff(post("/staff/reservations").param("walkIn", "true").param("guestName", "Khách mới")
         .param("guests", "3").param("tableId", tableOne.toString())).andExpect(status().isOk())
         .andExpect(content().string(containsString("Bàn đang phục vụ")));
     long second = walkIn("Khách thanh toán sau", tableTwo);
-    step(second, "SEATED").andExpect(flash().attributeExists("notice"));
+    assertEquals("SEATED", reservations.findOneById(second).orElseThrow().getStatus());
     staff(post("/staff/reservations/" + second + "/table").param("tableId", tableOne.toString()))
         .andExpect(flash().attributeExists("error"));
     for (long booking : List.of(first, second)) {

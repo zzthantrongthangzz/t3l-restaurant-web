@@ -49,8 +49,7 @@
                 <div><dt>Ngày đến</dt><dd th:text="${#temporals.format(reservation.reservationDate, 'dd/MM/yyyy')}"></dd></div>
                 <div><dt>Giờ đến</dt><dd th:text="${#temporals.format(reservation.reservationTime, 'HH:mm') + (reservation.endsAt != null ? ' – ' + #temporals.format(reservation.endsAt, 'HH:mm') : '')}"></dd></div>
                 <div><dt>Số khách</dt><dd th:text="${reservation.guestCount + ' khách'}"></dd></div>
-                <div><dt>Khu vực được sắp xếp</dt><dd th:text="${reservation.table != null ? reservation.table.tableType : 'Chờ sắp xếp'}"></dd></div>
-                <div class="lookup-full"><dt>Khu vực ưu tiên</dt><dd th:text="${reservation.preferredArea != null and !reservation.preferredArea.isBlank() ? reservation.preferredArea : 'Để T3L sắp xếp'}"></dd></div>
+                <div><dt>Loại bàn</dt><dd th:text="${reservation.table != null ? reservation.table.kind.label : 'Chờ sắp xếp'}"></dd></div>
                 <div class="lookup-full lookup-note"><dt>Ghi chú đặc biệt</dt><dd th:text="${reservation.note != null and !reservation.note.isBlank() ? reservation.note : 'Không có ghi chú đặc biệt.'}"></dd></div>
               </dl>
               <a class="home-text-link" th:href="@{/reservations/confirmation(code=${reservation.code})}">Xem trang xác nhận <span aria-hidden="true">↗</span></a>
@@ -70,7 +69,6 @@
                     <div class="booking-field"><label for="date">Ngày mới</label><input type="date" th:field="*{date}" th:min="${today}" required /><small class="booking-field-error" th:errors="*{date}"></small></div>
                     <div class="booking-field"><label for="time">Giờ mới</label><select th:field="*{time}" required><option value="">Chọn giờ đến</option><option th:each="slot : ${timeSlots}" th:value="${slot}" th:text="${#temporals.format(slot, 'HH:mm')}"></option></select><small class="booking-field-error" th:errors="*{time}"></small></div>
                     <div class="booking-field"><label for="guests">Số khách</label><input type="number" min="1" th:max="${maxGuests}" th:field="*{guests}" required /><small class="booking-field-error" th:errors="*{guests}"></small></div>
-                    <div class="booking-field"><label for="preferredArea">Khu vực ưu tiên</label><select th:field="*{preferredArea}"><option value="">Để T3L sắp xếp</option><option th:each="area : ${areas}" th:value="${area}" th:text="${area}"></option></select><small class="booking-field-error" th:errors="*{preferredArea}"></small></div>
                     <div class="booking-field booking-full"><label for="reason">Lý do thay đổi <small>(tùy chọn)</small></label><textarea rows="3" th:field="*{reason}" maxlength="500" placeholder="Chia sẻ thay đổi trong kế hoạch của bạn…"></textarea><small class="booking-field-error" th:errors="*{reason}"></small></div>
                   </div>
                   <button class="home-button" type="submit">Gửi yêu cầu thay đổi <span aria-hidden="true">↗</span></button>

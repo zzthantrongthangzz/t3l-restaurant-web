@@ -30,6 +30,10 @@ public class RestaurantTable {
 
   public void setActive(boolean active) { this.active = active; }
 
+  public TableKind getKind() {
+    return TableKind.fromInventory(tableKind, tableType, capacity);
+  }
+
   public void configure(String code, String area, String kind, int capacity, boolean active) {
     this.code = code;
     this.tableType = area;

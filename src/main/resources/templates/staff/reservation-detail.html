@@ -4,7 +4,7 @@
   <body class="staff-page" th:classappend="${opsBase == '/admin' ? 'admin-page' : ''}">
     <header th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: header('reservations')}"></header>
     <main class="staff-main">
-      <a class="staff-link staff-back" th:href="@{${opsBase + '/reservations'}}">← Danh sách đặt bàn</a>
+      <a class="staff-link staff-back" th:href="@{${opsBase + '/tables'}(date=${booking.status == 'SEATED' ? today : booking.reservationDate})}">← Sơ đồ bàn</a>
       <div class="staff-page-heading">
         <div><p class="staff-kicker" th:text="${booking.code}"></p><h1 th:text="${booking.guestName}"></h1></div>
         <span th:replace="~{staff/fragments/shell :: status(${booking})}"></span>
@@ -22,13 +22,17 @@
           <section class="staff-panel">
             <h2>Thông tin đặt bàn</h2>
             <dl class="staff-details">
-              <div><dt>Lịch đặt</dt><dd th:text="${#temporals.format(booking.startsAt, 'dd/MM/yyyy · HH:mm')}"></dd></div>
+              <div><dt>Ghi nhận đặt bàn lúc</dt><dd th:text="${#temporals.format(booking.createdAt, 'dd/MM/yyyy · HH:mm')}"></dd></div>
+              <div><dt>Giờ sử dụng đã đặt</dt><dd th:text="${#temporals.format(booking.startsAt, 'dd/MM/yyyy · HH:mm')}"></dd></div>
               <div><dt>Số khách</dt><dd th:text="${booking.guestCount}"></dd></div>
-              <div><dt>Bàn</dt><dd th:text="${booking.table == null ? 'Chưa phân bàn' : booking.table.code + ' · ' + booking.table.tableType}"></dd></div>
+              <div><dt>Bàn</dt><dd th:text="${booking.table == null ? 'Chưa phân bàn' : booking.table.code + ' · ' + booking.table.kind.label + ' · ' + booking.table.capacity + ' chỗ'}"></dd></div>
               <div><dt>Số điện thoại</dt><dd th:text="${#strings.isEmpty(booking.guestPhone) ? 'Chưa cung cấp' : booking.guestPhone}"></dd></div>
               <div th:if="${!#strings.isEmpty(booking.guestEmail)}"><dt>Email</dt><dd th:text="${booking.guestEmail}"></dd></div>
               <div th:if="${booking.checkedInAt != null}"><dt>Check-in</dt><dd th:text="${#temporals.format(booking.checkedInAt, 'dd/MM · HH:mm')}"></dd></div>
               <div th:if="${booking.seatedAt != null}"><dt>Nhận bàn</dt><dd th:text="${#temporals.format(booking.seatedAt, 'dd/MM · HH:mm')}"></dd></div>
+              <div th:if="${booking.seatedAt != null}"><dt>Thời gian phục vụ</dt><dd>
+                <time th:attr="data-service-seconds=${serviceSeconds},data-service-running=${booking.status == 'SEATED'}"
+                      th:text="${serviceSeconds / 60 + ' phút'}"></time></dd></div>
               <div th:if="${booking.completedAt != null}"><dt>Kết thúc</dt><dd th:text="${#temporals.format(booking.completedAt, 'dd/MM · HH:mm')}"></dd></div>
               <div class="staff-full" th:if="${!#strings.isEmpty(booking.note)}"><dt>Ghi chú</dt><dd class="staff-note" th:text="${booking.note}"></dd></div>
             </dl>
@@ -48,8 +52,7 @@
                 th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
               <input type="hidden" name="from" value="detail" />
               <button class="staff-button" th:if="${actions.confirm}" name="status" value="CONFIRMED">Xác nhận đặt bàn</button>
-              <button class="staff-button" th:if="${actions.checkIn}" name="status" value="CHECKED_IN">Check-in khách</button>
-              <button class="staff-button" th:if="${actions.seat}" name="status" value="SEATED">Nhận bàn</button>
+              <button class="staff-button" th:if="${actions.checkIn or actions.seat}" name="status" value="RECEIVE">Nhận bàn chờ</button>
               <button class="staff-button is-outline" th:if="${actions.complete}" name="status" value="COMPLETED"
                   th:disabled="${order != null and order.status != 'PAID' and (order.status != 'DRAFT' or order.hasItems())}">Kết thúc phục vụ</button>
               <button class="staff-button is-danger" th:if="${actions.noShow}" name="status" value="NO_SHOW" data-confirm="Đánh dấu khách không đến và giải phóng bàn?" type="submit">Khách không đến</button>
@@ -57,11 +60,12 @@
                   th:text="${booking.status == 'PENDING_CONFIRMATION' ? 'Từ chối' : 'Hủy đặt bàn'}"></button>
             </form>
           </section>
-          <details class="staff-panel staff-disclosure" th:if="${actions.moveTable}">
+          <details id="move-table" class="staff-panel staff-disclosure" th:if="${actions.moveTable}" th:open="${openMove}">
             <summary>Chuyển bàn</summary>
-            <form class="staff-form" th:action="@{${opsBase + '/reservations/{id}/table'}(id=${booking.id})}" method="post">
+            <p class="staff-empty" th:if="${moveOptions.isEmpty()}">Không có bàn trống cùng loại trong khung giờ này.</p>
+            <form class="staff-form" th:unless="${moveOptions.isEmpty()}" th:action="@{${opsBase + '/reservations/{id}/table'}(id=${booking.id})}" method="post">
               <label class="staff-field">Bàn mới <select name="tableId" required><option value="">Chọn bàn</option>
-                <th:block th:replace="~{staff/fragments/shell :: tableOptions(${tableOptions}, ${null})}"></th:block>
+                <th:block th:replace="~{staff/fragments/shell :: tableOptions(${moveOptions}, ${null})}"></th:block>
               </select></label>
               <div class="staff-actions"><button class="staff-button" type="submit">Xác nhận chuyển</button></div>
             </form>
@@ -75,9 +79,6 @@
                   <option th:each="slot : ${timeSlots}" th:value="${#temporals.format(slot, 'HH:mm')}" th:selected="${slot == booking.reservationTime}" th:text="${#temporals.format(slot, 'HH:mm')}"></option>
                 </select></label>
                 <label class="staff-field">Số khách <input type="number" name="guests" th:value="${booking.guestCount}" min="1" max="20" required /></label>
-                <label class="staff-field">Khu vực ưu tiên <select name="preferredArea"><option value="">Tự động</option>
-                  <option th:each="area : ${areaOptions}" th:value="${area}" th:selected="${area == booking.preferredArea}" th:text="${area}"></option>
-                </select></label>
                 <label class="staff-field staff-full">Bàn <select name="tableId"><option value="">Tự động chọn bàn phù hợp</option>
                   <th:block th:replace="~{staff/fragments/shell :: tableOptions(${tableOptions}, ${booking.table?.id})}"></th:block>
                 </select></label>
@@ -88,6 +89,18 @@
           </details>
         </div>
         <div class="staff-stack">
+          <section class="staff-panel">
+            <div class="staff-panel-heading"><h2>Món đã đặt / đã gọi</h2>
+              <strong th:if="${order != null}" th:text="${#numbers.formatInteger(order.currentTotal, 1, 'POINT') + ' đ'}"></strong>
+            </div>
+            <p class="staff-empty" th:if="${order == null or !order.hasItems()}">Chưa có món trong đơn.</p>
+            <ul class="staff-feed" th:if="${order != null and order.hasItems()}">
+              <li th:each="item : ${order.items}" th:unless="${item.cancelled}">
+                <div><strong th:text="${item.quantity + ' × ' + item.dishName}"></strong><p th:if="${item.note != null}" th:text="${item.note}"></p></div>
+                <span th:text="${#numbers.formatInteger(item.amount, 1, 'POINT') + ' đ'}"></span>
+              </li>
+            </ul>
+          </section>
           <section class="staff-panel"><h2>Lịch sử xử lý</h2>
             <ul class="staff-feed">
               <li th:each="event : ${history}"><div><strong th:text="${event.description}"></strong><p th:text="${event.actor + ' · ' + #temporals.format(event.createdAt, 'dd/MM/yyyy HH:mm')}"></p></div></li>

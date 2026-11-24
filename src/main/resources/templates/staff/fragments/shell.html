@@ -8,8 +8,8 @@
     <link rel="stylesheet" th:href="@{/css/site.css(v=20261120-typography)}" />
     <link rel="stylesheet" th:href="@{/css/reservation-requests.css(v=20261120-staff)}" />
     <link rel="stylesheet" th:href="@{/css/staff.css(v=20261120)}" />
-    <link rel="stylesheet" th:href="@{/css/table-plan.css(v=20261124)}" />
-    <script defer th:src="@{/js/staff.js(v=20261120)}"></script>
+    <link rel="stylesheet" th:href="@{/css/table-plan.css(v=table-operations)}" />
+    <script defer th:src="@{/js/staff.js(v=table-operations)}"></script>
     <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
   </head>
   <body>
@@ -42,7 +42,7 @@
     <span class="staff-badge" th:fragment="status(booking)" th:attr="data-status=${booking.status}" th:text="${booking.statusLabel}"></span>
     <th:block th:fragment="tableOptions(tableOptions, selected)">
       <option th:each="table : ${tableOptions}" th:value="${table.id}" th:selected="${table.id == selected}"
-          th:text="${table.code + ' · ' + table.tableType + ' · ' + table.capacity + ' chỗ'}"></option>
+          th:text="${table.code + ' · ' + table.kind.label + ' · ' + table.capacity + ' chỗ'}"></option>
     </th:block>
   </body>
 </html>

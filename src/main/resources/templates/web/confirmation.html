@@ -58,7 +58,7 @@
               <div><dt>Ngày đến</dt><dd th:text="${#temporals.format(reservation.reservationDate, 'dd/MM/yyyy')}"></dd></div>
               <div><dt>Giờ đến</dt><dd><span th:text="${#temporals.format(reservation.reservationTime, 'HH:mm')}"></span><small th:if="${reservation.endsAt != null}" th:text="${'Dự kiến kết thúc lúc ' + #temporals.format(reservation.endsAt, 'HH:mm')}"></small></dd></div>
               <div><dt>Số khách</dt><dd th:text="${reservation.guestCount + ' khách'}"></dd></div>
-              <div><dt>Khu vực ưu tiên</dt><dd th:text="${reservation.preferredArea != null and !reservation.preferredArea.isBlank() ? reservation.preferredArea : 'Để T3L sắp xếp'}"></dd></div>
+              <div th:if="${reservation.table != null}"><dt>Loại bàn</dt><dd th:text="${reservation.table.kind.label}"></dd></div>
               <div class="receipt-note"><dt>Ghi chú đặc biệt</dt><dd th:text="${reservation.note != null and !reservation.note.isBlank() ? reservation.note : 'Không có ghi chú đặc biệt.'}"></dd></div>
             </dl>
             <section class="receipt-deposit" th:if="${preorder != null and preorder.hasItems()}">
@@ -83,7 +83,6 @@
               </form>
               <p th:if="${reservation.depositStatus == 'TRANSFER_SUBMITTED'}" th:text="${'Mã giao dịch ' + reservation.depositReference + ' đang chờ nhân viên xác nhận.'}"></p>
             </section>
-            <p class="receipt-area-note" th:if="${reservation.preferredArea != null and !reservation.preferredArea.isBlank()}">Khu vực ưu tiên được sắp xếp theo tình trạng chỗ ngồi thực tế.</p>
             <div class="receipt-actions">
               <a class="home-button" th:href="@{/reservations/lookup(code=${reservation.code})}">Tra cứu đặt bàn <span aria-hidden="true">↗</span></a>
               <a class="home-text-link" th:href="@{/}">Quay về trang chủ <span aria-hidden="true">→</span></a>

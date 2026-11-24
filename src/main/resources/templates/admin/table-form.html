@@ -3,20 +3,21 @@
 <head th:replace="~{admin/fragments/shell :: head('Thông tin bàn')}"></head>
 <body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('inventory')}"></header>
 <main class="staff-main">
-  <a class="staff-link staff-back" th:href="@{/admin/inventory}">Danh sách bàn và khu vực</a>
+  <a class="staff-link staff-back" th:href="@{/admin/inventory}">Danh mục bàn</a>
   <div class="staff-page-heading"><h1 th:text="${tableId == null ? 'Thêm bàn' : 'Sửa thông tin bàn'}"></h1></div>
   <form class="staff-panel staff-form staff-form-narrow" th:object="${form}"
     th:action="${tableId == null} ? @{/admin/inventory} : @{/admin/inventory/{id}(id=${tableId})}" method="post">
     <div th:replace="~{admin/fragments/shell :: errors}"></div>
     <div class="staff-form-grid">
       <label class="staff-field">Mã bàn<input th:field="*{code}" maxlength="32" required /></label>
-      <label class="staff-field">Khu vực<select th:field="*{area}" required><option value="">Chọn khu vực</option>
-        <option th:each="item : ${areas}" th:value="${item.name}" th:text="${item.name + (item.active ? '' : ' (tạm ngưng)')}"></option>
+      <label class="staff-field">Loại bàn<select th:field="*{classification}" data-inventory-kind required>
+        <option th:each="kind : ${tableKinds}" th:value="${kind.name()}" th:attr="data-capacity=${kind.fixedCapacity}"
+                th:text="${kind.label + (kind.fixedCapacity > 0 ? ' · ' + kind.fixedCapacity + ' chỗ' : '')}"></option>
       </select></label>
-      <label class="staff-field">Loại bàn<input th:field="*{kind}" maxlength="40" placeholder="Ví dụ: Bàn tròn" /></label>
-      <label class="staff-field">Sức chứa<input th:field="*{capacity}" type="number" min="1" max="100" required /></label>
+      <label class="staff-field">Sức chứa<input th:field="*{capacity}" type="number" min="1" max="100" required />
+        <small>Có thể chỉnh sức chứa của phòng VIP.</small></label>
     </div>
-    <label class="staff-checkbox"><input th:field="*{active}" type="checkbox" /> Đưa bàn vào phục vụ khi khu vực hoạt động</label>
+    <label class="staff-checkbox"><input th:field="*{active}" type="checkbox" /> Đưa bàn vào phục vụ</label>
     <div class="staff-actions"><button type="submit" class="staff-button" data-confirm="Lưu thiết lập cho bàn này?">Lưu bàn</button></div>
   </form>
 </main></body></html>

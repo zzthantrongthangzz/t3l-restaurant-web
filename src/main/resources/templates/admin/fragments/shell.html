@@ -7,9 +7,9 @@
   <link rel="stylesheet" th:href="@{/css/site.css(v=20261120-typography)}" />
   <link rel="stylesheet" th:href="@{/css/reservation-requests.css(v=20261120-staff)}" />
   <link rel="stylesheet" th:href="@{/css/staff.css(v=20261120)}" />
-  <link rel="stylesheet" th:href="@{/css/table-plan.css(v=20261124)}" />
+  <link rel="stylesheet" th:href="@{/css/table-plan.css(v=table-operations)}" />
   <link rel="stylesheet" th:href="@{/css/admin.css(v=sidebar-account)}" />
-  <script defer th:src="@{/js/staff.js(v=20261120)}"></script>
+  <script defer th:src="@{/js/staff.js(v=table-operations)}"></script>
   <script defer th:src="@{/js/admin.js(v=20261120)}"></script>
   <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
 </head>
@@ -37,7 +37,7 @@
       <a th:href="@{/admin/shifts}" th:attr="aria-current=${section == 'shift' ? 'page' : null}">Ca làm &amp; đối soát</a>
       <span class="admin-nav-label">Quản lý</span>
       <a th:href="@{/admin/accounts}" th:attr="aria-current=${section == 'accounts' ? 'page' : null}">Tài khoản</a>
-      <a th:href="@{/admin/inventory}" th:attr="aria-current=${section == 'inventory' ? 'page' : null}">Bàn &amp; khu vực</a>
+      <a th:href="@{/admin/inventory}" th:attr="aria-current=${section == 'inventory' ? 'page' : null}">Danh mục bàn</a>
       <a th:href="@{/menu}" th:attr="aria-current=${section == 'dishes' ? 'page' : null}">Thực đơn</a>
       <a th:href="@{/admin/contacts}" th:attr="aria-current=${section == 'contacts' ? 'page' : null}">Liên hệ</a>
       <a th:href="@{/admin/settings}" th:attr="aria-current=${section == 'settings' ? 'page' : null}">Cấu hình</a>

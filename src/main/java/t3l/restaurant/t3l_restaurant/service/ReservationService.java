@@ -25,6 +25,7 @@ import t3l.restaurant.t3l_restaurant.entity.Reservation;
 import t3l.restaurant.t3l_restaurant.entity.ReservationEvent;
 import t3l.restaurant.t3l_restaurant.entity.ReservationEmail.Kind;
 import t3l.restaurant.t3l_restaurant.entity.RestaurantTable;
+import t3l.restaurant.t3l_restaurant.entity.TableKind;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.repository.ReservationRepository;
 import t3l.restaurant.t3l_restaurant.repository.DishRepository;
@@ -120,12 +121,15 @@ public class ReservationService {
     booking.setDepositRequirement(depositRequired ? minimumDeposit(assigned) : BigDecimal.ZERO, depositRequired);
     if (actor != null) {
       booking.updateStatus(CONFIRMED);
-      if (walkIn) booking.checkIn(start);
+      if (walkIn) {
+        booking.checkIn(start);
+        booking.seat(shifts.requireOpenShiftForUpdate(actor), start, end);
+      }
     }
     Reservation saved = reservations.saveAndFlush(booking);
     if (actor == null) emails.enqueue(saved, Kind.RECEIVED, null, null);
     else {
-      record(saved, actor, walkIn ? "Tiếp nhận khách đến trực tiếp." : "Tạo và xác nhận đặt bàn qua nhân viên.");
+      record(saved, actor, walkIn ? "Đặt bàn ngay và bắt đầu phục vụ." : "Tạo và xác nhận đặt bàn qua nhân viên.");
       if (!walkIn) emails.enqueue(saved, Kind.CONFIRMED, null, null);
     }
     return saved;
@@ -171,13 +175,11 @@ public class ReservationService {
   }
 
   private boolean requiresDeposit(RestaurantTable table) {
-    String type = table.getTableType() == null ? "" : table.getTableType().toLowerCase(Locale.ROOT);
-    return type.contains("vip") || type.contains("lớn") || table.getCapacity() >= 9;
+    return table.getKind() == TableKind.VIP || table.getKind() == TableKind.LARGE;
   }
 
   private BigDecimal minimumDeposit(RestaurantTable table) {
-    String type = table.getTableType() == null ? "" : table.getTableType().toLowerCase(Locale.ROOT);
-    return type.contains("vip") ? BigDecimal.valueOf(500_000) : BigDecimal.valueOf(300_000);
+    return table.getKind() == TableKind.VIP ? BigDecimal.valueOf(500_000) : BigDecimal.valueOf(300_000);
   }
 
   // Callers must hold the allocation locks for the lifetime of their transaction.
@@ -314,22 +316,13 @@ public class ReservationService {
   public void staffStatus(Long id, String status, String actor) {
     var active = tables.lockActiveTables();
     var booking = lockBooking(id);
-    if (booking.getStatus().equals(status)) return;
+    if (booking.getStatus().equals(status) || ("RECEIVE".equals(status) && SEATED.equals(booking.getStatus()))) return;
     LocalDateTime now = now();
     switch (status) {
       case CONFIRMED, CANCELLED -> decideBooking(booking, status, active, actor);
-      case CHECKED_IN -> {
-        if (booking.getDepositAmount().signum() > 0 && !"PAID".equals(booking.getDepositStatus())) {
-          throw new BookingException(null, "Chưa xác nhận thanh toán cọc cho lượt đặt bàn này.");
-        }
-        if (!CONFIRMED.equals(booking.getStatus()) || !booking.getReservationDate().equals(now.toLocalDate())
-            || now.isBefore(booking.getStartsAt().minusMinutes(schedule.getCheckInMinutes())) || !inServiceHours(now)) {
-          throw new BookingException(null, "Chỉ check-in lịch đã xác nhận trong giờ phục vụ, từ "
-              + schedule.getCheckInMinutes() + " phút trước giờ đặt.");
-        }
-        booking.checkIn(now);
-      }
-      case SEATED -> {
+      case CHECKED_IN -> checkIn(booking, now);
+      case SEATED, "RECEIVE" -> {
+        if ("RECEIVE".equals(status) && CONFIRMED.equals(booking.getStatus())) checkIn(booking, now);
         if (!CHECKED_IN.equals(booking.getStatus())) throw new BookingException(null, "Hãy check-in khách trước khi nhận bàn.");
         if (!inServiceHours(now)) throw new BookingException("time", "Chỉ nhận bàn trong giờ phục vụ của nhà hàng.");
         LocalDateTime end = expectedServiceEnd(booking, now);
@@ -344,7 +337,7 @@ public class ReservationService {
             throw new BookingException(null, "Hãy thanh toán hóa đơn trước khi kết thúc phục vụ.");
           }
         });
-        booking.complete(now);
+        finishService(booking, actor, now);
       }
       case NO_SHOW -> {
         if (!CONFIRMED.equals(booking.getStatus()) || now.isBefore(booking.getStartsAt().plusMinutes(schedule.getNoShowMinutes()))) {
@@ -356,7 +349,24 @@ public class ReservationService {
       default -> throw new BookingException(null, "Trạng thái không hợp lệ.");
     }
     if (CONFIRMED.equals(status)) booking.approveDepositRequirement();
-    if (!CONFIRMED.equals(status) && !CANCELLED.equals(status)) record(booking, actor, booking.getStatusLabel() + ".");
+    if (!List.of(CONFIRMED, CANCELLED, COMPLETED).contains(status)) record(booking, actor, booking.getStatusLabel() + ".");
+  }
+
+  private void checkIn(Reservation booking, LocalDateTime now) {
+    if (booking.getDepositAmount().signum() > 0 && !"PAID".equals(booking.getDepositStatus())) {
+      throw new BookingException(null, "Chưa xác nhận thanh toán cọc cho lượt đặt bàn này.");
+    }
+    if (!CONFIRMED.equals(booking.getStatus()) || !booking.getReservationDate().equals(now.toLocalDate())
+        || now.isBefore(booking.getStartsAt().minusMinutes(schedule.getCheckInMinutes())) || !inServiceHours(now)) {
+      throw new BookingException(null, "Chỉ nhận lịch đã xác nhận trong giờ phục vụ, từ "
+          + schedule.getCheckInMinutes() + " phút trước giờ đặt.");
+    }
+    booking.checkIn(now);
+  }
+
+  void finishService(Reservation booking, String actor, LocalDateTime now) {
+    booking.complete(now);
+    record(booking, actor, booking.getStatusLabel() + ".");
   }
 
   @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -394,14 +404,34 @@ public class ReservationService {
       throw new BookingException(null, "Lượt đặt bàn này không còn hiệu lực chuyển bàn.");
     }
     if (Objects.equals(tableId(booking), tableId)) return;
-    LocalDateTime end = !immediate ? booking.effectiveEndsAt(schedule.getDurationMinutes())
-        : !inServiceHours(now) && SEATED.equals(booking.getStatus()) ? now.plusMinutes(schedule.getSlotMinutes())
-        : expectedServiceEnd(booking, now);
+    LocalDateTime end = moveEnd(booking, now, immediate);
     RestaurantTable destination = requireTable(active, tableId, immediate ? now : booking.getStartsAt(),
-        end, booking.getGuestCount(), id, immediate);
+        end, booking.getGuestCount(), id, true);
+    if (booking.getTable() != null && destination.getKind() != booking.getTable().getKind()) {
+      throw new BookingException(null, "Hãy chọn bàn trống cùng loại với bàn hiện tại.");
+    }
     String from = booking.getTable() == null ? "chưa phân bàn" : booking.getTable().getCode();
     booking.moveTo(destination, end);
     record(booking, actor, "Chuyển bàn: " + from + " → " + destination.getCode() + ".");
+  }
+
+  @Transactional(readOnly = true)
+  public List<RestaurantTable> moveOptions(Reservation booking) {
+    LocalDateTime now = now();
+    boolean immediate = List.of(SEATED, CHECKED_IN).contains(booking.getStatus());
+    if (immediate && !inServiceHours(now) && !SEATED.equals(booking.getStatus())) return List.of();
+    var blocked = findBlocking(immediate ? now : booking.getStartsAt(), moveEnd(booking, now, immediate), true);
+    return tables.findByActiveTrueOrderByCodeAsc().stream()
+        .filter(table -> !Objects.equals(tableId(booking), table.getId()) && table.getCapacity() >= booking.getGuestCount())
+        .filter(table -> booking.getTable() == null || booking.getTable().getKind() == table.getKind())
+        .filter(table -> blocked.stream().noneMatch(other -> Objects.equals(tableId(other), table.getId())))
+        .toList();
+  }
+
+  private LocalDateTime moveEnd(Reservation booking, LocalDateTime now, boolean immediate) {
+    if (!immediate) return booking.effectiveEndsAt(schedule.getDurationMinutes());
+    if (!inServiceHours(now) && SEATED.equals(booking.getStatus())) return now.plusMinutes(schedule.getSlotMinutes());
+    return expectedServiceEnd(booking, now);
   }
 
   @PreAuthorize("hasAnyRole('STAFF', 'ADMIN') and #actor == authentication.name")

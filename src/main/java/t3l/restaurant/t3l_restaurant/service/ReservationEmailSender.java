@@ -102,7 +102,7 @@ public class ReservationEmailSender {
         .append("Mã đặt bàn: ").append(email.getBookingCode()).append("\n")
         .append("Ngày và giờ: ").append(dateTime).append("\n")
         .append("Số khách: ").append(email.getGuestCount()).append("\n")
-        .append("Khu vực: ").append(email.getArea()).append("\n")
+        .append("Loại bàn: ").append(email.getArea()).append("\n")
         .append("Trạng thái đặt bàn: ").append(email.getBookingStatus()).append("\n");
     if (email.getReviewNote() != null) body.append("Phản hồi từ T3L: ").append(email.getReviewNote()).append("\n");
     body.append("\nXem chi tiết đặt bàn: ").append(detailsUrl).append("\n\n")

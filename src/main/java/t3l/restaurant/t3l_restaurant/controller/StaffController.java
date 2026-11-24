@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -22,6 +23,7 @@ import t3l.restaurant.t3l_restaurant.dto.ReservationForm;
 import t3l.restaurant.t3l_restaurant.dto.ReservationUpdateForm;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
 import t3l.restaurant.t3l_restaurant.entity.RestaurantTable;
+import t3l.restaurant.t3l_restaurant.entity.TableKind;
 import t3l.restaurant.t3l_restaurant.repository.DishRepository;
 import t3l.restaurant.t3l_restaurant.repository.RestaurantTableRepository;
 import t3l.restaurant.t3l_restaurant.service.BookingException;
@@ -77,9 +79,10 @@ public class StaffController {
 
   @GetMapping("/reservations/new")
   public String newBooking(@RequestParam(required = false) Long tableId,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
       @RequestParam(defaultValue = "false") boolean walkIn, Model model) {
     var form = new ReservationForm();
-    form.setDate(schedule.today());
+    form.setDate(date == null || date.isBefore(schedule.today()) ? schedule.today() : date);
     form.setGuests(2);
     model.addAttribute("bookingForm", form);
     return newBookingPage(tableId, walkIn, model);
@@ -92,12 +95,14 @@ public class StaffController {
     if (!errors.hasErrors()) {
       try {
         var booking = bookings.createStaffBooking(form, tableId, walkIn, actor.getName());
-        redirect.addFlashAttribute("notice", walkIn ? "Đã tiếp nhận khách. Chọn Nhận bàn để bắt đầu phục vụ." : "Đã tạo đặt bàn và xác nhận lịch.");
+        redirect.addFlashAttribute("notice", walkIn ? "Đã đặt bàn ngay và bắt đầu phục vụ." : "Đã ghi nhận và xác nhận đặt bàn chờ.");
         return "redirect:" + operationsPath(RESERVATIONS + "/" + booking.getId());
       } catch (BookingException exception) {
         String field = exception.getField();
         if (field != null && !"tableId".equals(field)) errors.rejectValue(field, "booking.invalid", exception.getMessage());
         else errors.reject("booking.invalid", exception.getMessage());
+      } catch (IllegalStateException exception) {
+        errors.reject("booking.shift", exception.getMessage());
       } catch (TransientDataAccessException exception) {
         errors.reject("booking.busy", "Bàn đang được cập nhật. Vui lòng thử lại.");
       }
@@ -113,11 +118,17 @@ public class StaffController {
   }
 
   @GetMapping("/reservations/{id}")
-  public String reservation(@PathVariable Long id, Model model) {
+  public String reservation(@PathVariable Long id, @RequestParam(defaultValue = "false") boolean move, Model model) {
     var view = requireBooking(id);
     var booking = view.booking();
     model.addAttribute("booking", booking);
-    model.addAttribute("actions", workspace.actions(booking));
+    var actions = workspace.actions(booking);
+    model.addAttribute("actions", actions);
+    model.addAttribute("moveOptions", actions.moveTable() ? bookings.moveOptions(booking) : java.util.List.of());
+    model.addAttribute("openMove", move);
+    model.addAttribute("serviceSeconds", booking.getSeatedAt() == null ? 0
+        : Math.max(0, java.time.Duration.between(booking.getSeatedAt(),
+            booking.getCompletedAt() == null ? LocalDateTime.now(schedule.getClock()) : booking.getCompletedAt()).getSeconds()));
     model.addAttribute("order", view.order());
     model.addAttribute("canAddMenuItems", bookings.canAddMenuItems(booking, view.order(), true));
     model.addAttribute("history", workspace.history(id));
@@ -128,13 +139,16 @@ public class StaffController {
 
   @PostMapping("/reservations/{id}/status")
   public String status(@PathVariable Long id, @RequestParam String status,
-      @RequestParam(defaultValue = "") String from, Authentication actor, RedirectAttributes redirect) {
+      @RequestParam(defaultValue = "") String from,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate returnDate,
+      Authentication actor, RedirectAttributes redirect) {
     String target = switch (from) {
       case "detail" -> RESERVATIONS + "/" + id;
       case "table" -> TABLES;
       case "order" -> ORDERS + "/" + id;
       default -> RESERVATIONS;
     };
+    if ("table".equals(from) && returnDate != null) redirect.addAttribute("date", returnDate);
     return action(redirect, target, "Đã cập nhật lượt đặt bàn.", () -> bookings.staffStatus(id, status, actor.getName()));
   }
 
@@ -166,7 +180,8 @@ public class StaffController {
   public String tables(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
       Model model) {
     LocalDate selectedDate = date == null ? schedule.today() : date;
-    model.addAttribute("areas", workspace.board(selectedDate));
+    model.addAttribute("board", workspace.board(selectedDate));
+    model.addAttribute("tableKinds", TableKind.values());
     model.addAttribute("selectedDate", selectedDate);
     model.addAttribute("today", schedule.today());
     return "staff/tables";
@@ -221,7 +236,7 @@ public class StaffController {
   @PostMapping("/orders/{id}/pay")
   public String pay(@PathVariable Long id, @RequestParam String method, @RequestParam(required = false) String reference,
       @RequestParam(defaultValue = "false") boolean received, Authentication actor, RedirectAttributes redirect) {
-    return action(redirect, ORDERS + "/" + id, "Đã xác nhận thanh toán.",
+    return action(redirect, ORDERS + "/" + id, "Đã xác nhận thanh toán và kết thúc phục vụ. Bàn đã được giải phóng.",
         () -> orders.collect(id, method, reference, received, actor.getName()));
   }
 
@@ -268,7 +283,6 @@ public class StaffController {
   private void bookingOptions(Model model) {
     var activeTables = tables.findByActiveTrueOrderByCodeAsc();
     model.addAttribute("tableOptions", activeTables);
-    model.addAttribute("areaOptions", activeTables.stream().map(RestaurantTable::getTableType).distinct().sorted().toList());
     model.addAttribute("timeSlots", schedule.getTimeSlots());
     model.addAttribute("today", schedule.today());
   }

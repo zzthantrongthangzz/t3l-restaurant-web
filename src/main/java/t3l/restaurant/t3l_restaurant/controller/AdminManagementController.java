@@ -16,6 +16,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import t3l.restaurant.t3l_restaurant.dto.AdminAccountForm;
 import t3l.restaurant.t3l_restaurant.dto.AdminTableForm;
 import t3l.restaurant.t3l_restaurant.dto.RestaurantSettingsForm;
+import t3l.restaurant.t3l_restaurant.entity.TableKind;
 import t3l.restaurant.t3l_restaurant.service.AdminAccountService;
 import t3l.restaurant.t3l_restaurant.service.AdminInventoryService;
 import t3l.restaurant.t3l_restaurant.service.AdminSettingsService;
@@ -91,12 +92,11 @@ public class AdminManagementController {
   }
 
   @GetMapping("/inventory")
-  public String inventory(@RequestParam(defaultValue = "") String area, Model model) {
-    var areas = inventory.sectionList("AREA");
-    model.addAttribute("areas", areas);
-    model.addAttribute("inactiveAreas", areas.stream().filter(item -> !item.active()).map(AdminInventoryService.SectionRow::name).toList());
-    model.addAttribute("tables", inventory.tables().stream().filter(table -> area.isBlank() || area.equals(table.getTableType())).toList());
-    model.addAttribute("area", area);
+  public String inventory(@RequestParam(required = false) TableKind kind, Model model) {
+    model.addAttribute("activeTableIds", inventory.activeTableIds());
+    model.addAttribute("tables", inventory.tables().stream().filter(table -> kind == null || kind == table.getKind()).toList());
+    model.addAttribute("selectedKind", kind);
+    model.addAttribute("tableKinds", TableKind.values());
     return "admin/inventory";
   }
 
@@ -133,7 +133,7 @@ public class AdminManagementController {
 
   private String tablePage(Long id, Model model) {
     model.addAttribute("tableId", id);
-    model.addAttribute("areas", inventory.sectionList("AREA"));
+    model.addAttribute("tableKinds", TableKind.values());
     return "admin/table-form";
   }
 

@@ -5,10 +5,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -45,14 +45,15 @@ public class StaffWorkspaceService {
   private final ReservationSchedule schedule;
 
   public enum TableState {
-    FREE("Trống"), PENDING("Chờ nhân viên xác nhận"), RESERVED("Đã đặt"), OCCUPIED("Đang phục vụ"), INACTIVE("Tạm ngưng");
+    FREE("Bàn trống"), PENDING("Đợi xác nhận"), RESERVED("Đã xác nhận"), OCCUPIED("Đang phục vụ"), INACTIVE("Tạm ngưng");
 
     private final String label;
     TableState(String label) { this.label = label; }
     public String getLabel() { return label; }
   }
 
-  public record TableView(RestaurantTable table, TableState state, Reservation current, Reservation next) {}
+  public record TableView(RestaurantTable table, TableState state, Reservation current,
+                          List<Reservation> otherBookings, BookingActions actions, boolean canOrder) {}
   public record Dashboard(LocalDate date, long bookingsToday, long pending, long guestsArrived, long serving,
                           long free, long changeRequests, long awaitingPayment, List<Reservation> upcoming, List<Reservation> toConfirm,
                           List<Reservation> checkedIn) {}
@@ -64,7 +65,7 @@ public class StaffWorkspaceService {
     LocalDateTime now = LocalDateTime.now(schedule.getClock());
     LocalDate today = now.toLocalDate();
     var bookings = reservations.findByReservationDateOrderByReservationTimeAscIdAsc(today);
-    var board = boardAt(today, now).values().stream().flatMap(List::stream).toList();
+    var board = boardAt(today, now);
     var upcoming = Stream.concat(bookings.stream()
         .filter(booking -> SCHEDULED.contains(booking.getStatus()) && !booking.getStartsAt().isBefore(now)),
         reservations.findTop10ByStatusInAndReservationDateGreaterThanOrderByReservationDateAscReservationTimeAscIdAsc(SCHEDULED, today).stream())
@@ -80,38 +81,44 @@ public class StaffWorkspaceService {
   }
 
   @Transactional(readOnly = true)
-  public Map<String, List<TableView>> board() {
-    return boardAt(schedule.today(), LocalDateTime.now(schedule.getClock()));
-  }
-
-  @Transactional(readOnly = true)
-  public Map<String, List<TableView>> board(LocalDate date) {
+  public List<TableView> board(LocalDate date) {
     return boardAt(date, LocalDateTime.now(schedule.getClock()));
   }
 
-  private Map<String, List<TableView>> boardAt(LocalDate date, LocalDateTime now) {
+  private List<TableView> boardAt(LocalDate date, LocalDateTime now) {
     var scheduledByTable = reservations.findByReservationDateBetweenAndStatusNot(date, date, CANCELLED)
-        .stream().filter(booking -> booking.getTable() != null
-            && List.of(PENDING, CONFIRMED, CHECKED_IN, SEATED, COMPLETED).contains(booking.getStatus()))
+        .stream().filter(booking -> booking.getTable() != null && ReservationService.BLOCKING_STATUSES.contains(booking.getStatus()))
         .sorted(Comparator.comparing(Reservation::getStartsAt))
         .collect(Collectors.groupingBy(booking -> booking.getTable().getId()));
-    var arrivedByTable = reservations.findByStatusInAndTableIsNotNull(List.of(SEATED, CHECKED_IN)).stream()
-        .sorted(Comparator.comparing(Reservation::getStartsAt))
-        .collect(Collectors.groupingBy(booking -> booking.getTable().getId()));
-
-    Map<String, List<TableView>> board = new LinkedHashMap<>();
+    var arrivedByTable = date.equals(now.toLocalDate())
+        ? reservations.findByStatusInAndTableIsNotNull(List.of(SEATED, CHECKED_IN)).stream()
+            .collect(Collectors.groupingBy(booking -> booking.getTable().getId()))
+        : Map.<Long, List<Reservation>>of();
+    var bookingIds = Stream.concat(scheduledByTable.values().stream(), arrivedByTable.values().stream())
+        .flatMap(List::stream).map(Reservation::getId).distinct().toList();
+    var lockedOrders = bookingIds.isEmpty() ? java.util.Set.<Long>of()
+        : orders.findByReservation_IdIn(bookingIds).stream().filter(order -> !DiningOrder.DRAFT.equals(order.getStatus()))
+            .map(order -> order.getReservation().getId()).collect(Collectors.toSet());
+    List<TableView> board = new ArrayList<>();
     var activeIds = new java.util.HashSet<>(tables.activeIds());
-    for (RestaurantTable table : tables.findAllByOrderByTableTypeAscCodeAsc()) {
+    var inventory = tables.findAllByOrderByTableTypeAscCodeAsc().stream()
+        .sorted(Comparator.comparing(RestaurantTable::getKind).thenComparing(RestaurantTable::getCode)).toList();
+    for (RestaurantTable table : inventory) {
       var arrived = arrivedByTable.getOrDefault(table.getId(), List.of());
       var scheduled = scheduledByTable.getOrDefault(table.getId(), List.of());
-      var serving = date.equals(now.toLocalDate())
-          ? arrived.stream().filter(booking -> SEATED.equals(booking.getStatus())).findFirst()
-          : java.util.Optional.<Reservation>empty();
-      Reservation current = serving.orElseGet(() -> scheduled.stream().findFirst().orElse(null));
-      var next = scheduled.stream().skip(current == null ? 0 : 1).findFirst().orElse(null);
-      TableState state = !activeIds.contains(table.getId()) ? TableState.INACTIVE : serving.isPresent() ? TableState.OCCUPIED
-          : current == null ? TableState.FREE : PENDING.equals(current.getStatus()) ? TableState.PENDING : TableState.RESERVED;
-      board.computeIfAbsent(table.getTableType(), key -> new ArrayList<>()).add(new TableView(table, state, current, next));
+      Reservation current = arrived.stream().min(Comparator.comparing(booking -> !SEATED.equals(booking.getStatus())))
+          .orElseGet(() -> scheduled.stream()
+              .filter(booking -> !booking.getStartsAt().isBefore(now) || booking.effectiveEndsAt(schedule.getDurationMinutes()).isAfter(now))
+              .findFirst().orElseGet(() -> scheduled.isEmpty() ? null : scheduled.getFirst()));
+      var others = scheduled.stream().filter(booking -> current == null || !Objects.equals(booking.getId(), current.getId())).toList();
+      TableState state = !activeIds.contains(table.getId()) ? TableState.INACTIVE : current == null ? TableState.FREE
+          : switch (current.getStatus()) {
+            case SEATED -> TableState.OCCUPIED;
+            case PENDING -> TableState.PENDING;
+            default -> TableState.RESERVED;
+          };
+      board.add(new TableView(table, state, current, others, current == null ? null : actions(current, now),
+          current != null && !lockedOrders.contains(current.getId())));
     }
     return board;
   }
@@ -149,7 +156,10 @@ public class StaffWorkspaceService {
   public List<ReservationEvent> history(Long id) { return events.findByReservation_IdOrderByIdDesc(id); }
 
   public BookingActions actions(Reservation booking) {
-    var now = LocalDateTime.now(schedule.getClock());
+    return actions(booking, LocalDateTime.now(schedule.getClock()));
+  }
+
+  private BookingActions actions(Reservation booking, LocalDateTime now) {
     boolean pending = PENDING.equals(booking.getStatus());
     boolean confirmed = CONFIRMED.equals(booking.getStatus());
     boolean checkedIn = CHECKED_IN.equals(booking.getStatus());
