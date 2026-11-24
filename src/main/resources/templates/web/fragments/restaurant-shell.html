@@ -20,15 +20,17 @@
         <a th:href="@{/faq}" th:attr="aria-current=${activePage == 'faq' ? 'page' : null}"><svg th:replace="~{web/fragments/restaurant-shell :: icon('help')}"></svg>Câu hỏi thường gặp</a>
         <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/dashboard}"><svg th:replace="~{web/fragments/restaurant-shell :: icon('work')}"></svg>Quản trị</a>
         <a sec:authorize="hasRole('STAFF')" th:href="@{/staff/dashboard}"><svg th:replace="~{web/fragments/restaurant-shell :: icon('work')}"></svg>Vận hành</a>
-        <a sec:authorize="isAnonymous()" class="restaurant-login-link" data-header-login
-           th:href="${loginReturnTo == null} ? @{/login} : @{/login(returnTo=${loginReturnTo})}"
-           th:attr="aria-current=${activePage == 'login' ? 'page' : null}"><svg th:replace="~{web/fragments/restaurant-shell :: icon('account')}"></svg>Đăng nhập</a>
         <div class="restaurant-mobile-account" th:if="${sidebarEmployee != null}">
           <div th:replace="~{account/fragments/sidebar :: employee}"></div>
         </div>
       </nav>
       <div class="restaurant-sidebar-actions">
         <details th:replace="~{account/fragments/navigation :: dropdown}"></details>
+        <a sec:authorize="isAnonymous()" class="restaurant-login-link" data-header-login aria-label="Đăng nhập"
+           th:href="${loginReturnTo == null} ? @{/login} : @{/login(returnTo=${loginReturnTo})}"
+           th:attr="aria-current=${activePage == 'login' ? 'page' : null}">
+          <svg th:replace="~{web/fragments/restaurant-shell :: icon('account')}"></svg><span>Đăng nhập</span>
+        </a>
         <button th:replace="~{web/fragments/theme :: toggle}"></button>
         <div th:replace="~{account/fragments/sidebar :: employee}"></div>
       </div>
