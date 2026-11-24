@@ -16,7 +16,7 @@
 }
 .restaurant-sidebar .home-nav > a::after { content: none; }
 .restaurant-sidebar .home-nav > a:is(:hover, [aria-current="page"]),
-.restaurant-sidebar .home-nav .logout-link:hover { color: var(--accent); background: var(--accent-wash); }
+.restaurant-sidebar .home-nav .logout-link:hover { color: var(--accent-text); background: var(--accent-wash); }
 .restaurant-sidebar .home-nav > a[aria-current="page"] { font-weight: 700; }
 
 @media (min-width: 1101px) {
@@ -38,6 +38,7 @@
   }
   .restaurant-sidebar .home-brand { align-self: center; }
   .home-header.restaurant-sidebar .home-nav {
+    flex: 1;
     display: flex;
     flex-direction: column;
     flex-wrap: nowrap;
@@ -48,6 +49,7 @@
     overflow-y: auto;
     scrollbar-width: thin;
   }
+  .restaurant-sidebar .home-nav > .restaurant-login-link { margin-top: auto; }
   .restaurant-sidebar .home-nav > a:focus-visible,
   .restaurant-sidebar .home-nav .logout-link:focus-visible { outline-offset: -2px; }
   .restaurant-sidebar-actions {
@@ -107,7 +109,7 @@
   display: grid; place-items: center; width: 39px; height: 39px; border: 1px solid var(--border);
   border-radius: 8px; background: var(--surface); color: var(--text); cursor: pointer;
 }
-.sidebar-signout:hover { background: var(--accent-wash); color: var(--accent); }
+.sidebar-signout:hover { background: var(--accent-wash); color: var(--accent-text); }
 .restaurant-mobile-account { padding: 10px 10px 4px; border-top: 1px solid var(--border); }
 .admin-nav-actions .sidebar-employee { width: 100%; }
 .staff-user .sidebar-employee { flex: 1 1 auto; }
@@ -124,3 +126,14 @@
   .restaurant-sidebar-actions .customer-chevron { margin-left: auto; }
   .staff-header .staff-user .sidebar-employee { width: 100%; }
 }
+
+.restaurant-sidebar .home-nav > .restaurant-login-link,
+.restaurant-sidebar .home-nav > a[aria-current="page"] {
+  background: var(--accent-wash);
+  color: var(--accent-text);
+  box-shadow: inset 3px 0 var(--accent);
+  font-weight: 700;
+}
+.restaurant-sidebar .restaurant-nav-icon,
+.sidebar-signout .customer-icon,
+.customer-menu .customer-chevron { color: var(--accent); }

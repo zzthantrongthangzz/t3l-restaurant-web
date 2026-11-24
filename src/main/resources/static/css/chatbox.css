@@ -1,7 +1,7 @@
 .t3l-chat {
   --chat-ink: var(--text, #f6eee1);
   --chat-muted: var(--text-muted, #d1bfa7);
-  --chat-accent: var(--accent, #e6c48d);
+  --chat-accent: var(--accent-text, #e6c48d);
   --chat-action: var(--action, #e6c48d);
   --chat-edge: var(--border, #5a4433);
   position: fixed;

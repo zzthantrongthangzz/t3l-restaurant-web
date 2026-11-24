@@ -37,7 +37,7 @@ Theo hướng dẫn thực hành, Spring MVC nhận yêu cầu tại controller,
 - Khách có tài khoản (`BUYER`) chọn bàn trước. Sau khi lượt đặt bàn được lưu, khách có thể mở thực đơn từ trang kết quả để thêm món vào đơn của lượt đó. Khách cũng có thể xem lịch sử và gửi yêu cầu đổi hoặc hủy. Cấu hình Google hoặc SMS trong `.env` để sử dụng phương thức đăng nhập tương ứng.
 - Nhân viên (`STAFF`) duyệt yêu cầu, check-in, chuyển bàn, gọi món, ghi nhận thanh toán và đối soát ca.
 - Quản trị viên (`ADMIN`) dùng trang chủ và thực đơn chung, đồng thời có bảng điều khiển cho tài khoản, bàn và khu vực, báo cáo doanh thu, hóa đơn, ca, liên hệ, cấu hình và nhật ký. Biểu tượng bút chì trên từng món mở trang chỉnh sửa. Món ẩn và món hết bán vẫn hiển thị cho admin.
-- Nút mặt trăng/mặt trời đổi giữa giao diện sáng trắng–cam và tối đen–hồng. Trình duyệt lưu tùy chọn khi chuyển trang.
+- Nút mặt trăng/mặt trời đổi giữa giao diện sáng trắng–cam và tối xám xanh–san hô. Trình duyệt lưu tùy chọn khi chuyển trang.
 - Tài khoản nhân viên/quản trị đăng nhập tại `/staff/login`. Đặt tên tài khoản và mật khẩu demo trong `.env` theo `.env.example`.
 
 ## Cấu hình Cloudinary
