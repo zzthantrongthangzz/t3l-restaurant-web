@@ -34,6 +34,7 @@
         <div class="table-plan-grid">
           <article class="plan-table-card" th:each="item : ${group.value}"
               th:with="table=${item.table},booking=${item.current},state=${item.state.name()},
+                actions=${booking == null ? null : bookingActions.get(booking.id)},
                 imagePrefix=${state == 'OCCUPIED' ? 'banDo' : (state == 'PENDING' or state == 'RESERVED' ? 'banVang' : 'banXam')},
                 tableImage=${imagePrefix + (table.tableType.toLowerCase().contains('vip') ? '_vip.png' : '_thuong.png')}"
               th:classappend="${state == 'OCCUPIED' ? 'is-serving' : (state == 'RESERVED' ? 'is-booked' : (state == 'TOO_SMALL' ? 'is-too-small' : 'is-' + #strings.toLowerCase(state)))}">
@@ -44,19 +45,30 @@
             <img class="plan-table-image" th:src="@{/images/tables/{image}(image=${tableImage})}" alt="" width="120" height="84" />
             <h3 th:text="${table.code}"></h3><p class="plan-table-meta" th:text="${table.capacity + ' chỗ · ' + table.tableType}"></p>
             <span class="plan-table-state" th:text="${state == 'FREE' ? 'Bàn trống' : (state == 'RESERVED' ? 'Đã xác nhận đặt' : item.state.label)}"></span>
-            <div class="plan-table-customer" th:if="${booking != null}">
+            <div class="plan-table-customer" th:if="${booking != null}"
+                th:attr="data-payment-status-url=@{${opsBase + '/reservations/{id}/payment-status'}(id=${booking.id})}">
               <strong th:text="${booking.guestName}"></strong><span th:text="${booking.guestPhone}"></span>
-              <span th:text="${#temporals.format(booking.startsAt,'dd/MM HH:mm') + ' · ' + booking.guestCount + ' khách · ' + booking.statusLabel + (booking.depositAmount.signum() > 0 ? ' · Cọc: ' + booking.depositStatusLabel : '')}"></span>
+              <span th:text="${#temporals.format(booking.startsAt,'dd/MM HH:mm') + ' · ' + booking.guestCount + ' khách · ' + booking.statusLabel}"></span>
+              <span class="staff-badge staff-deposit-state" th:if="${booking.depositAmount.signum() > 0}" th:text="${booking.depositStatusLabel}"></span>
             </div>
             <div class="plan-table-actions" th:if="${booking != null}">
               <a class="staff-button is-outline" th:href="@{${opsBase + '/reservations/{id}'}(id=${booking.id})}">Chi tiết / chuyển bàn</a>
               <a class="staff-button is-outline" th:if="${state == 'OCCUPIED'}" th:href="@{${opsBase + '/orders/{id}'}(id=${booking.id})}">Đặt món / tính tiền</a>
-              <form th:if="${booking.status == 'CHECKED_IN' and selectedDate == today}" th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
+              <form th:if="${actions != null and actions.confirm}" th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
                 <input type="hidden" name="from" value="table" />
                 <input type="hidden" name="returnDate" th:value="${selectedDate}" />
                 <input type="hidden" name="returnTime" th:value="${selectedTime}" />
                 <input type="hidden" name="returnGuests" th:value="${selectedGuests}" />
-                <button class="staff-button" name="status" value="SEATED">Nhận bàn</button>
+                <button class="staff-button" name="status" value="CONFIRMED" th:disabled="${!actions.confirmEnabled}" th:title="${actions.confirmReason}">Xác nhận đặt bàn</button>
+                <small class="staff-action-reason" th:if="${!actions.confirmEnabled}" th:text="${actions.confirmReason}"></small>
+              </form>
+              <form th:if="${actions != null and actions.receive and selectedDate == today}" th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
+                <input type="hidden" name="from" value="table" />
+                <input type="hidden" name="returnDate" th:value="${selectedDate}" />
+                <input type="hidden" name="returnTime" th:value="${selectedTime}" />
+                <input type="hidden" name="returnGuests" th:value="${selectedGuests}" />
+                <button class="staff-button" name="status" value="SEATED" th:disabled="${!actions.receiveEnabled}" th:title="${actions.receiveReason}">Nhận khách &amp; bàn</button>
+                <small class="staff-action-reason" th:if="${!actions.receiveEnabled}" th:text="${actions.receiveReason}"></small>
               </form>
             </div>
             <form class="plan-table-actions" th:if="${state == 'FREE' or state == 'INACTIVE'}"
@@ -71,5 +83,6 @@
         </div>
       </section>
     </main>
+    <script th:src="@{/js/staff-payment-status.js(v=20261124-sepay)}" defer></script>
   </body>
 </html>

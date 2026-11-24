@@ -44,8 +44,16 @@ public class DiningPayment {
   @Column(name = "paid_at", nullable = false)
   private LocalDateTime paidAt;
 
+  @Column(name = "is_demo", nullable = false)
+  private boolean demo;
+
   public DiningPayment(DiningOrder order, StaffShift shift, String method, String reference,
       BigDecimal depositApplied, String receivedBy, LocalDateTime now) {
+    this(order, shift, method, reference, depositApplied, receivedBy, now, false);
+  }
+
+  public DiningPayment(DiningOrder order, StaffShift shift, String method, String reference,
+      BigDecimal depositApplied, String receivedBy, LocalDateTime now, boolean demo) {
     this.order = order;
     this.shift = shift;
     this.depositApplied = depositApplied;
@@ -54,6 +62,7 @@ public class DiningPayment {
     this.transferReference = reference;
     this.receivedBy = receivedBy;
     this.paidAt = now;
+    this.demo = demo;
   }
 
   public String getMethodLabel() {

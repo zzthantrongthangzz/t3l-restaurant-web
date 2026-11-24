@@ -101,3 +101,20 @@
 .receipt-deposit-form label { grid-column:1/-1; color:#4f4419; font-size:.92rem; font-weight:600; }
 .receipt-deposit-form input { min-height:44px; padding:9px 11px; border:1px solid #cbbf8f; border-radius:6px; background:white; color:#302810; font:inherit; }
 @media(max-width:520px){.receipt-deposit-form{grid-template-columns:1fr}.receipt-deposit-form label{grid-column:auto}}
+.deposit-payment { display: grid; gap: 1rem; }
+.deposit-amounts { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .6rem 1rem; }
+.deposit-amounts p, .deposit-bank-info p { display: flex; justify-content: space-between; gap: 1rem; margin: 0; }
+.deposit-payment-status { margin: 0; color: #b66b2d; font-weight: 700; }
+.deposit-payment[data-status="RECEIVED"] .deposit-payment-status,
+.deposit-payment[data-status="CONFIRMED"] .deposit-payment-status { color: #39745c; }
+.deposit-payment[data-status="REVIEW_REQUIRED"] .deposit-payment-status,
+.deposit-payment[data-status="EXPIRED"] .deposit-payment-status { color: #a03b33; }
+.deposit-transfer { display: grid; grid-template-columns: minmax(180px, 260px) 1fr; gap: 1.25rem; align-items: center; }
+.deposit-qr { display: block; width: min(100%, 260px); height: auto; background: #fff; border: 1px solid #ddd; border-radius: 12px; }
+.deposit-bank-info { display: grid; gap: .65rem; }
+.deposit-bank-info p span { color: #756f68; }
+.deposit-countdown { margin: 0; font-variant-numeric: tabular-nums; }
+.deposit-refund-terms, .deposit-demo-form small { color: #756f68; font-size: .9rem; }
+.deposit-demo-form { display: grid; justify-items: start; gap: .5rem; }
+[hidden] { display: none !important; }
+@media (max-width: 640px) { .deposit-transfer { grid-template-columns: 1fr; } .deposit-qr { margin-inline: auto; } }

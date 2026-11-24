@@ -110,15 +110,16 @@ public class StaffShiftService {
   }
 
   private Totals totals(StaffShift shift, List<CashSale> directSales, List<DiningPayment> received) {
-    BigDecimal cash = totalFor("CASH", directSales, received);
-    return new Totals(received.size(), directSales.size(), reservations.guestsServedByShift(shift.getId()), cash,
-        totalFor("TRANSFER", directSales, received), totalFor("CARD", directSales, received), shift.getOpeningCash().add(cash));
+    var realPayments = received.stream().filter(payment -> !payment.isDemo()).toList();
+    BigDecimal cash = totalFor("CASH", directSales, realPayments);
+    return new Totals(realPayments.size(), directSales.size(), reservations.guestsServedByShift(shift.getId()), cash,
+        totalFor("TRANSFER", directSales, realPayments), totalFor("CARD", directSales, realPayments), shift.getOpeningCash().add(cash));
   }
 
   private BigDecimal totalFor(String method, List<CashSale> directSales, List<DiningPayment> received) {
     return directSales.stream().filter(sale -> method.equals(sale.getPaymentMethod())).map(CashSale::getTotalAmount)
         .reduce(BigDecimal.ZERO, BigDecimal::add)
-        .add(received.stream().filter(payment -> method.equals(payment.getPaymentMethod()))
+        .add(received.stream().filter(payment -> !payment.isDemo() && method.equals(payment.getPaymentMethod()))
             .map(DiningPayment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
   }
 

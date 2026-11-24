@@ -36,16 +36,17 @@ public class AdminReportingService {
         SELECT p.paid_at AS recorded_at, p.received_by AS employee, p.payment_method AS method, p.amount,
           CONCAT('T3L-HD-', o.id) AS reference_code, 'DINING' AS source_type, o.id AS invoice_id
         FROM dining_payments p JOIN dining_orders o ON o.id=p.order_id AND o.status='PAID'
-        WHERE p.paid_at >= :start AND p.paid_at < :end AND (p.amount > 0 OR p.deposit_applied=0)
+        WHERE p.paid_at >= :start AND p.paid_at < :end AND p.is_demo=FALSE AND (p.amount > 0 OR p.deposit_applied=0)
         UNION ALL
         SELECT p.paid_at, p.received_by, 'TRANSFER', p.deposit_applied,
           CONCAT('T3L-HD-',o.id, '-COC'), 'DEPOSIT', o.id
         FROM dining_payments p JOIN dining_orders o ON o.id=p.order_id AND o.status='PAID'
-        WHERE p.paid_at >= :start AND p.paid_at < :end AND p.deposit_applied>0
+        JOIN reservations r ON r.id=o.reservation_id
+        WHERE p.paid_at >= :start AND p.paid_at < :end AND r.deposit_demo=FALSE AND p.deposit_applied>0
         UNION ALL
         SELECT r.deposit_closed_at, '', 'TRANSFER', r.deposit_retained, CONCAT(r.code,'-COC'), 'DEPOSIT_RETAINED', NULL
         FROM reservations r
-        WHERE r.deposit_closed_at >= :start AND r.deposit_closed_at < :end AND r.deposit_retained>0
+        WHERE r.deposit_closed_at >= :start AND r.deposit_closed_at < :end AND r.deposit_retained>0 AND r.deposit_demo=FALSE
         UNION ALL
         SELECT s.created_at, a.username, s.payment_method, s.total_amount, CONCAT('BL-',s.id), 'DIRECT', NULL
         FROM cash_sales s JOIN staff_shifts sh ON sh.id=s.shift_id JOIN app_users a ON a.id=sh.employee_id
@@ -61,7 +62,7 @@ public class AdminReportingService {
   public record RevenueRow(String code, LocalDateTime time, String actor, String method, BigDecimal amount, String source) {}
   public record RevenueSummary(BigDecimal total, long dining, long direct) {}
   public record InvoiceRow(Long id, LocalDateTime time, String bookingCode, String table, String status,
-                           String employee, String method, BigDecimal amount) {
+                           String employee, String method, BigDecimal amount, boolean demo) {
     public String getCode() { return "T3L-HD-" + id; }
     public String getStatusLabel() {
       return switch (status) {
@@ -165,7 +166,7 @@ public class AdminReportingService {
           SELECT i.dish_id, i.dish_name, i.quantity FROM dining_order_items i
           JOIN dining_orders o ON o.id=i.order_id AND o.status='PAID'
           JOIN dining_payments p ON p.order_id=o.id
-          WHERE i.cancelled=FALSE AND p.paid_at >= :start AND p.paid_at < :end
+          WHERE i.cancelled=FALSE AND p.is_demo=FALSE AND p.paid_at >= :start AND p.paid_at < :end
           UNION ALL
           SELECT dish_id,dish_name,quantity FROM cash_sales WHERE created_at >= :start AND created_at < :end
         ) s LEFT JOIN dishes d ON d.id=s.dish_id
@@ -262,10 +263,11 @@ public class AdminReportingService {
         """;
     return page("", criteria, """
         SELECT o.id, COALESCE(p.paid_at,o.opened_at) AS recorded_at, r.code, t.code AS table_code, o.status,
-          COALESCE(p.received_by,o.opened_by) AS employee, p.payment_method, COALESCE(o.total_amount,p.amount) AS amount
+          COALESCE(p.received_by,o.opened_by) AS employee, p.payment_method, COALESCE(o.total_amount,p.amount) AS amount,
+          COALESCE(p.is_demo,FALSE) AS is_demo
         """, " ORDER BY recorded_at DESC, o.id DESC", args, page,
         (row, index) -> new InvoiceRow(row.getLong("id"), row.getObject("recorded_at", LocalDateTime.class), row.getString("code"),
-            row.getString("table_code"), row.getString("status"), row.getString("employee"), row.getString("payment_method"), row.getBigDecimal("amount")));
+            row.getString("table_code"), row.getString("status"), row.getString("employee"), row.getString("payment_method"), row.getBigDecimal("amount"), row.getBoolean("is_demo")));
   }
 
   @Transactional(readOnly = true)
@@ -281,7 +283,7 @@ public class AdminReportingService {
           s.opening_cash + CASE WHEN s.status='CLOSED' THEN COALESCE(s.cash_sales,0)
             ELSE COALESCE((SELECT SUM(p.amount) FROM dining_payments p
                            JOIN dining_orders o ON o.id=p.order_id AND o.status='PAID'
-                           WHERE p.shift_id=s.id AND p.payment_method='CASH'),0)
+                           WHERE p.shift_id=s.id AND p.payment_method='CASH' AND p.is_demo=FALSE),0)
                + COALESCE((SELECT SUM(c.total_amount) FROM cash_sales c
                            WHERE c.shift_id=s.id AND c.payment_method='CASH'),0) END AS expected
         """, " ORDER BY s.opened_at DESC,s.id DESC", args, page,

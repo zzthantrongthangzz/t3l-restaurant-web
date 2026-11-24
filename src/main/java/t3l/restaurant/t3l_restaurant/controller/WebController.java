@@ -36,6 +36,9 @@ import t3l.restaurant.t3l_restaurant.service.CustomerAccountService.DuplicateEma
 import t3l.restaurant.t3l_restaurant.service.ReservationDrafts;
 import t3l.restaurant.t3l_restaurant.service.PublicTableBoardService;
 import t3l.restaurant.t3l_restaurant.service.PreorderService;
+import t3l.restaurant.t3l_restaurant.service.PaymentIntentService;
+import t3l.restaurant.t3l_restaurant.service.PaymentVerificationService;
+import t3l.restaurant.t3l_restaurant.service.SepayProperties;
 
 @Controller
 public class WebController {
@@ -52,6 +55,9 @@ public class WebController {
   private final DiningOrderRepository diningOrders;
   private final DiningPaymentRepository diningPayments;
   private final PreorderService preorders;
+  private final PaymentIntentService paymentIntents;
+  private final PaymentVerificationService paymentVerification;
+  private final SepayProperties sepay;
 
   public WebController(
       DishRepository dishes,
@@ -62,7 +68,8 @@ public class WebController {
       FaqRepository faqs,
       CustomerAccountService customers, ReservationDrafts drafts, Validator validator,
       PublicTableBoardService publicTableBoard, DiningOrderRepository diningOrders, DiningPaymentRepository diningPayments,
-      PreorderService preorders) {
+      PreorderService preorders, PaymentIntentService paymentIntents,
+      PaymentVerificationService paymentVerification, SepayProperties sepay) {
     this.dishes = dishes;
     this.restaurantTables = restaurantTables;
     this.reservationService = reservationService;
@@ -76,6 +83,9 @@ public class WebController {
     this.diningOrders = diningOrders;
     this.diningPayments = diningPayments;
     this.preorders = preorders;
+    this.paymentIntents = paymentIntents;
+    this.paymentVerification = paymentVerification;
+    this.sepay = sepay;
   }
 
   @GetMapping("/")
@@ -173,23 +183,39 @@ public class WebController {
     return bookingPage(model, customer, draft, form, rules, board, !choose && (resumed || form.getTableId() != null));
   }
 
-  @PostMapping("/reservations/{code}/deposit-reference")
-  public String submitDepositReference(@PathVariable String code, @RequestParam String reference,
-      Authentication authentication, HttpServletRequest request, RedirectAttributes redirect) {
-    UserAccount customer = customers.signedInCustomer(authentication);
-    Reservation booking = reservationService.findVisibleByCode(code, customer,
-        confirmationAccess.canView(request.getSession(false), code));
-    if (booking == null) {
-      throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
-    }
+  @GetMapping("/reservations/{code}/payment-status")
+  @ResponseBody
+  public PaymentIntentService.PaymentStatus paymentStatus(@PathVariable String code,
+      Authentication authentication, HttpServletRequest request) {
+    Reservation booking = visibleReservation(code, authentication, request);
+    if (booking == null) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
+    return paymentIntents.depositStatus(booking);
+  }
+
+  @PostMapping("/reservations/{code}/payment-demo")
+  public String demoDeposit(@PathVariable String code, Authentication authentication,
+      HttpServletRequest request, RedirectAttributes redirect) {
+    Reservation booking = visibleReservation(code, authentication, request);
+    if (booking == null) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
     try {
-      reservationService.submitDepositReference(booking.getId(), booking.getCustomerId() == null ? null : customerId(customer), reference);
-      redirect.addFlashAttribute("notice", "Đã gửi mã giao dịch. Nhân viên sẽ đối chiếu khoản cọc.");
-    } catch (IllegalArgumentException exception) {
+      var checkout = paymentIntents.depositCheckout(booking.getId());
+      if (checkout == null) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
+      paymentVerification.simulate(checkout.intent().getPaymentCode());
+      redirect.addFlashAttribute("notice", "Đã ghi nhận khoản cọc DEMO; nhân viên có thể xác nhận đặt bàn.");
+    } catch (org.springframework.web.server.ResponseStatusException exception) {
+      throw exception;
+    } catch (BookingException exception) {
       redirect.addFlashAttribute("error", exception.getMessage());
+    } catch (RuntimeException exception) {
+      redirect.addFlashAttribute("error", "Chưa thể ghi nhận giao dịch DEMO. Vui lòng tải lại trang và thử lại.");
     }
     redirect.addAttribute("code", code);
     return "redirect:/reservations/confirmation";
+  }
+
+  private Reservation visibleReservation(String code, Authentication authentication, HttpServletRequest request) {
+    return reservationService.findVisibleByCode(code, customers.signedInCustomer(authentication),
+        confirmationAccess.canView(request.getSession(false), code));
   }
 
   @PostMapping("/reservations")
@@ -363,6 +389,9 @@ public class WebController {
       if (order != null) model.addAttribute("payment", diningPayments.findByOrder_Id(order.getId()).orElse(null));
       model.addAttribute("depositRefundTerms", reservationService.depositRefundTerms());
       model.addAttribute("depositOverdue", reservation.hasExpiredDeposit(java.time.LocalDateTime.now(reservationSchedule.getClock())));
+      model.addAttribute("depositCheckout", paymentIntents.depositCheckout(reservation.getId()));
+      model.addAttribute("paymentStatus", paymentIntents.depositStatus(reservation));
+      model.addAttribute("demoEnabled", sepay.demoAllowed());
     }
     return "web/confirmation";
   }

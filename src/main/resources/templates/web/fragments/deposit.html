@@ -1,24 +1,39 @@
-<section xmlns:th="http://www.thymeleaf.org" th:fragment="details(booking)" class="receipt-deposit"
-    th:if="${booking.depositAmount.signum() > 0 or booking.depositPaid.signum() > 0}">
-  <h3>Tiền đặt cọc</h3>
-  <p>Cọc yêu cầu <strong th:text="${#numbers.formatInteger(booking.depositAmount,1,'POINT') + ' đ'}"></strong></p>
-  <p>Đã nhận <strong th:text="${#numbers.formatInteger(booking.depositPaid,1,'POINT') + ' đ'}"></strong></p>
-  <p>Trạng thái <strong th:text="${depositOverdue ? 'Quá hạn cọc, bàn đã được giải phóng' : booking.depositStatusLabel}"></strong></p>
-  <p th:if="${booking.depositStatus == 'WAITING_PAYMENT'}">
-    Còn phải cọc <strong th:text="${#numbers.formatInteger(booking.depositRemaining,1,'POINT') + ' đ'}"></strong>
-    <span th:if="${booking.depositDueAt != null}" th:text="${'trước ' + #temporals.format(booking.depositDueAt,'HH:mm · dd/MM/yyyy')}"></span>.
+<section xmlns:th="http://www.thymeleaf.org" th:fragment="details(booking)" class="receipt-deposit deposit-payment"
+    th:if="${booking.depositAmount.signum() > 0 or booking.depositPaid.signum() > 0}"
+    th:attr="data-payment-status-url=@{/reservations/{code}/payment-status(code=${booking.code})},data-status=${paymentStatus.status}">
+  <h3>Thanh toán tiền đặt cọc</h3>
+  <div class="deposit-amounts">
+    <p th:if="${preorder != null}">Tổng món đặt trước <strong th:text="${#numbers.formatInteger(preorder.preorderTotal,1,'POINT') + ' đ'}"></strong></p>
+    <p>Số tiền cần cọc <strong th:text="${#numbers.formatInteger(booking.depositAmount,1,'POINT') + ' đ'}"></strong></p>
+    <p>Đã nhận <strong th:text="${#numbers.formatInteger(booking.depositPaid,1,'POINT') + ' đ'}"></strong></p>
+  </div>
+  <p class="deposit-payment-status" data-payment-status-text role="status" th:text="${paymentStatus.label}"></p>
+  <span class="staff-badge is-warning" data-payment-demo-label th:if="${paymentStatus.demo}">DEMO · không tính doanh thu thực tế</span>
+  <p class="deposit-countdown" data-payment-countdown
+      th:if="${paymentStatus.status == 'WAITING' and booking.depositDueAt != null}"
+      th:attr="data-seconds=${paymentStatus.remainingSeconds}"></p>
+  <p th:if="${depositOverdue}" class="deposit-expired">Thời hạn thanh toán đã kết thúc; bàn đã được giải phóng.</p>
+
+  <div class="deposit-transfer" th:if="${depositCheckout != null and depositCheckout.hasQr() and paymentStatus.status == 'WAITING'}">
+    <img class="deposit-qr" th:src="${depositCheckout.qrUrl}" alt="Mã QR chuyển khoản tiền đặt cọc" width="260" height="260" />
+    <div class="deposit-bank-info">
+      <p><span>Ngân hàng</span><strong th:text="${depositCheckout.bankName}"></strong></p>
+      <p><span>Số tài khoản</span><strong th:text="${depositCheckout.bankAccount}"></strong></p>
+      <p><span>Chủ tài khoản</span><strong th:text="${depositCheckout.accountHolder}"></strong></p>
+      <p><span>Số tiền</span><strong th:text="${#numbers.formatInteger(depositCheckout.intent.amount,1,'POINT') + ' đ'}"></strong></p>
+      <p><span>Nội dung chuyển khoản</span><strong data-payment-code th:text="${depositCheckout.intent.paymentCode}"></strong></p>
+      <button class="home-button is-outline" type="button" data-copy-payment-code>Sao chép nội dung</button>
+    </div>
+  </div>
+  <p th:if="${depositCheckout != null and !depositCheckout.hasQr() and paymentStatus.status == 'WAITING'}">
+    Nhà hàng chưa cấu hình đủ thông tin nhận chuyển khoản. Vui lòng liên hệ nhân viên để được hỗ trợ.
   </p>
-  <p th:if="${booking.depositStatus == 'TRANSFER_SUBMITTED' and booking.depositReviewDueAt != null}"
-      th:text="${'Đang đối soát · hạn ' + #temporals.format(booking.depositReviewDueAt,'HH:mm · dd/MM/yyyy')}"></p>
-  <p th:if="${booking.depositRetained.signum() > 0}" th:text="${'Giữ cọc ' + #numbers.formatInteger(booking.depositRetained,1,'POINT') + ' đ'}"></p>
-  <p th:if="${booking.refundRemaining.signum() > 0}" th:text="${'Chờ hoàn ' + #numbers.formatInteger(booking.refundRemaining,1,'POINT') + ' đ'}"></p>
-  <p th:if="${booking.depositRefunded.signum() > 0}" th:text="${'Đã hoàn ' + #numbers.formatInteger(booking.depositRefunded,1,'POINT') + ' đ'}"></p>
-  <form class="receipt-deposit-form" th:if="${!depositOverdue and booking.status == 'CONFIRMED' and booking.depositStatus == 'WAITING_PAYMENT'}"
-      th:action="@{/reservations/{code}/deposit-reference(code=${booking.code})}" method="post">
-    <p>Chuyển khoản theo hướng dẫn của nhà hàng, rồi gửi mã để nhân viên đối soát.</p>
-    <label for="deposit-reference">Mã giao dịch chuyển khoản</label>
-    <input id="deposit-reference" name="reference" minlength="4" maxlength="80" required autocomplete="off" />
-    <button class="home-button" type="submit">Gửi mã giao dịch</button>
+
+  <form th:if="${demoEnabled and paymentStatus.status == 'WAITING'}"
+      th:action="@{/reservations/{code}/payment-demo(code=${booking.code})}" method="post" class="deposit-demo-form">
+    <button class="home-button is-outline" type="submit">[DEMO] Giả lập đã chuyển khoản</button>
+    <small>Chỉ dùng trong môi trường local, development hoặc QA. Giao dịch DEMO không tính vào doanh thu thực tế.</small>
   </form>
-  <p th:text="${depositRefundTerms}"></p>
+  <p class="deposit-refund-terms" th:text="${depositRefundTerms}"></p>
+  <script th:src="@{/js/payment-status.js(v=20261124-sepay-status-fix)}" defer></script>
 </section>

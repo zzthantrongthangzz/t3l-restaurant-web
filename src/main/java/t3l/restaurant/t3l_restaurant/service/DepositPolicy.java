@@ -60,7 +60,9 @@ public class DepositPolicy {
   public int noShowPercent() { return noShowRefundPercent; }
 
   public String refundTerms() {
-    return "Hủy trước ít nhất " + fullRefundNoticeMinutes + " phút: hoàn 100%; hủy muộn: hoàn "
+    String notice = fullRefundNoticeMinutes == 1440 ? "24 giờ"
+        : fullRefundNoticeMinutes % 60 == 0 ? (fullRefundNoticeMinutes / 60) + " giờ" : fullRefundNoticeMinutes + " phút";
+    return "Hủy trước ít nhất " + notice + ": hoàn 100%; hủy muộn: hoàn "
         + lateRefundPercent + "%; không đến: hoàn " + noShowRefundPercent
         + "%. Nhà hàng hủy hoặc không kịp xác nhận thanh toán: hoàn 100% tiền đã nhận.";
   }

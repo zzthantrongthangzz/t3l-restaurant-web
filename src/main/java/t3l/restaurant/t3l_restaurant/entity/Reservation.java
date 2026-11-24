@@ -3,6 +3,7 @@ package t3l.restaurant.t3l_restaurant.entity;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -91,6 +92,9 @@ public class Reservation {
 
   @Column(name = "deposit_status", nullable = false, length = 32)
   private String depositStatus = "NOT_REQUIRED";
+
+  @Column(name = "deposit_demo", nullable = false)
+  private boolean depositDemo;
 
   @Column(name = "deposit_reference", length = 80)
   private String depositReference;
@@ -194,9 +198,6 @@ public class Reservation {
     if (depositPaid.compareTo(amount) >= 0) {
       depositStatus = depositPaid.signum() == 0 ? "NOT_REQUIRED" : "PAID";
       depositDueAt = null;
-    } else if (PENDING.equals(status)) {
-      depositStatus = "PENDING_STAFF_CONFIRMATION";
-      depositDueAt = null;
     } else {
       depositStatus = "WAITING_PAYMENT";
       if (depositDueAt == null || due.isBefore(depositDueAt)) depositDueAt = due;
@@ -216,7 +217,7 @@ public class Reservation {
   public BigDecimal getAvailableDeposit() { return "PAID".equals(depositStatus) ? depositPaid : BigDecimal.ZERO; }
 
   public boolean hasExpiredDeposit(LocalDateTime now) {
-    if (!CONFIRMED.equals(status)) return false;
+    if (!PENDING.equals(status) && !CONFIRMED.equals(status)) return false;
     LocalDateTime deadline = switch (depositStatus) {
       case "WAITING_PAYMENT" -> depositDueAt;
       case "TRANSFER_SUBMITTED" -> depositReviewDueAt;
@@ -246,6 +247,20 @@ public class Reservation {
       depositStatus = "PAID";
       depositDueAt = null;
     } else depositStatus = "WAITING_PAYMENT";
+  }
+
+  public boolean receiveVerifiedDeposit(BigDecimal amount, String transactionReference, boolean demo) {
+    if (!List.of("WAITING_PAYMENT", "TRANSFER_SUBMITTED").contains(depositStatus)
+        || amount == null || amount.compareTo(getDepositRemaining()) != 0 || amount.signum() <= 0
+        || (!PENDING.equals(status) && !CONFIRMED.equals(status)) || depositClosedAt != null) return false;
+    depositPaid = depositPaid.add(amount);
+    depositReference = transactionReference;
+    depositSubmittedAmount = null;
+    depositReviewDueAt = null;
+    depositDueAt = null;
+    depositDemo = depositDemo || demo;
+    depositStatus = "PAID";
+    return true;
   }
 
   public void closeDeposit(int refundPercent, boolean expired, LocalDateTime now) {
@@ -282,6 +297,7 @@ public class Reservation {
       case "PENDING_STAFF_CONFIRMATION" -> "Chờ duyệt đặt bàn";
       case "WAITING_PAYMENT" -> "Chờ thanh toán cọc";
       case "TRANSFER_SUBMITTED" -> "Chờ xác nhận giao dịch";
+      case "PAYMENT_REVIEW_REQUIRED" -> "Cần đối soát tiền cọc";
       case "PAID" -> "Đã thanh toán cọc";
       case "APPLIED" -> "Đã khấu trừ vào hóa đơn";
       case "REFUND_PENDING" -> "Chờ hoàn tiền cọc";

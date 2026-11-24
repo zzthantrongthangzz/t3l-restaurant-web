@@ -8,7 +8,7 @@
     <meta name="theme-color" content="#171411" />
     <title>Xác nhận đặt bàn | T3L Restaurant</title>
     <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
-    <link rel="stylesheet" th:href="@{/css/confirmation.css(v=20261124-deposit)}" />
+    <link rel="stylesheet" th:href="@{/css/confirmation.css(v=20261124-sepay)}" />
   </head>
   <body class="home confirmation-page">
     <a class="skip-link" href="#main">Chuyển đến thông tin đặt bàn</a>
@@ -23,6 +23,7 @@
             <svg th:unless="${confirmed or closedEarly}" viewBox="0 0 32 32"><circle cx="16" cy="16" r="10" /><path d="M16 10v6l4 3" /></svg>
           </div>
           <th:block th:switch="${reservation.status}">
+            <th:block th:case="'PENDING_CONFIRMATION'"><th:block th:if="${reservation.depositAmount.signum() > 0 and reservation.depositStatus == 'PAID'}"><h1 id="receipt-title">Đã nhận tiền cọc – <em>chờ nhà hàng xác nhận.</em></h1><p>SePay đã xác minh khoản cọc. Nhân viên T3L sẽ xác nhận chỗ ngồi và gửi thông báo cho bạn.</p></th:block><th:block th:if="${reservation.depositAmount.signum() > 0 and reservation.depositStatus != 'PAID'}"><h1 id="receipt-title">Đã giữ bàn tạm thời – <em>vui lòng thanh toán cọc.</em></h1><p>Quét mã QR bên dưới để thanh toán đúng số tiền và nội dung. Sau khi SePay xác minh, nhân viên sẽ xác nhận đặt bàn.</p></th:block><th:block th:if="${reservation.depositAmount.signum() <= 0}"><h1 id="receipt-title">Đã tiếp nhận <em>yêu cầu của bạn.</em></h1><p>Nhân viên T3L sẽ kiểm tra và xác nhận chỗ ngồi trong thời gian sớm nhất.</p></th:block></th:block>
             <th:block th:case="'CONFIRMED'"><h1 id="receipt-title" th:text="${reservation.depositStatus == 'WAITING_PAYMENT' or reservation.depositStatus == 'TRANSFER_SUBMITTED' ? 'Chỗ ngồi đã duyệt, chờ hoàn tất tiền cọc.' : 'Cuộc hẹn đã được xác nhận.'}"></h1><p th:text="${reservation.depositStatus == 'WAITING_PAYMENT' or reservation.depositStatus == 'TRANSFER_SUBMITTED' ? 'Nhân viên đã duyệt chỗ. Vui lòng thanh toán cọc và chờ đối chiếu để hoàn tất đặt bàn.' : 'Thông tin đặt bàn của bạn đã được nhân viên xác nhận. T3L mong được đón tiếp bạn trong buổi hẹn sắp tới.'}"></p></th:block>
             <th:block th:case="'CANCELLED'"><h1 id="receipt-title">Yêu cầu đặt bàn <em>đã được hủy.</em></h1><p>Yêu cầu này đã được hủy và không còn giữ chỗ.<br /> Hẹn gặp bạn tại T3L trong một dịp khác.</p></th:block>
             <th:block th:case="'CHECKED_IN'"><h1 id="receipt-title">T3L đã <em>đón tiếp bạn.</em></h1><p>Nhân viên đã ghi nhận bạn đến và sẽ hướng dẫn bạn nhận bàn.</p></th:block>
@@ -82,7 +83,7 @@
               <h2 id="next-title">Hương vị tinh tế.<br /><em>Khoảnh khắc đáng nhớ.</em></h2>
               <ol class="receipt-steps" th:unless="${closedEarly}">
                 <li class="step-done"><span aria-hidden="true">01</span><div><h3>Tiếp nhận yêu cầu</h3><p>Thông tin buổi hẹn đã được ghi nhận.</p></div></li>
-                <li th:class="${confirmed ? 'step-done' : 'step-current'}"><span aria-hidden="true">02</span><div><h3 th:text="${confirmed ? 'Đã xác nhận chỗ ngồi' : 'Nhân viên xác nhận'}"></h3><p th:text="${confirmed ? 'Đặt bàn đã được xác nhận.' : 'Chúng tôi sẽ liên hệ để xác nhận với bạn.'}"></p></div></li>
+                <li th:class="${confirmed ? 'step-done' : 'step-current'}"><span aria-hidden="true">02</span><div><h3 th:text="${confirmed ? 'Đã xác nhận chỗ ngồi' : (paymentStatus.status == 'RECEIVED' ? 'Đã nhận cọc · chờ nhà hàng' : (paymentStatus.status == 'NO_DEPOSIT' ? 'Nhân viên xác nhận' : 'Thanh toán cọc · chờ xác minh'))}"></h3><p th:text="${confirmed ? 'Đặt bàn đã được xác nhận.' : (paymentStatus.status == 'RECEIVED' ? 'Nhân viên sẽ xác nhận đặt bàn sau khi đã nhận đủ tiền cọc.' : (paymentStatus.status == 'NO_DEPOSIT' ? 'Yêu cầu đang chờ nhà hàng xác nhận.' : 'SePay tự động xác minh khoản chuyển trước khi nhân viên xác nhận.'))}"></p></div></li>
                 <li th:classappend="${reservation.status == 'COMPLETED' ? 'step-done' : ''}"><span aria-hidden="true">03</span><div><h3>Hẹn gặp tại T3L</h3><p>Thưởng thức món ngon và những câu chuyện.</p></div></li>
               </ol>
               <div class="receipt-cancel-note" th:if="${closedEarly}"><p>Để sắp xếp một cuộc hẹn khác, bạn có thể gửi yêu cầu đặt bàn mới.</p><a class="home-text-link" th:href="@{/reservations/new}">Chọn buổi hẹn khác <span aria-hidden="true">↗</span></a></div>

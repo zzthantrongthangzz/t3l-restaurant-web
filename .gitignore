@@ -23,3 +23,4 @@ Thumbs.db
 # Docker local overrides
 .docker/
 docker-compose.override.yml
+database/backups/

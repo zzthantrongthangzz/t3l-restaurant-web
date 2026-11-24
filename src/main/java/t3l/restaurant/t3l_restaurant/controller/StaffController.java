@@ -11,6 +11,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.TransientDataAccessException;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -32,6 +33,9 @@ import t3l.restaurant.t3l_restaurant.service.ReservationSchedule;
 import t3l.restaurant.t3l_restaurant.service.ReservationService;
 import t3l.restaurant.t3l_restaurant.service.StaffShiftService;
 import t3l.restaurant.t3l_restaurant.service.StaffWorkspaceService;
+import t3l.restaurant.t3l_restaurant.service.PaymentIntentService;
+import t3l.restaurant.t3l_restaurant.service.PaymentVerificationService;
+import t3l.restaurant.t3l_restaurant.service.SepayProperties;
 
 @Controller
 @RequestMapping({"/staff", "/admin"})
@@ -52,6 +56,9 @@ public class StaffController {
   private final ReservationSchedule schedule;
   private final t3l.restaurant.t3l_restaurant.service.PreorderService preorders;
   private final HttpServletRequest request;
+  private final PaymentIntentService paymentIntents;
+  private final PaymentVerificationService paymentVerification;
+  private final SepayProperties sepay;
 
   @ModelAttribute("opsBase")
   String operationsBase() {
@@ -60,18 +67,19 @@ public class StaffController {
 
   @GetMapping("/reservations")
   public String reservations(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-      @RequestParam(defaultValue = "") String status, @RequestParam(defaultValue = "") String name,
-      @RequestParam(defaultValue = "") String phone, @RequestParam(defaultValue = "") String code,
-      @RequestParam(defaultValue = "0") int page, Model model) {
-    var results = workspace.search(date, status, name.strip(), phone.strip(), code.strip(), page);
+      @RequestParam(defaultValue = "") String status, @RequestParam(defaultValue = "") String q,
+      @RequestParam(defaultValue = "0") int page, Authentication actor, Model model) {
+    var results = workspace.searchQuick(date, status, q, page);
+    boolean shiftOpen = shifts.current(actor.getName()) != null;
+    var bookingActions = results.getContent().stream().collect(java.util.stream.Collectors.toMap(
+        Reservation::getId, booking -> workspace.actions(booking, shiftOpen)));
     var labels = new LinkedHashMap<String, String>();
     StaffWorkspaceService.STATUSES.forEach(value -> labels.put(value, Reservation.labelFor(value)));
     model.addAttribute("results", results);
     model.addAttribute("date", date);
     model.addAttribute("status", status);
-    model.addAttribute("name", name);
-    model.addAttribute("phone", phone);
-    model.addAttribute("code", code);
+    model.addAttribute("q", q);
+    model.addAttribute("bookingActions", bookingActions);
     model.addAttribute("statuses", labels);
     model.addAttribute("changeRequests", changes.pendingReviews());
     return "staff/reservations";
@@ -119,12 +127,14 @@ public class StaffController {
   }
 
   @GetMapping("/reservations/{id}")
-  public String reservation(@PathVariable Long id, Model model) {
+  public String reservation(@PathVariable Long id, Authentication actor, Model model) {
     var view = requireBooking(id);
     var booking = view.booking();
     model.addAttribute("booking", booking);
-    model.addAttribute("actions", workspace.actions(booking));
+    model.addAttribute("actions", workspace.actions(booking, shifts.current(actor.getName()) != null));
     model.addAttribute("order", view.order());
+    model.addAttribute("depositCheckout", paymentIntents.depositCheckout(booking.getId()));
+    model.addAttribute("depositPaymentStatus", paymentIntents.depositStatus(booking));
     model.addAttribute("unavailablePreorders", booking.isOpenBooking() ? preorders.unavailable(view.order()) : java.util.Set.of());
     model.addAttribute("history", workspace.history(id));
     model.addAttribute("changes", changes.history(id));
@@ -138,6 +148,12 @@ public class StaffController {
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate returnDate,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime returnTime,
       @RequestParam(required = false) Integer returnGuests, Authentication actor, RedirectAttributes redirect) {
+    if (Reservation.SEATED.equals(status)) {
+      return action(redirect, ORDERS + "/" + id, "Đã nhận khách và bàn. Đơn gọi món đã sẵn sàng.", () -> {
+        bookings.staffStatus(id, status, actor.getName());
+        orders.open(id, actor.getName());
+      });
+    }
     String target = switch (from) {
       case "detail" -> RESERVATIONS + "/" + id;
       case "table" -> TABLES;
@@ -146,6 +162,13 @@ public class StaffController {
     };
     if (TABLES.equals(target)) keepBoardFilters(redirect, returnDate, returnTime, returnGuests);
     return action(redirect, target, "Đã cập nhật lượt đặt bàn.", () -> bookings.staffStatus(id, status, actor.getName()));
+  }
+
+  @GetMapping("/reservations/{id}/payment-status")
+  @ResponseBody
+  public PaymentIntentService.PaymentStatus reservationPaymentStatus(@PathVariable Long id, Authentication actor) {
+    var view = requireBooking(id);
+    return paymentIntents.depositStatus(view.booking(), shifts.current(actor.getName()) != null);
   }
 
   @PostMapping("/reservations/{id}/deposit")
@@ -189,7 +212,7 @@ public class StaffController {
   @GetMapping("/tables")
   public String tables(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time,
-      @RequestParam(defaultValue = "1") int guests, Model model) {
+      @RequestParam(defaultValue = "1") int guests, Authentication actor, Model model) {
     var today = schedule.today();
     var rules = schedule.rules();
     var slots = rules.slots();
@@ -197,7 +220,13 @@ public class StaffController {
     LocalTime selectedTime = time != null && slots.contains(time) ? time
         : selectedDate.equals(today) ? null : slots.getFirst();
     int selectedGuests = Math.clamp(guests, 1, 20);
-    model.addAttribute("areas", workspace.board(selectedDate, selectedTime, selectedGuests, rules.duration()));
+    var areas = workspace.board(selectedDate, selectedTime, selectedGuests, rules.duration());
+    boolean shiftOpen = shifts.current(actor.getName()) != null;
+    var bookingActions = areas.values().stream().flatMap(java.util.Collection::stream).map(item -> item.current())
+        .filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toMap(
+            Reservation::getId, booking -> workspace.actions(booking, shiftOpen)));
+    model.addAttribute("areas", areas);
+    model.addAttribute("bookingActions", bookingActions);
     model.addAttribute("selectedDate", selectedDate);
     model.addAttribute("selectedTime", selectedTime);
     model.addAttribute("selectedGuests", selectedGuests);
@@ -234,6 +263,10 @@ public class StaffController {
     var view = requireBooking(id);
     model.addAttribute("view", view);
     model.addAttribute("dishes", dishes.findByAvailableTrueOrderByCategoryNameAscNameAsc());
+    var checkout = paymentIntents.invoiceCheckout(id);
+    model.addAttribute("invoiceCheckout", checkout);
+    model.addAttribute("invoicePaymentStatus", paymentIntents.intentStatus(checkout == null ? null : checkout.intent()));
+    model.addAttribute("demoEnabled", sepay.demoAllowed());
     return "staff/order";
   }
 
@@ -261,10 +294,36 @@ public class StaffController {
   }
 
   @PostMapping("/orders/{id}/pay")
-  public String pay(@PathVariable Long id, @RequestParam String method, @RequestParam(required = false) String reference,
+  public String pay(@PathVariable Long id, @RequestParam String method, @RequestParam(required = false) String paymentCode,
       @RequestParam(defaultValue = "false") boolean received, Authentication actor, RedirectAttributes redirect) {
+    if ("TRANSFER".equals(method)) {
+      return action(redirect, ORDERS + "/" + id, "Đã xác nhận thanh toán chuyển khoản.",
+          () -> orders.collectVerifiedTransfer(id, paymentCode, actor.getName()));
+    }
     return action(redirect, ORDERS + "/" + id, "Đã xác nhận thanh toán.",
-        () -> orders.collect(id, method, reference, received, actor.getName()));
+        () -> orders.collect(id, method, null, received, actor.getName()));
+  }
+
+  @PostMapping("/orders/{id}/payment-intent")
+  public String createInvoicePayment(@PathVariable Long id, Authentication actor, RedirectAttributes redirect) {
+    return action(redirect, ORDERS + "/" + id, "Đã tạo QR cho số tiền còn phải thanh toán.",
+        () -> paymentIntents.ensureInvoiceIntent(id, actor.getName()));
+  }
+
+  @PostMapping("/orders/{id}/payment-demo")
+  public String demoInvoicePayment(@PathVariable Long id, Authentication actor, RedirectAttributes redirect) {
+    return action(redirect, ORDERS + "/" + id, "Đã xác minh khoản thanh toán hóa đơn DEMO.", () -> {
+      var checkout = paymentIntents.invoiceCheckout(id);
+      if (checkout == null) throw new BookingException(null, "Hãy tạo mã QR trước khi giả lập thanh toán.");
+      paymentVerification.simulate(checkout.intent().getPaymentCode());
+    });
+  }
+
+  @GetMapping("/orders/{id}/payment-status")
+  @ResponseBody
+  public PaymentIntentService.PaymentStatus invoicePaymentStatus(@PathVariable Long id) {
+    var checkout = paymentIntents.invoiceCheckout(id);
+    return paymentIntents.intentStatus(checkout == null ? null : checkout.intent());
   }
 
   @GetMapping("/shift")

@@ -27,6 +27,7 @@ services:
       - ./database/mysql/15_reservation_deposits.sql:/docker-entrypoint-initdb.d/15_reservation_deposits.sql:ro
       - ./database/mysql/16_deposit_settlement.sql:/docker-entrypoint-initdb.d/16_deposit_settlement.sql:ro
       - ./database/mysql/17_preorder_cart.sql:/docker-entrypoint-initdb.d/17_preorder_cart.sql:ro
+      - ./database/mysql/18_sepay_payments.sql:/docker-entrypoint-initdb.d/18_sepay_payments.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${MYSQL_ROOT_PASSWORD:-change-this-root-password}"]
       interval: 10s

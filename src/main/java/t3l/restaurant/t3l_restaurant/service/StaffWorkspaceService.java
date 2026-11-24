@@ -51,8 +51,9 @@ public class StaffWorkspaceService {
   public record Dashboard(LocalDate date, long bookingsToday, long pending, long guestsArrived, long serving,
                           long free, long changeRequests, long awaitingPayment, List<Reservation> upcoming, List<Reservation> toConfirm,
                           List<Reservation> checkedIn) {}
-  public record BookingActions(boolean confirm, boolean cancel, boolean checkIn, boolean seat, boolean complete,
-                               boolean noShow, boolean moveTable, boolean reschedule) {}
+  public record BookingActions(boolean confirm, boolean confirmEnabled, String confirmReason,
+                               boolean cancel, boolean receive, boolean receiveEnabled, String receiveReason,
+                               boolean complete, boolean noShow, boolean late, boolean moveTable, boolean reschedule) {}
 
   @Transactional(readOnly = true)
   public Dashboard dashboard() {
@@ -70,7 +71,9 @@ public class StaffWorkspaceService {
         board.stream().filter(table -> table.state() == TableState.FREE).count(),
         requests.countByStatus("PENDING"), orders.countByStatus(DiningOrder.FINALIZED), upcoming,
         reservations.findTop8ByStatusOrderByReservationDateAscReservationTimeAscIdAsc(PENDING),
-        reservations.findByStatusInAndTableIsNotNull(List.of(CHECKED_IN)).stream()
+        reservations.findByStatusInAndTableIsNotNull(List.of(CONFIRMED, CHECKED_IN)).stream()
+            .filter(booking -> booking.getReservationDate().equals(today))
+            .filter(booking -> !booking.getStartsAt().isAfter(now.plusMinutes(schedule.getCheckInMinutes())))
             .sorted(Comparator.comparing(Reservation::getStartsAt)).limit(8).toList());
   }
 
@@ -117,6 +120,36 @@ public class StaffWorkspaceService {
     return reservations.findAll(spec, PageRequest.of(Math.max(page, 0), 20, sort));
   }
 
+  @Transactional(readOnly = true)
+  public Page<Reservation> searchQuick(LocalDate date, String status, String query, int page) {
+    String value = query == null ? "" : query.strip();
+    String like = like(value.toLowerCase(Locale.ROOT));
+    String codeLike = like(value.toUpperCase(Locale.ROOT));
+    String phoneValue = ReservationManagementService.canonicalPhone(value);
+    String phoneLike = like(phoneValue);
+    Specification<Reservation> spec = (root, criteriaQuery, cb) -> {
+      List<Predicate> conditions = new ArrayList<>();
+      if (date != null) conditions.add(cb.equal(root.get("reservationDate"), date));
+      if (STATUSES.contains(status)) conditions.add(cb.equal(root.get("status"), status));
+      if (!value.isEmpty()) {
+        List<Predicate> matches = new ArrayList<>();
+        matches.add(cb.like(cb.lower(root.get("guestName")), like, '!'));
+        matches.add(cb.like(cb.upper(root.get("code")), codeLike, '!'));
+        if (!phoneValue.isBlank()) {
+          var digits = cb.function("regexp_replace", String.class, root.get("guestPhone"), cb.literal("[^0-9]"), cb.literal(""));
+          var canonical = cb.<String>selectCase().when(cb.and(cb.like(digits, "84%"), cb.equal(cb.length(digits), 11)),
+              cb.concat("0", cb.substring(digits, 3))).otherwise(digits);
+          matches.add(cb.like(canonical, phoneLike, '!'));
+        }
+        conditions.add(cb.or(matches.toArray(Predicate[]::new)));
+      }
+      return cb.and(conditions.toArray(Predicate[]::new));
+    };
+    var sort = date == null ? Sort.by(Sort.Direction.DESC, "reservationDate", "reservationTime", "id")
+        : Sort.by("reservationTime", "id");
+    return reservations.findAll(spec, PageRequest.of(Math.max(page, 0), 20, sort));
+  }
+
   private String like(String value) {
     return "%" + value.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
   }
@@ -124,7 +157,7 @@ public class StaffWorkspaceService {
   @Transactional(readOnly = true)
   public List<ReservationEvent> history(Long id) { return events.findByReservation_IdOrderByIdDesc(id); }
 
-  public BookingActions actions(Reservation booking) {
+  public BookingActions actions(Reservation booking, boolean shiftOpen) {
     var now = LocalDateTime.now(schedule.getClock());
     boolean pending = PENDING.equals(booking.getStatus());
     boolean confirmed = CONFIRMED.equals(booking.getStatus());
@@ -132,9 +165,21 @@ public class StaffWorkspaceService {
     boolean serving = SEATED.equals(booking.getStatus());
     boolean future = booking.getStartsAt().isAfter(now);
     boolean serviceHours = !now.toLocalTime().isBefore(schedule.getOpeningTime()) && now.toLocalTime().isBefore(schedule.getClosingTime());
-    return new BookingActions(pending && future, pending || confirmed || checkedIn,
-        confirmed && !booking.isDepositOutstanding() && serviceHours && booking.getReservationDate().equals(now.toLocalDate()) && !now.isBefore(booking.getStartsAt().minusMinutes(schedule.getCheckInMinutes())),
-        checkedIn && serviceHours, serving, confirmed && !now.isBefore(booking.getStartsAt().plusMinutes(schedule.getNoShowMinutes())),
+    boolean insideNoShow = now.isBefore(booking.getStartsAt().plusMinutes(schedule.getNoShowMinutes()));
+    boolean confirm = pending && (future || insideNoShow);
+    boolean confirmEnabled = confirm && !booking.isDepositOutstanding();
+    String confirmReason = booking.isDepositOutstanding() ? "Chưa xác minh đủ tiền cọc."
+        : !confirm ? "Đã qua thời hạn xác nhận của lượt đặt này." : "";
+    boolean receive = (confirmed || checkedIn) && booking.getReservationDate().equals(now.toLocalDate());
+    boolean earlyWindow = !now.isBefore(booking.getStartsAt().minusMinutes(schedule.getCheckInMinutes())) && insideNoShow;
+    boolean receiveEnabled = receive && !booking.isDepositOutstanding() && serviceHours && earlyWindow && shiftOpen;
+    String receiveReason = !shiftOpen ? "Cần mở ca làm trước khi nhận khách."
+        : booking.isDepositOutstanding() ? "Chưa xác minh đủ tiền cọc."
+        : !serviceHours ? "Ngoài giờ phục vụ."
+        : !earlyWindow ? "Chỉ nhận khách từ " + schedule.getCheckInMinutes() + " phút trước giờ đặt đến hết thời gian chờ khách." : "";
+    boolean late = (pending || confirmed) && booking.getStartsAt().isBefore(now);
+    return new BookingActions(confirm, confirmEnabled, confirmReason, pending || confirmed || checkedIn,
+        receive, receiveEnabled, receiveReason, serving, confirmed && !insideNoShow, late,
         ((pending || confirmed) && future) || checkedIn || serving, pending || confirmed);
   }
 }

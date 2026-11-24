@@ -60,17 +60,57 @@
           </form>
         </section>
         <section class="staff-panel staff-form-narrow" th:if="${order.status == 'FINALIZED'}">
-          <h2>Xác nhận thu tiền</h2>
+          <h2>Xác nhận thanh toán</h2>
           <dl th:replace="~{staff/fragments/settlement :: totals(${view})}"></dl>
-          <form class="staff-form" th:if="${view.balance.signum() > 0}" th:action="@{${opsBase + '/orders/{id}/pay'}(id=${booking.id})}" method="post" data-payment-form>
-            <label class="staff-field">Phương thức <select name="method" data-payment-method>
-              <option value="CASH">Tiền mặt</option><option value="TRANSFER">Chuyển khoản</option></select></label>
-            <label class="staff-field" data-payment-reference>Mã giao dịch (khi chuyển khoản) <input name="reference" maxlength="80" autocomplete="off" />
-              <small>Đối chiếu khoản tiền đến với số tiền còn phải thu.</small>
-            </label>
-            <label class="staff-checkbox"><input type="checkbox" name="received" value="true" required /> Tôi đã nhận đủ số tiền còn phải thu.</label>
-            <div class="staff-actions"><button class="staff-button" type="submit">Xác nhận đã thanh toán</button></div>
-          </form>
+          <div class="staff-payment-options" th:if="${view.balance.signum() > 0}">
+            <form class="staff-payment-option" th:action="@{${opsBase + '/orders/{id}/pay'}(id=${booking.id})}" method="post">
+              <input type="hidden" name="method" value="CASH" /><input type="hidden" name="received" value="true" />
+              <label class="staff-checkbox"><input type="checkbox" required /> Tôi đã nhận đủ tiền mặt.</label>
+              <button class="staff-button is-outline" type="submit">Thanh toán tiền mặt</button>
+            </form>
+            <form class="staff-payment-option" th:action="@{${opsBase + '/orders/{id}/pay'}(id=${booking.id})}" method="post">
+              <input type="hidden" name="method" value="CARD" /><input type="hidden" name="received" value="true" />
+              <label class="staff-checkbox"><input type="checkbox" required /> Tôi đã nhận đủ tiền qua thẻ.</label>
+              <button class="staff-button is-outline" type="submit">Thanh toán bằng thẻ</button>
+            </form>
+            <section class="staff-payment-option staff-qr-payment" data-invoice-payment
+                th:attr="data-payment-status-url=@{${opsBase + '/orders/{id}/payment-status'}(id=${booking.id})}">
+              <h3>Chuyển khoản qua QR</h3>
+              <p class="staff-payment-status" data-invoice-payment-state role="status" th:text="${invoicePaymentStatus.label}"></p>
+              <span class="staff-badge is-warning" data-payment-demo-label th:if="${invoicePaymentStatus.demo}">DEMO · không tính doanh thu thực tế</span>
+              <form th:if="${invoiceCheckout == null}" class="staff-actions" th:action="@{${opsBase + '/orders/{id}/payment-intent'}(id=${booking.id})}" method="post">
+                <button class="staff-button is-outline" type="submit">Tạo QR cho số tiền còn lại</button>
+                <button class="staff-button" type="button" disabled>Xác nhận chuyển khoản · chờ SePay xác minh</button>
+              </form>
+              <form th:if="${invoiceCheckout != null and invoicePaymentStatus.status == 'EXPIRED'}" class="staff-actions"
+                  th:action="@{${opsBase + '/orders/{id}/payment-intent'}(id=${booking.id})}" method="post">
+                <button class="staff-button is-outline" type="submit">Tạo mã QR mới</button>
+              </form>
+              <div th:if="${invoiceCheckout != null and invoicePaymentStatus.status == 'WAITING'}" class="staff-transfer-details">
+                <img th:if="${invoiceCheckout.hasQr()}" class="deposit-qr" th:src="${invoiceCheckout.qrUrl}" alt="Mã QR thanh toán hóa đơn" width="240" height="240" />
+                <div class="deposit-bank-info" th:if="${invoiceCheckout.hasQr()}">
+                  <p><span>Ngân hàng</span><strong th:text="${invoiceCheckout.bankName}"></strong></p>
+                  <p><span>Số tài khoản</span><strong th:text="${invoiceCheckout.bankAccount}"></strong></p>
+                  <p><span>Chủ tài khoản</span><strong th:text="${invoiceCheckout.accountHolder}"></strong></p>
+                  <p><span>Số tiền còn phải trả</span><strong th:text="${#numbers.formatInteger(invoiceCheckout.intent.amount,1,'POINT') + ' đ'}"></strong></p>
+                  <p><span>Nội dung chuyển khoản</span><strong data-payment-code th:text="${invoiceCheckout.intent.paymentCode}"></strong></p>
+                  <button class="staff-button is-outline" type="button" data-copy-payment-code>Sao chép nội dung</button>
+                </div>
+                <p th:unless="${invoiceCheckout.hasQr()}">Chưa cấu hình tài khoản nhận QR. Liên hệ quản trị viên.</p>
+              </div>
+              <form th:if="${invoiceCheckout != null and demoEnabled and invoicePaymentStatus.status == 'WAITING'}"
+                  class="staff-actions" th:action="@{${opsBase + '/orders/{id}/payment-demo'}(id=${booking.id})}" method="post">
+                <button class="staff-button is-outline" type="submit">[DEMO] Giả lập đã chuyển khoản</button>
+                <small>Giao dịch DEMO không tính vào doanh thu thực tế.</small>
+              </form>
+              <form th:if="${invoiceCheckout != null}" class="staff-actions" th:action="@{${opsBase + '/orders/{id}/pay'}(id=${booking.id})}" method="post">
+                <input type="hidden" name="method" value="TRANSFER" />
+                <input type="hidden" name="paymentCode" th:value="${invoiceCheckout.intent.paymentCode}" />
+                <button class="staff-button" type="submit" data-invoice-confirm
+                    th:disabled="${!invoicePaymentStatus.confirmEnabled}">Xác nhận thanh toán chuyển khoản</button>
+              </form>
+            </section>
+          </div>
           <form class="staff-actions" th:if="${view.balance.signum() == 0}"
               th:action="@{${opsBase + '/orders/{id}/pay'}(id=${booking.id})}" method="post">
             <input type="hidden" name="method" value="DEPOSIT" /><input type="hidden" name="received" value="true" />
@@ -86,6 +126,7 @@
             <div><dt>Thời điểm</dt><dd th:text="${#temporals.format(payment.paidAt, 'dd/MM/yyyy · HH:mm')}"></dd></div>
             <div><dt>Nhân viên xác nhận</dt><dd th:text="${payment.receivedBy}"></dd></div>
             <div th:if="${payment.transferReference != null}"><dt>Mã giao dịch</dt><dd th:text="${payment.transferReference}"></dd></div>
+            <div th:if="${payment.demo}"><dt>Loại giao dịch</dt><dd><span class="staff-badge is-warning">DEMO · không tính doanh thu thực tế</span></dd></div>
           </dl>
           <form class="staff-actions" th:if="${booking.status == 'SEATED'}" th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
             <input type="hidden" name="from" value="order" /><button class="staff-button" name="status" value="COMPLETED">Kết thúc phục vụ</button>
@@ -93,5 +134,7 @@
         </section>
       </div>
     </main>
+    <script th:src="@{/js/staff-payment-status.js(v=20261124-sepay)}" defer></script>
+    <script th:src="@{/js/payment-copy.js(v=20261124-sepay)}" defer></script>
   </body>
 </html>
