@@ -193,7 +193,7 @@ public class ReservationService {
 
   }
 
-  private List<Reservation> findBlocking(LocalDateTime start, LocalDateTime end, boolean immediate) {
+  List<Reservation> findBlocking(LocalDateTime start, LocalDateTime end, boolean immediate) {
     int duration = schedule.getDurationMinutes();
     // Include the previous date for legacy bookings that run past midnight.
     var matches = new ArrayList<>(reservations.findByReservationDateBetweenAndStatusNot(

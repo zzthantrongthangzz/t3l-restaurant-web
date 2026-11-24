@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import t3l.restaurant.t3l_restaurant.dto.ReservationForm;
 import t3l.restaurant.t3l_restaurant.dto.CustomerProfileForm;
+import t3l.restaurant.t3l_restaurant.entity.Dish;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
 import t3l.restaurant.t3l_restaurant.entity.RestaurantTable;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
@@ -35,6 +37,8 @@ import t3l.restaurant.t3l_restaurant.service.CustomerAccountService;
 import t3l.restaurant.t3l_restaurant.service.CustomerAccountService.DuplicateEmailException;
 import t3l.restaurant.t3l_restaurant.service.ReservationDrafts;
 import t3l.restaurant.t3l_restaurant.service.PublicTableBoardService;
+import t3l.restaurant.t3l_restaurant.service.DishService;
+import t3l.restaurant.t3l_restaurant.service.AdminInventoryService;
 
 @Controller
 public class WebController {
@@ -49,6 +53,8 @@ public class WebController {
   private final Validator validator;
   private final PublicTableBoardService publicTableBoard;
   private final DiningOrderRepository diningOrders;
+  private final DishService dishService;
+  private final AdminInventoryService inventory;
 
   public WebController(
       DishRepository dishes,
@@ -58,7 +64,8 @@ public class WebController {
       ReservationConfirmationAccess confirmationAccess,
       FaqRepository faqs,
       CustomerAccountService customers, ReservationDrafts drafts, Validator validator,
-      PublicTableBoardService publicTableBoard, DiningOrderRepository diningOrders) {
+      PublicTableBoardService publicTableBoard, DiningOrderRepository diningOrders,
+      DishService dishService, AdminInventoryService inventory) {
     this.dishes = dishes;
     this.restaurantTables = restaurantTables;
     this.reservationService = reservationService;
@@ -70,6 +77,8 @@ public class WebController {
     this.validator = validator;
     this.publicTableBoard = publicTableBoard;
     this.diningOrders = diningOrders;
+    this.dishService = dishService;
+    this.inventory = inventory;
   }
 
   @GetMapping("/")
@@ -92,18 +101,40 @@ public class WebController {
   }
 
   @GetMapping("/menu")
-  public String menu(Model model) {
-    var menuDishes = dishes.findByAvailableTrueOrderByCategoryNameAscNameAsc();
-    model.addAttribute("dishes", menuDishes);
+  public String menu(Authentication authentication, Model model) {
+    boolean admin = authentication != null && authentication.getAuthorities().stream()
+        .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+    var menuDishes = admin ? dishService.findAll() : dishService.findAvailable();
     model.addAttribute("dishGroups", menuDishes.stream()
         .sorted(Comparator.comparing(dish -> "Đồ uống".equals(dish.getCategoryName())))
-        .collect(Collectors.groupingBy(
-        dish -> dish.getCategoryName(), LinkedHashMap::new, Collectors.toList())));
-    model.addAttribute("menuBanner", menuDishes.stream()
-        .filter(dish -> dish.getImageUrl() != null && !dish.getImageUrl().isBlank())
-        .min(Comparator.comparingInt(dish -> homeDishPriority(dish.getName(), dish.getCategoryName())))
-        .orElse(null));
+        .collect(Collectors.groupingBy(Dish::getCategoryName, LinkedHashMap::new, Collectors.toList())));
+    model.addAttribute("dishCount", menuDishes.size());
+    if (admin) {
+      model.addAttribute("hiddenCategories", inventory.sectionList("MENU").stream()
+          .filter(section -> !section.active()).map(AdminInventoryService.SectionRow::name).toList());
+    }
     return "web/menu";
+  }
+
+  @PostMapping("/reservations/preorder")
+  public String startPreorder(@RequestParam(required = false) List<Long> preorderDishIds,
+      Authentication authentication, HttpSession session, RedirectAttributes redirect) {
+    UserAccount customer = customers.signedInCustomer(authentication);
+    if (customer == null) return "redirect:/login";
+    if (preorderDishIds == null || preorderDishIds.isEmpty()) return "redirect:/reservations/new";
+    var selected = dishService.findAvailable().stream()
+        .map(Dish::getId).filter(preorderDishIds::contains).toList();
+    if (selected.size() != preorderDishIds.stream().distinct().count()) {
+      redirect.addFlashAttribute("error", "Một món đã ngừng phục vụ. Vui lòng chọn lại.");
+      return "redirect:/menu";
+    }
+    var form = new ReservationForm();
+    form.setDate(reservationSchedule.today());
+    form.setGuests(2);
+    form.setPreorderDishIds(selected);
+    redirect.addAttribute("draft", drafts.save(session, form, customer.getId(), null));
+    redirect.addAttribute("chooseTable", true);
+    return "redirect:/reservations/new";
   }
 
   @GetMapping("/faq")
@@ -115,7 +146,9 @@ public class WebController {
   @GetMapping("/reservations/new")
   public String reservationForm(
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time,
       @RequestParam(required = false) String draft, @RequestParam(required = false) Long tableId,
+      @RequestParam(defaultValue = "false") boolean chooseTable,
       Authentication authentication, HttpServletRequest request,
       CsrfToken csrfToken,
       Model model) {
@@ -130,52 +163,25 @@ public class WebController {
       form.setGuests(2);
       form.setPreferredArea("");
     }
+    if (date != null) form.setDate(date.isBefore(reservationSchedule.today()) ? reservationSchedule.today() : date);
+    if (time != null) form.setTime(reservationSchedule.getTimeSlots().contains(time) ? time : null);
     if (customer != null) {
       form.setGuestName(customer.getFullName());
       form.setGuestPhone(customers.bookingPhone(customer.getPhone()));
       form.setGuestEmail(customer.getEmail());
     }
-    Long requestedTableId = tableId == null ? form.getTableId() : tableId;
-    if (requestedTableId != null) form.setTableId(requestedTableId);
-    if (draft == null && customer != null) {
-      draft = drafts.save(request.getSession(), form, customer.getId(), null);
+    Long requestedTableId = tableId != null ? tableId : chooseTable ? null : form.getTableId();
+    form.setTableId(requestedTableId);
+    boolean newBooking = draft == null;
+    if (customer != null && (newBooking || tableId != null)) {
+      draft = drafts.save(request.getSession(), form, customer.getId(), draft);
     }
-    if (requestedTableId == null && draft == null) {
-      LocalDate selectedDate = date == null || date.isBefore(reservationSchedule.today()) ? reservationSchedule.today() : date;
-      model.addAttribute("selectedDate", selectedDate);
-      model.addAttribute("tables", publicTableBoard.forDate(selectedDate));
-      model.addAttribute("schedule", reservationSchedule);
+    if (requestedTableId == null && (newBooking || chooseTable)) {
+      LocalDate selectedDate = form.getDate() == null ? reservationSchedule.today() : form.getDate();
+      addTableBoardData(model, selectedDate, time == null ? null : form.getTime());
       model.addAttribute("openBookingDialog", false);
-      return "web/table-plan";
-    }
-    if (requestedTableId != null) {
-      LocalDate selectedDate = date == null ? form.getDate() : date;
-      model.addAttribute("selectedDate", selectedDate);
-      model.addAttribute("tables", publicTableBoard.forDate(selectedDate));
-      model.addAttribute("selectedTable", restaurantTables.findById(requestedTableId).orElse(null));
-      model.addAttribute("openBookingDialog", true);
-      model.addAttribute("schedule", reservationSchedule);
-      model.addAttribute("today", reservationSchedule.today());
-      model.addAttribute("timeSlots", reservationSchedule.getTimeSlots());
-      model.addAttribute("maxGuests", Math.min(20, restaurantTables.findByActiveTrueOrderByCodeAsc().stream()
-          .mapToInt(RestaurantTable::getCapacity).max().orElse(20)));
-      model.addAttribute("bookingCustomer", customer != null);
       model.addAttribute("bookingDraft", draft);
-      if (customer != null) {
-        model.addAttribute("bookingName", customer.getFullName());
-        model.addAttribute("bookingPhone", customer.getPhone());
-        model.addAttribute("bookingEmail", customer.getEmail());
-        model.addAttribute("bookingProfileMissing", customers.needsBookingProfile(customer));
-      }
-      model.addAttribute("preorderDishes", customer == null ? List.of() : dishes.findByAvailableTrueOrderByCategoryNameAscNameAsc());
-      RestaurantTable table = restaurantTables.findById(requestedTableId).orElse(null);
-      String tableType = table == null || table.getTableType() == null ? "" : table.getTableType().toLowerCase(Locale.ROOT);
-      model.addAttribute("depositPolicy", customer == null ? null : tableType.contains("vip")
-          ? "Bàn VIP: cọc tối thiểu 500.000 đ hoặc 70% giá trị món đặt trước (lấy mức cao hơn). Sau khi nhân viên duyệt, bạn gửi mã giao dịch để xác nhận cọc."
-          : table != null && (tableType.contains("lớn") || table.getCapacity() >= 9)
-              ? "Bàn lớn: cọc tối thiểu 300.000 đ hoặc 70% giá trị món đặt trước (lấy mức cao hơn). Sau khi nhân viên duyệt, bạn gửi mã giao dịch để xác nhận cọc."
-              : "Bàn này không bắt buộc đặt cọc trước.");
-      model.addAttribute("form", form);
+      model.addAttribute("preorderCount", form.getPreorderDishIds().size());
       return "web/table-plan";
     }
     model.addAttribute("form", form);
@@ -323,18 +329,19 @@ public class WebController {
         model.addAttribute("profileForm", customers.profileForm(customer, customers.profile(customer)));
       }
     }
-    if (form.getTableId() != null) {
+    if (form.getTableId() != null && !missing) {
       LocalDate selectedDate = form.getDate() == null ? reservationSchedule.today() : form.getDate();
       RestaurantTable selectedTable = restaurantTables.findById(form.getTableId()).orElse(null);
+      if (selectedTable == null || !selectedTable.isActive()) {
+        throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
+      }
       String tableType = selectedTable == null || selectedTable.getTableType() == null ? ""
           : selectedTable.getTableType().toLowerCase(Locale.ROOT);
-      model.addAttribute("selectedDate", selectedDate);
-      model.addAttribute("tables", publicTableBoard.forDate(selectedDate));
+      addTableBoardData(model, selectedDate, form.getTime());
       model.addAttribute("selectedTable", selectedTable);
       model.addAttribute("openBookingDialog", true);
-      model.addAttribute("schedule", reservationSchedule);
+      model.addAttribute("preorderCount", form.getPreorderDishIds().size());
       model.addAttribute("today", reservationSchedule.today());
-      model.addAttribute("timeSlots", reservationSchedule.getTimeSlots());
       model.addAttribute("maxGuests", selectedTable == null ? 20 : selectedTable.getCapacity());
       model.addAttribute("preorderDishes", customer == null ? List.of() : dishes.findByAvailableTrueOrderByCategoryNameAscNameAsc());
       model.addAttribute("depositPolicy", customer == null ? null : tableType.contains("vip")
@@ -344,6 +351,7 @@ public class WebController {
               : "Bàn này không bắt buộc đặt cọc trước.");
       return "web/table-plan";
     }
+    model.addAttribute("preorderDishes", customer == null || missing ? List.of() : dishService.findAvailable());
     addReservationPageData(model);
     return "web/reservation-form";
   }
@@ -380,5 +388,15 @@ public class WebController {
     model.addAttribute("schedule", reservationSchedule);
     model.addAttribute("today", reservationSchedule.today());
     model.addAttribute("timeSlots", reservationSchedule.getTimeSlots());
+  }
+
+  private void addTableBoardData(Model model, LocalDate date, LocalTime time) {
+    var slots = reservationSchedule.getTimeSlots();
+    LocalTime selected = time != null && slots.contains(time) ? time : null;
+    model.addAttribute("selectedDate", date);
+    model.addAttribute("selectedTime", selected);
+    model.addAttribute("tables", publicTableBoard.forDate(date, selected));
+    model.addAttribute("schedule", reservationSchedule);
+    model.addAttribute("timeSlots", slots);
   }
 }

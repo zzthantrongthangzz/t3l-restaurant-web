@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:fragment="assets">
+    <link rel="stylesheet" th:href="@{/css/theme.css(v=versionb)}" />
+    <script th:src="@{/js/theme.js(v=versionb)}"></script>
+  </th:block>
+</head>
+<body>
+  <button th:fragment="toggle" class="theme-toggle" type="button" data-theme-toggle
+          aria-label="Giao diện tối" aria-pressed="false" title="Giao diện tối" hidden>
+    <svg class="theme-moon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M19.7 15.3A8 8 0 0 1 8.7 4.3a8 8 0 1 0 11 11Z"/>
+    </svg>
+    <svg class="theme-sun" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>
+    </svg>
+  </button>
+</body>
+</html>

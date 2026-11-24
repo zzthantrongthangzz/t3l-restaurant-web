@@ -26,3 +26,16 @@ if (revenueChart) {
   });
   latestPeriods.observe(revenueChart);
 }
+
+const dishImage = document.getElementById('dish-editor-image');
+if (dishImage) {
+  const imagePreview = document.getElementById('dish-editor-preview');
+  const original = imagePreview.src;
+  let previewUrl;
+  dishImage.addEventListener('change', () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    const image = dishImage.files[0];
+    previewUrl = image ? URL.createObjectURL(image) : null;
+    imagePreview.src = previewUrl || original;
+  });
+}

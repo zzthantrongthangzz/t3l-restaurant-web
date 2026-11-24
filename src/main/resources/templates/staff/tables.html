@@ -28,7 +28,7 @@
             <a class="plan-table-hit" th:if="${booking == null and table.active}" th:href="@{${opsBase + '/reservations/new'}(tableId=${table.id},date=${selectedDate})}" th:aria-label="${'Đặt ' + table.code}"></a>
             <img class="plan-table-image" th:src="@{/images/tables/{image}(image=${tableImage})}" alt="" width="120" height="84" />
             <h3 th:text="${table.code}"></h3><p class="plan-table-meta" th:text="${table.capacity + ' chỗ · ' + table.tableType}"></p>
-            <span class="plan-table-state" th:text="${item.state == 'FREE' ? 'Bàn trống' : (item.state == 'PENDING' ? 'Chờ nhân viên xác nhận' : (item.state == 'OCCUPIED' ? 'Đang phục vụ' : 'Đã xác nhận đặt'))}"></span>
+            <span class="plan-table-state" th:text="${!table.active ? 'Tạm ngưng' : (item.state == 'FREE' ? 'Bàn trống' : (item.state == 'PENDING' ? 'Chờ nhân viên xác nhận' : (item.state == 'OCCUPIED' ? 'Đang phục vụ' : 'Đã xác nhận đặt')))}"></span>
             <div class="plan-table-customer" th:if="${booking != null}">
               <strong th:text="${booking.guestName}"></strong><span th:text="${booking.guestPhone}"></span>
               <span th:text="${#temporals.format(booking.startsAt,'dd/MM HH:mm') + ' · ' + booking.guestCount + ' khách · ' + booking.statusLabel + (booking.depositAmount.signum() > 0 ? ' · Cọc: ' + booking.depositStatusLabel : '')}"></span>
@@ -40,7 +40,12 @@
                 <input type="hidden" name="from" value="table" /><input type="hidden" name="returnDate" th:value="${selectedDate}" /><button class="staff-button" name="status" value="SEATED">Nhận bàn</button>
               </form>
             </div>
-            <p class="plan-table-inactive" th:if="${!table.active}">Tạm ngưng</p>
+            <form class="plan-table-actions" th:if="${!table.active or item.state == 'FREE'}"
+                  th:action="@{${opsBase + '/tables/{id}/availability'}(id=${table.id})}" method="post">
+              <input type="hidden" name="returnDate" th:value="${selectedDate}" />
+              <button class="staff-button is-outline" type="submit" name="active" th:value="${!table.active}"
+                      th:text="${table.active ? 'Tạm ngưng bàn' : 'Mở lại bàn'}"></button>
+            </form>
           </article>
         </div>
       </section>

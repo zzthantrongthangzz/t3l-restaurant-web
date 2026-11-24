@@ -294,7 +294,8 @@ class CustomerAccountIntegrationTest {
     var employee = accounts.save(new UserAccount("employee-" + UUID.randomUUID(), passwords.encode(PASSWORD), "STAFF"));
     mvc.perform(get("/login")).andExpect(status().isOk())
         .andExpect(content().string(not(containsString("name=\"password\""))));
-    mvc.perform(get("/register")).andExpect(redirectedUrl("/login"));
+    mvc.perform(get("/register")).andExpect(status().isOk())
+        .andExpect(content().string(not(containsString("name=\"password\""))));
     mvc.perform(get("/staff/reservations")).andExpect(redirectedUrlPattern("**/staff/login"));
     mvc.perform(get("/staff/login")).andExpect(content().string(containsString("name=\"password\"")));
     mvc.perform(post("/login").with(csrf()).param("username", buyer.getUsername()).param("password", PASSWORD))
@@ -316,7 +317,7 @@ class CustomerAccountIntegrationTest {
     var session = new MockHttpSession();
     String date = "2098-11-19";
     long before = bookings.count();
-    String next = mvc.perform(post("/reservations").session(session).with(csrf()).param("date", date)
+    String next = mvc.perform(post("/reservations").session(session).with(csrf()).param("date", date).param("loginOnly", "true")
         .param("time", "18:00").param("guests", "3").param("preferredArea", "Bàn nhỏ")
         .param("note", "Ghi chú cần giữ").param("consentAccepted", "true"))
         .andExpect(status().is3xxRedirection()).andReturn().getResponse().getRedirectedUrl();
@@ -459,7 +460,7 @@ class CustomerAccountIntegrationTest {
         "GOOGLE-QA-TABLE", "Bàn nhỏ", 4, true);
     var session = new MockHttpSession();
     String date = "2098-12-09";
-    String start = mvc.perform(post("/reservations").session(session).with(csrf()).param("date", date)
+    String start = mvc.perform(post("/reservations").session(session).with(csrf()).param("date", date).param("loginOnly", "true")
         .param("time", "18:30").param("guests", "3").param("note", "Ghi chú của lịch Google")
         .param("consentAccepted", "true")).andReturn().getResponse().getRedirectedUrl();
     assertNotNull(start);

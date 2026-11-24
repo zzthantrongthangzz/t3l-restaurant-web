@@ -1,4 +1,17 @@
 body.admin-page { --sidebar-width: 15rem; min-height: 100vh; padding-inline-start: var(--sidebar-width); }
+.admin-brand-controls { display: flex; gap: 8px; align-items: center; }
+.dish-editor .staff-page-heading { display: grid; justify-items: start; gap: 8px; }
+.dish-editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(245px, 340px); gap: 18px; align-items: start; }
+.dish-editor-fields, .dish-editor-media { margin: 0; }
+.dish-editor-fields h2, .dish-editor-media h2 { margin: 0 0 16px; font: 700 1.2rem/1.4 var(--font-sans); }
+.dish-editor-fields .staff-checkbox { margin-top: 16px; }
+.dish-editor-media { display: grid; gap: 12px; }
+.dish-editor-media h2 { margin: 0; }
+.dish-editor-media img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: contain; border-radius: 9px; background: var(--surface-muted); }
+.dish-editor-media .staff-button { width: 100%; }
+@media (max-width: 760px) {
+  .dish-editor-grid { grid-template-columns: minmax(0, 1fr); }
+}
 .admin-sidebar {
   position: fixed; inset: 0 auto 0 0; z-index: 5; display: flex; flex-direction: column;
   width: var(--sidebar-width); padding: 18px 14px; background: #231b16; color: #fff7ee;

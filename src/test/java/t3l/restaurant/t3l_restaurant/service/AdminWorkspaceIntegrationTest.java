@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import t3l.restaurant.t3l_restaurant.dto.ReservationForm;
+import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.repository.UserAccountRepository;
 
 import static org.hamcrest.Matchers.containsString;
@@ -66,7 +67,7 @@ class AdminWorkspaceIntegrationTest {
     mvc.perform(post("/login").with(csrf()).param("username", "admin").param("password", "AdminOnlyForTest2026!"))
         .andExpect(redirectedUrl("/admin/dashboard"));
     for (String path : List.of("/admin", "/admin/dashboard", "/admin/accounts", "/admin/accounts/new",
-        "/admin/inventory", "/admin/inventory/new", "/admin/dishes", "/admin/dishes/new", "/admin/categories",
+        "/admin/inventory", "/admin/inventory/new", "/admin/dishes/new", "/admin/categories",
         "/admin/reservations", "/admin/reservations/new", "/admin/tables", "/admin/orders",
         "/admin/shift", "/admin/shifts", "/admin/revenue", "/admin/invoices", "/admin/contacts", "/admin/activity", "/admin/settings")) {
       mvc.perform(get(path).with(user("staff").roles("STAFF"))).andExpect(status().isForbidden());
@@ -81,6 +82,65 @@ class AdminWorkspaceIntegrationTest {
         .andExpect(status().isOk()).andExpect(content().string(containsString("Điều hướng nhân viên")));
     admin(get("/admin/dashboard").param("period", "week")).andExpect(status().isOk());
     admin(get("/admin/dashboard").param("period", "month")).andExpect(status().isOk());
+    admin(get("/admin/dishes")).andExpect(redirectedUrl("/menu"));
+  }
+
+  @Test
+  void editsDishesFromTheSharedMenuWithAdminPermissions() throws Exception {
+    String editPath = "/admin/dishes/" + dish + "/edit";
+    mvc.perform(get("/menu")).andExpect(status().isOk())
+        .andExpect(content().string(not(containsString(editPath))));
+    mvc.perform(get("/menu").with(user("staff").roles("STAFF"))).andExpect(status().isOk())
+        .andExpect(content().string(not(containsString(editPath))));
+    mvc.perform(get(editPath).with(user("staff").roles("STAFF"))).andExpect(status().isForbidden());
+    admin(get("/menu")).andExpect(content().string(containsString(editPath)));
+    admin(get(editPath)).andExpect(status().isOk())
+        .andExpect(content().string(containsString("Tải ảnh lên Cloudinary")));
+
+    admin(post("/admin/dishes/" + dish).param("name", "Bít tết đã cập nhật").param("description", "Món thử")
+        .param("price", "250000").param("categoryName", "Món chính").param("available", "true").param("_published", "on"))
+        .andExpect(redirectedUrl("/menu"));
+    admin(get("/menu")).andExpect(content().string(containsString("Bít tết đã cập nhật")))
+        .andExpect(content().string(containsString("Đang ẩn")));
+    mvc.perform(get("/menu")).andExpect(content().string(not(containsString("Bít tết đã cập nhật"))));
+  }
+
+  @Test
+  void carriesCustomerSelectionsIntoTheBookingAndKeepsGuestRequestsTableOnly() throws Exception {
+    var customer = accounts.save(UserAccount.customer("Khách đặt món", null, "0901234567", "qa-preorder", "unused"));
+    var session = new MockHttpSession();
+    var buyer = user(customer.getUsername()).roles("BUYER");
+    String selectionUrl = mvc.perform(post("/reservations/preorder").session(session).with(buyer).with(csrf())
+            .param("preorderDishIds", String.valueOf(dish)))
+        .andExpect(redirectedUrlPattern("/reservations/new?draft=*&chooseTable=true"))
+        .andReturn().getResponse().getRedirectedUrl();
+    String draft = (String) mvc.perform(get(selectionUrl).session(session).with(buyer))
+        .andExpect(content().string(containsString("1 món đã chọn từ thực đơn.")))
+        .andReturn().getModelAndView().getModel().get("bookingDraft");
+    LocalDate date = schedule.today().plusDays(2);
+    mvc.perform(get("/reservations/new").session(session).with(buyer).param("draft", draft)
+            .param("date", date.toString()).param("tableId", String.valueOf(table)))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("checked=\"checked\"")));
+    mvc.perform(post("/reservations").session(session).with(buyer).with(csrf()).param("draft", draft)
+            .param("tableId", String.valueOf(table)).param("date", date.toString()).param("time", "18:00")
+            .param("guests", "2").param("consentAccepted", "true").param("preorderDishIds", String.valueOf(dish)))
+        .andExpect(redirectedUrlPattern("/reservations/confirmation?code=*"));
+    assertEquals(1, jdbc.queryForObject("select count(*) from dining_order_items", Integer.class));
+    mvc.perform(get("/reservations/new").param("date", date.toString()).param("time", "18:00"))
+        .andExpect(content().string(containsString("Đang chờ xác nhận")))
+        .andExpect(content().string(not(containsString("Chọn bàn A01"))));
+    mvc.perform(get("/reservations/new").param("date", date.toString()).param("time", "12:00"))
+        .andExpect(content().string(containsString("Chọn bàn A01")));
+
+    var guestRequest = post("/reservations").with(csrf()).param("tableId", String.valueOf(table))
+        .param("date", date.plusDays(1).toString()).param("time", "18:00").param("guests", "2")
+        .param("guestName", "Khách giữ chỗ").param("consentAccepted", "true").param("preorderDishIds", String.valueOf(dish));
+    mvc.perform(guestRequest).andExpect(status().isOk()).andExpect(model().attributeHasFieldErrors("form", "guestPhone"));
+    mvc.perform(guestRequest.param("guestPhone", "0907654321"))
+        .andExpect(redirectedUrlPattern("/reservations/confirmation?code=*"));
+    assertEquals("PENDING_CONFIRMATION", jdbc.queryForObject(
+        "select status from reservations where guest_phone='0907654321'", String.class));
+    assertEquals(1, jdbc.queryForObject("select count(*) from dining_order_items", Integer.class));
   }
 
   @Test

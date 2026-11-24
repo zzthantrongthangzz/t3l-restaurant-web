@@ -26,6 +26,7 @@
         </form>
         <a class="home-button home-button-outline nav-booking" th:href="@{/reservations/new}" th:attr="aria-current=${activePage == 'reservation' ? 'page' : null}">Đặt bàn <span aria-hidden="true">↗</span></a>
       </nav>
+      <button th:replace="~{web/fragments/theme :: toggle}"></button>
       <details th:replace="~{account/fragments/navigation :: dropdown}"></details>
     </header>
     <th:block th:fragment="footer">

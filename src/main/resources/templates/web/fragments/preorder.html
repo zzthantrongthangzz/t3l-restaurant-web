@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+  <div class="plan-preorder-list" th:fragment="list">
+    <p th:if="${#lists.isEmpty(preorderDishes)}">Hiện chưa có món để đặt trước.</p>
+    <label class="plan-preorder-item" th:each="dish : ${preorderDishes}">
+      <input type="checkbox" th:field="*{preorderDishIds}" th:value="${dish.id}" />
+      <span><strong th:text="${dish.name}"></strong><small th:text="${dish.categoryName}"></small></span>
+      <b th:text="${#numbers.formatInteger(dish.price,1,'POINT') + ' ₫'}"></b>
+    </label>
+  </div>
+</body>
+</html>

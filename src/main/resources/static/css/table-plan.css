@@ -5,7 +5,7 @@
 .table-plan-heading p:not(.home-eyebrow) { margin:8px 0 0; color:#526875; }
 .table-plan-date { display:flex; flex-wrap:wrap; align-items:end; gap:9px; }
 .table-plan-date label { display:grid; gap:5px; color:#314b5c; font-size:var(--text-label); font-weight:600; }
-.table-plan-date input { min-height:44px; padding:8px 10px; border:1px solid #cbd8dc; border-radius:7px; background:white; color:#193c50; font:inherit; }
+.table-plan-date :is(input,select) { min-height:44px; padding:8px 10px; border:1px solid #cbd8dc; border-radius:7px; background:white; color:#193c50; font:inherit; }
 .table-plan-legend { display:flex; flex-wrap:wrap; gap:18px; margin:0 0 18px; padding:0; list-style:none; color:#405968; font-size:var(--text-compact); }
 .table-plan-legend li { display:flex; align-items:center; gap:8px; }
 .plan-dot { width:13px; height:13px; border-radius:50%; background:#aaa; }

@@ -161,7 +161,9 @@ class ReservationIntegrationTest {
   }
 
   private String csrf(MockHttpSession session) throws Exception {
-    String html = mvc.perform(get("/reservations/new").session(session))
+    Long tableId = tables.findByActiveTrueOrderByCodeAsc().getFirst().getId();
+    String html = mvc.perform(get("/reservations/new").session(session).param("tableId", String.valueOf(tableId))
+            .param("date", date.toString()))
         .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
     var match = Pattern.compile("name=\"_csrf\"[^>]*value=\"([^\"]+)\"").matcher(html);
     assertTrue(match.find());
@@ -241,6 +243,7 @@ class ReservationIntegrationTest {
     var session = new MockHttpSession();
     mvc.perform(post("/reservations").session(session).param("_csrf", csrf(session))
             .param("date", date.toString()).param("time", "20:30").param("guests", "2")
+            .param("guestName", "Khách kiểm thử").param("guestPhone", "0901234567")
             .param("note", "Retained note")
             .param("consentAccepted", "true"))
         .andExpect(status().isOk()).andExpect(model().attributeHasFieldErrors("form", "time"))

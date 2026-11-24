@@ -161,8 +161,8 @@ body.home { margin: 0; background: var(--home-bg); color: var(--home-cream); fon
   .nav-toggle-lines::after { content: ""; position: absolute; top: 7px; }
   .menu-open .nav-toggle-lines { transform: translateY(3px) rotate(45deg); }
   .menu-open .nav-toggle-lines::after { transform: translateY(-7px) rotate(-90deg); }
-  .home-header.nav-ready .home-nav { position: absolute; top: 100%; inset-inline: 0; padding: 22px 36px 30px; flex-flow: column nowrap; justify-content: flex-start; align-items: stretch; gap: 7px; background: #171411; max-height: calc(100dvh - 82px); overflow-y: auto; visibility: hidden; opacity: 0; transform: translateY(-8px); border-bottom: 1px solid var(--home-line); transition: opacity .2s, transform .2s, visibility .2s; }
-  .home-header.menu-open .home-nav { visibility: visible; opacity: 1; transform: none; }
+  .home-header.nav-ready .home-nav { position: absolute; top: 100%; inset-inline: 0; padding: 22px 36px 30px; flex-flow: column nowrap; justify-content: flex-start; align-items: stretch; gap: 7px; background: #171411; max-height: calc(100dvh - 82px); overflow-y: auto; visibility: hidden; border-bottom: 1px solid var(--home-line); }
+  .home-header.menu-open .home-nav { visibility: visible; }
   .home-nav > a:not(.home-button)::after { right: auto; width: 25px; }
   .home-nav .nav-booking { align-self: flex-start; margin-top: 12px; }
   .home-header:not(.nav-ready) { position: absolute; flex-wrap: wrap; background: #171411; }

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -9,6 +9,8 @@
     <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
     <link rel="stylesheet" th:href="@{/css/reservation.css(v=20261120-typography)}" />
     <link rel="stylesheet" th:href="@{/css/account.css(v=20261120-typography)}" />
+    <link rel="stylesheet" th:href="@{/css/table-plan.css(v=20261124)}" />
+    <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
   </head>
   <body class="home booking-page">
     <a class="skip-link" href="#booking-form">Chuyển đến form đặt bàn</a>
@@ -46,6 +48,7 @@
 
           <form id="booking-form" class="booking-form" th:action="@{/reservations}" th:object="${form}" method="post" th:attr="data-today=${today},data-zone=${schedule.timeZone}">
             <input type="hidden" name="draft" th:if="${bookingDraft != null}" th:value="${bookingDraft}" />
+            <input type="hidden" th:field="*{tableId}" />
             <div class="booking-form-heading"><p class="home-eyebrow">YÊU CẦU ĐẶT BÀN</p><h2>Thông tin buổi hẹn</h2><p>Các trường có dấu <span aria-hidden="true">*</span> là bắt buộc.</p></div>
             <p class="booking-alert" th:if="${bookingNotice != null}" th:text="${bookingNotice}" role="status"></p>
             <div class="booking-alert" id="booking-errors" role="alert" tabindex="-1" th:if="${#fields.hasAnyErrors()}">
@@ -88,6 +91,14 @@
               <p class="booking-duration-note">Mỗi lượt giữ bàn <strong th:text="${schedule.durationMinutes + ' phút'}"></strong>. Giờ nhận khách cuối: <strong th:text="${#temporals.format(schedule.lastArrival, 'HH:mm')}"></strong>.</p>
             </fieldset>
 
+            <fieldset th:if="${!bookingCustomer}">
+              <legend>Thông tin liên hệ</legend>
+              <div class="booking-fields">
+                <div class="booking-field"><label for="guestName">Họ và tên</label><input th:field="*{guestName}" required maxlength="120" autocomplete="name" /></div>
+                <div class="booking-field"><label for="guestPhone">Số điện thoại</label><input type="tel" th:field="*{guestPhone}" required maxlength="30" autocomplete="tel" /></div>
+                <div class="booking-field booking-full"><label for="guestEmail">Email (tùy chọn)</label><input type="email" th:field="*{guestEmail}" maxlength="254" autocomplete="email" /></div>
+              </div>
+            </fieldset>
             <fieldset th:if="${bookingCustomer and !bookingProfileMissing}">
               <legend>Thông tin liên hệ</legend>
               <dl class="booking-contact">
@@ -96,6 +107,11 @@
                 <div th:if="${bookingEmail != null and !bookingEmail.isBlank()}"><dt>Email</dt><dd th:text="${bookingEmail}"></dd></div>
               </dl>
               <a class="home-text-link" th:href="@{/account}">Cập nhật hồ sơ</a>
+            </fieldset>
+
+            <fieldset class="plan-preorder" th:if="${bookingCustomer and !bookingProfileMissing}">
+              <legend>Đặt trước món ăn (tùy chọn)</legend>
+              <div th:replace="~{web/fragments/preorder :: list}"></div>
             </fieldset>
 
             <fieldset>
@@ -107,12 +123,13 @@
               </div>
             </fieldset>
 
-            <label class="booking-consent"><input type="checkbox" th:field="*{consentAccepted}" th:required="${bookingCustomer and !bookingProfileMissing}" aria-describedby="consent-error" /><span>Tôi đồng ý với <a th:href="@{/faq}" target="_blank" rel="noopener noreferrer">chính sách đặt bàn và quyền riêng tư</a> của T3L.</span></label>
+            <label class="booking-consent"><input type="checkbox" th:field="*{consentAccepted}" required aria-describedby="consent-error" /><span>Tôi đồng ý với <a th:href="@{/faq}" target="_blank" rel="noopener noreferrer">chính sách đặt bàn và quyền riêng tư</a> của T3L.</span></label>
             <small class="booking-field-error" id="consent-error" th:errors="*{consentAccepted}"></small>
             <button class="home-button booking-submit" type="submit"
-                th:text="${!bookingCustomer ? 'Tiếp tục đăng nhập' : (bookingProfileMissing ? 'Hoàn thiện hồ sơ' : 'Gửi yêu cầu đặt bàn')}"></button>
-            <button th:unless="${bookingCustomer}" type="submit" id="booking-login-draft" name="loginOnly" value="true" formnovalidate hidden>Đăng nhập</button>
-            <p class="booking-submit-note" th:if="${!bookingCustomer}">Đăng nhập bằng Google hoặc số điện thoại để gửi yêu cầu. Thông tin buổi hẹn sẽ được giữ lại.</p>
+                th:text="${bookingProfileMissing ? 'Hoàn thiện hồ sơ' : 'Gửi yêu cầu đặt bàn'}"></button>
+            <button sec:authorize="isAnonymous()" type="submit" id="booking-login-draft"
+                    class="home-button home-button-outline booking-submit" name="loginOnly" value="true" formnovalidate>Đăng nhập để đặt kèm món</button>
+            <p class="booking-submit-note" th:if="${!bookingCustomer}">Nhân viên sẽ gọi điện để xác nhận giữ chỗ.</p>
             <p class="booking-submit-note" th:if="${bookingCustomer and !bookingProfileMissing}">Yêu cầu sẽ ở trạng thái <strong>Chờ xác nhận</strong>.<br />Nhân viên sẽ liên hệ để xác nhận chỗ ngồi với bạn.</p>
           </form>
         </div>

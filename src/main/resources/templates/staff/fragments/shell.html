@@ -10,6 +10,7 @@
     <link rel="stylesheet" th:href="@{/css/staff.css(v=20261120)}" />
     <link rel="stylesheet" th:href="@{/css/table-plan.css(v=20261124)}" />
     <script defer th:src="@{/js/staff.js(v=20261120)}"></script>
+    <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
   </head>
   <body>
     <header class="staff-header" th:fragment="header(section)">
@@ -20,6 +21,8 @@
         </a>
         <div class="staff-user">
           <span sec:authentication="name"></span>
+          <a th:href="@{/}">Trang chủ</a>
+          <button th:replace="~{web/fragments/theme :: toggle}"></button>
           <form th:action="@{/logout}" method="post"><button class="staff-signout" type="submit">Đăng xuất</button></form>
         </div>
       </div>

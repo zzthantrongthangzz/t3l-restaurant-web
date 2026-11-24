@@ -22,19 +22,8 @@ public class AdminController {
   private final AdminInventoryService inventory;
 
   @GetMapping
-  public String list(@RequestParam(defaultValue = "") String q, @RequestParam(defaultValue = "") String category,
-      @RequestParam(defaultValue = "") String stock, @RequestParam(defaultValue = "") String visibility,
-      @RequestParam(defaultValue = "") String sort, @RequestParam(defaultValue = "0") int page, Model model) {
-    model.addAttribute("rows", dishes.search(q, category, stock, visibility, sort, page));
-    var categories = inventory.sectionList("MENU");
-    model.addAttribute("categories", categories);
-    model.addAttribute("hiddenCategories", categories.stream().filter(section -> !section.active()).map(AdminInventoryService.SectionRow::name).toList());
-    model.addAttribute("q", q);
-    model.addAttribute("category", category);
-    model.addAttribute("stock", stock);
-    model.addAttribute("visibility", visibility);
-    model.addAttribute("sort", sort);
-    return "admin/dishes";
+  public String list() {
+    return "redirect:/menu";
   }
 
   @GetMapping("/new")
@@ -56,7 +45,7 @@ public class AdminController {
       try {
         dishes.save(id, form);
         redirect.addFlashAttribute("notice", id == null ? "Đã thêm món ăn." : "Đã cập nhật món ăn.");
-        return "redirect:/admin/dishes";
+        return "redirect:/menu";
       } catch (IllegalArgumentException | IllegalStateException exception) {
         result.reject("dish.invalid", exception.getMessage());
       } catch (DataIntegrityViolationException exception) {
@@ -94,6 +83,6 @@ public class AdminController {
     } catch (DataIntegrityViolationException exception) {
       redirect.addFlashAttribute("error", "Món có lịch sử bán. Hãy ẩn món để giữ lại dữ liệu.");
     }
-    return "redirect:/admin/dishes";
+    return "redirect:/menu";
   }
 }

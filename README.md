@@ -1,6 +1,6 @@
 # T3L Restaurant
 
-Website nhà hàng và đặt bàn trực tuyến trong phạm vi môn Lập trình WWW Java. Luồng đặt bàn được tham khảo từ [project cũ](https://github.com/zzthantrongthangzz/RestaurantReservationManagement_T3L); project này giữ một nhà hàng, không triển khai chi nhánh hoặc khu vực bàn.
+Website nhà hàng và đặt bàn trực tuyến trong phạm vi môn Lập trình WWW Java. Dự án chuyển các luồng đặt bàn, gọi món và vận hành từ [ứng dụng desktop của nhóm](https://github.com/zzthantrongthangzz/RestaurantReservationManagement_T3L) sang web cho một nhà hàng.
 
 ## Công nghệ
 
@@ -29,15 +29,16 @@ D:\t3l-restaurant-web\
 └── pom.xml                       # Maven project duy nhất
 ```
 
-Frontend Thymeleaf nằm trong `src/main/resources/templates`; backend nằm trong `src/main/java`. Đây là một ứng dụng Spring Boot MVC theo hướng dẫn thực hành, không tách thành hai project frontend/backend.
+Theo hướng dẫn thực hành, Spring MVC nhận yêu cầu tại controller, kiểm tra DTO/form, xử lý nghiệp vụ trong service và truy cập dữ liệu qua repository. Thymeleaf kết xuất giao diện trên máy chủ. Spring Security dùng session cho web và Bearer JWT cho các API. Có thể thử `GET /api/menu` và `POST /api/auth/login` bằng Postman.
 
 ## Nghiệp vụ và phân quyền
 
-- Guest và BUYER xem menu, FAQ, danh sách bàn theo ngày và gửi yêu cầu đặt bàn.
-- Mọi ngày chỉ có một lượt giữ bàn. Guest/BUYER chỉ thấy trống/đã đặt; STAFF/ADMIN thấy thêm tên khách đã đặt.
-- STAFF/ADMIN duyệt hoặc hủy yêu cầu, mở ca, ghi nhận món bán theo tiền mặt/chuyển khoản/thẻ, nhập tiền thực đếm và kết ca. Báo cáo lưu doanh thu từng phương thức cùng chênh lệch tiền mặt.
-- ADMIN quản lý thực đơn và có các thao tác của khách/nhân viên.
-- Demo accounts được khởi tạo/cập nhật khi ứng dụng chạy: `admin / Admin@123`, `staff / Staff@123`, `buyer / Buyer@123`. Đổi mật khẩu trong `.env` trước khi chia sẻ project.
+- Khách vãng lai xem trang chủ, thực đơn, FAQ và kiểm tra bàn trống theo ngày, giờ đến. Số điện thoại là bắt buộc khi gửi yêu cầu giữ chỗ. Yêu cầu ở trạng thái **Chờ xác nhận** đến khi nhân viên xử lý.
+- Khách có tài khoản (`BUYER`) có thể chọn món trên thực đơn trước khi chọn bàn, chỉnh danh sách trong biểu mẫu đặt bàn, xem lịch sử và gửi yêu cầu đổi hoặc hủy. Cấu hình Google hoặc SMS trong `.env` để sử dụng phương thức đăng nhập tương ứng.
+- Nhân viên (`STAFF`) duyệt yêu cầu, check-in, chuyển bàn, gọi món, ghi nhận thanh toán và đối soát ca.
+- Quản trị viên (`ADMIN`) dùng trang chủ và thực đơn chung, đồng thời có bảng điều khiển cho tài khoản, bàn và khu vực, báo cáo doanh thu, hóa đơn, ca, liên hệ, cấu hình và nhật ký. Biểu tượng bút chì trên từng món mở trang chỉnh sửa. Món ẩn và món hết bán vẫn hiển thị cho admin.
+- Nút mặt trăng/mặt trời đổi giữa giao diện sáng trắng–cam và tối đen–hồng. Trình duyệt lưu tùy chọn khi chuyển trang.
+- Tài khoản nhân viên/quản trị đăng nhập tại `/staff/login`. Đặt tên tài khoản và mật khẩu demo trong `.env` theo `.env.example`.
 
 ## Cấu hình Cloudinary
 
@@ -48,7 +49,7 @@ Frontend Thymeleaf nằm trong `src/main/resources/templates`; backend nằm tro
    CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME
    ```
 
-3. Khởi động lại Spring Boot. Vào **Quản lý → Thực đơn → Thêm món**, chọn tệp JPEG/PNG/WebP tối đa 5 MB và lưu.
+3. Khởi động lại Spring Boot. Đăng nhập admin, mở **Thực đơn**, rồi chọn **Thêm món** hoặc biểu tượng bút chì trên một món. Chọn tệp JPEG/PNG/WebP tối đa 5 MB và lưu.
 
 Ảnh được tải lên từ backend qua Cloudinary Java SDK. MySQL lưu `image_url` và `image_public_id`; ảnh không được lưu trong thư mục source. Thực đơn hiện dùng ảnh minh họa tạm trong lúc chuẩn bị bộ ảnh mới. Khi chưa nhập Cloudinary URL, phần upload hiển thị hướng dẫn cấu hình thay vì giả lập ảnh bằng đường dẫn máy tính.
 
@@ -81,7 +82,7 @@ Khi bộ ảnh mới sẵn sàng, đặt các file theo tên trong `database/men
 java -jar target\t3l-restaurant-1.0.0.jar --server.port=0 --app.import-menu-images=true
 ```
 
-Chờ log `Imported 54 menu images`, sau đó dừng tiến trình bằng `Ctrl+C`. Importer dùng public ID cố định theo tên file nên chạy lại sẽ cập nhật ảnh/món hiện có thay vì tạo món trùng. Admin cũng có thể tự tạo món và upload ảnh riêng từ trang quản lý thực đơn.
+Chờ log cho biết số ảnh đã nhập, sau đó dừng tiến trình bằng `Ctrl+C`. Importer dùng public ID cố định theo tên file để cập nhật ảnh của món hiện có. Có thể tải từng ảnh ngay từ thực đơn chung.
 
 Database project cũ đã migrate một lần. Với database cũ khác, sao lưu trước khi chạy migration `02`, sau đó chạy `03`. Database cài mới chỉ cần để Docker chạy `01`. Không xóa Docker volume nếu muốn giữ database.
 

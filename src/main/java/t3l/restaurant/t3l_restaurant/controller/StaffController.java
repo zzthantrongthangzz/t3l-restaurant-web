@@ -172,7 +172,10 @@ public class StaffController {
   }
 
   @PostMapping("/tables/{id}/availability")
-  public String tableAvailability(@PathVariable Long id, @RequestParam boolean active, RedirectAttributes redirect) {
+  public String tableAvailability(@PathVariable Long id, @RequestParam boolean active,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate returnDate,
+      RedirectAttributes redirect) {
+    if (returnDate != null) redirect.addAttribute("date", returnDate);
     return action(redirect, TABLES, active ? "Đã mở lại bàn." : "Đã tạm ngưng sử dụng bàn.",
         () -> bookings.setTableActive(id, active));
   }

@@ -110,14 +110,14 @@ public class SecurityConfig {
           }));
     }
     return http.authorizeHttpRequests(a ->
-            a.requestMatchers("/account", "/account/**", "/reservations/lookup/*/claim")
+            a.requestMatchers("/account", "/account/**", "/reservations/lookup/*/claim", "/reservations/preorder")
                 .hasRole("BUYER")
                 .requestMatchers("/login", "/oauth2/authorization/google", "/login/oauth2/code/google", "/login/sms/**",
                     "/login/recover/**", "/staff/login")
                 .permitAll()
                 .requestMatchers("/chat/**").access(new org.springframework.security.web.access.expression.WebExpressionAuthorizationManager(
                     "isAnonymous() or hasRole('BUYER')"))
-                .requestMatchers("/js/chatbox.js").permitAll()
+                .requestMatchers("/js/chatbox.js", "/js/theme.js", "/js/menu.js").permitAll()
                 .requestMatchers(
                     "/", "/menu", "/about", "/contact", "/faq", "/register", "/reservations/**", "/css/**", "/fonts/**", "/images/**", "/error")
                 .permitAll()
