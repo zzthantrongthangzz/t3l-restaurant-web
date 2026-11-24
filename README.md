@@ -64,6 +64,18 @@ docker compose up -d mysql mongodb
 
 Mở <http://localhost:8085>. MySQL được publish ở cổng `3307`, MongoDB ở `27018`. Docker tạo schema/dữ liệu tự động khi MySQL chạy trên volume rỗng. Mongo seed FAQ cũng chỉ tự chạy lần đầu trên volume rỗng.
 
+### AI ChatBox
+
+ChatBox dùng MySQL cho thực đơn và đặt bàn. MongoDB ở `127.0.0.1:27018` lưu FAQ, lịch sử chat và bộ đếm giới hạn yêu cầu. Để bật tìm kiếm ngữ nghĩa, chạy thêm Atlas Local và điền `GEMINI_API_KEY` cùng `CHAT_VECTOR_MONGODB_URI=mongodb://127.0.0.1:27019/t3l_restaurant?directConnection=true` trong `.env`.
+
+```powershell
+docker compose --profile atlas-local up -d mongodb-vector
+```
+
+Gemini dùng mặc định `gemini-3.1-flash-lite` và `gemini-embedding-001` với 768 chiều. Ứng dụng tự tạo index `semantic` và chạy đồng bộ định kỳ từ FAQ đã xuất bản cùng thông tin công khai của nhà hàng. Lần chạy đầu có thể mất thời gian để index sẵn sàng. Khi dịch vụ AI chưa sẵn sàng, ChatBox vẫn xử lý được các câu hỏi khớp dữ liệu nhà hàng và các yêu cầu đặt bàn đủ thông tin.
+
+Để chạy cả hai test MongoDB thật, đặt `T3L_CHAT_MONGO_TEST_URI` và `T3L_CHAT_VECTOR_TEST_URI` trỏ vào dịch vụ QA trước khi chạy `.\mvnw.cmd verify`. URI của Atlas phải chứa tên database. Các test này tạo rồi dọn dữ liệu QA riêng.
+
 ## Script database
 
 - `database/mysql/01_schema_seed.sql`: cấu trúc cho cài mới, 18 bàn và 3 yêu cầu đặt bàn mẫu; Docker chạy tiếp `04` để đồng bộ danh mục 54 món.

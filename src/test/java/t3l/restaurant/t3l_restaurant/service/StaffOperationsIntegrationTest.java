@@ -177,7 +177,10 @@ class StaffOperationsIntegrationTest {
         .andExpect(flash().attributeExists("error"));
     staff(post("/staff/tables/" + smallTable + "/availability").param("active", "false"))
         .andExpect(flash().attributeExists("notice"));
-    staff(get("/staff/tables")).andExpect(status().isOk()).andExpect(content().string(containsString("Mở lại bàn")));
+    staff(get("/staff/tables")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("is-inactive")))
+        .andExpect(content().string(containsString("is-free")))
+        .andExpect(content().string(containsString("Mở lại bàn")));
     staff(post("/staff/tables/" + smallTable + "/availability").param("active", "true"))
         .andExpect(flash().attributeExists("notice"));
 

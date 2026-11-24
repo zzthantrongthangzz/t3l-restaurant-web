@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -25,11 +27,16 @@ class GeminiChat {
   private final HttpClient http;
   private final Semaphore concurrency = new Semaphore(4);
 
+  @Autowired
   GeminiChat(ChatSettings settings, ChatStore store, ObjectMapper json) {
+    this(settings, store, json, settings.configured() ? HttpClient.newBuilder().connectTimeout(settings.timeout).build() : null);
+  }
+
+  GeminiChat(ChatSettings settings, ChatStore store, ObjectMapper json, HttpClient http) {
     this.settings = settings;
     this.store = store;
     this.json = json;
-    this.http = settings.configured() ? HttpClient.newBuilder().connectTimeout(settings.timeout).build() : null;
+    this.http = http;
   }
 
   boolean configured() { return settings.configured(); }
@@ -44,7 +51,11 @@ class GeminiChat {
       var candidate = response.path("candidates").path(0);
       if (!"STOP".equals(candidate.path("finishReason").asText())) throw new Unavailable();
       for (JsonNode part : candidate.path("content").path("parts")) {
-        if (part.hasNonNull("text") && !part.path("thought").asBoolean()) return json.readTree(part.get("text").asText());
+        if (part.path("text").isTextual() && !part.path("thought").asBoolean()) {
+          JsonNode output = json.readTree(part.get("text").textValue());
+          if (output != null && output.isObject()) return output;
+          throw new Unavailable();
+        }
       }
       throw new Unavailable();
     } catch (IOException error) {
@@ -85,12 +96,14 @@ class GeminiChat {
       pending = http.sendAsync(request, HttpResponse.BodyHandlers.ofString());
       var response = pending.get(settings.timeout.toMillis(), TimeUnit.MILLISECONDS);
       if (response.statusCode() != 200) throw new Unavailable();
-      return json.readTree(response.body());
+      var payload = json.readTree(response.body());
+      if (payload == null || !payload.isObject()) throw new Unavailable();
+      return payload;
     } catch (InterruptedException error) {
       Thread.currentThread().interrupt();
       throw new Unavailable();
     } catch (IOException | java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException
-             | MongoException | IllegalArgumentException error) {
+             | MongoException | DataAccessException | IllegalArgumentException error) {
       throw new Unavailable();
     } finally {
       if (pending != null && !pending.isDone()) pending.cancel(true);

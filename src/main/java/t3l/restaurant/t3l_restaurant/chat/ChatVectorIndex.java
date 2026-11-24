@@ -47,12 +47,12 @@ class ChatVectorIndex {
   }
 
   boolean ready() {
-    var index = vectors().aggregate(List.of(indexStatus())).maxTime(2, TimeUnit.SECONDS).first();
+    var index = status();
     return index != null && Boolean.TRUE.equals(index.getBoolean("queryable"));
   }
 
   void ensureIndex() {
-    if (vectors().aggregate(List.of(indexStatus())).maxTime(2, TimeUnit.SECONDS).first() != null) return;
+    if (status() != null) return;
     try {
       db().createCollection(collection);
     } catch (MongoException error) {
@@ -60,9 +60,13 @@ class ChatVectorIndex {
     }
     var field = new Document("type", "vector").append("path", "embedding")
         .append("numDimensions", dimensions).append("similarity", "cosine");
-    db().runCommand(new Document("createSearchIndexes", collection).append("indexes", List.of(
-        new Document("name", "semantic").append("type", "vectorSearch")
-            .append("definition", new Document("fields", List.of(field))))));
+    try {
+      db().runCommand(new Document("createSearchIndexes", collection).append("indexes", List.of(
+          new Document("name", "semantic").append("type", "vectorSearch")
+              .append("definition", new Document("fields", List.of(field))))));
+    } catch (MongoException error) {
+      if (status() == null) throw error;
+    }
   }
 
   List<Document> versions() {
@@ -89,7 +93,17 @@ class ChatVectorIndex {
         .into(new java.util.ArrayList<>());
   }
 
-  private Document indexStatus() { return new Document("$listSearchIndexes", new Document("name", "semantic")); }
+  private Document status() {
+    try {
+      var stage = new Document("$listSearchIndexes", new Document("name", "semantic"));
+      var result = vectors().aggregate(List.of(stage)).maxTime(2, TimeUnit.SECONDS).first();
+      return result == null || "DOES_NOT_EXIST".equals(result.getString("status")) ? null : result;
+    } catch (MongoException error) {
+      if (error.getCode() == 26) return null; // NamespaceNotFound
+      throw error;
+    }
+  }
+
   private MongoCollection<Document> vectors() { return db().getCollection(collection); }
   private MongoDatabase db() { return atlas == null ? mongo.getDb() : atlas.getDatabase(database); }
 

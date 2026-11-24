@@ -22,25 +22,32 @@
       <section class="staff-table-plan-group" th:each="group : ${areas}">
         <h2 th:text="${group.key}"></h2>
         <div class="table-plan-grid">
-          <article class="plan-table-card" th:each="item : ${group.value}" th:with="table=${item.table},booking=${item.current},tableImage=${item.state == 'FREE' ? (item.table.tableType.toLowerCase().contains('vip') ? 'banXam_vip.png' : 'banXam_thuong.png') : (item.state == 'OCCUPIED' ? (item.table.tableType.toLowerCase().contains('vip') ? 'banDo_vip.png' : 'banDo_thuong.png') : (item.table.tableType.toLowerCase().contains('vip') ? 'banVang_vip.png' : 'banVang_thuong.png'))}"
-              th:classappend="${item.state == 'FREE' ? ' is-free' : (item.state == 'PENDING' ? ' is-pending' : (item.state == 'OCCUPIED' ? ' is-serving' : ' is-booked'))}">
+          <article class="plan-table-card" th:each="item : ${group.value}"
+              th:with="table=${item.table},booking=${item.current},state=${item.state.name()},
+                imagePrefix=${state == 'OCCUPIED' ? 'banDo' : (state == 'PENDING' or state == 'RESERVED' ? 'banVang' : 'banXam')},
+                tableImage=${imagePrefix + (table.tableType.toLowerCase().contains('vip') ? '_vip.png' : '_thuong.png')}"
+              th:classappend="${state == 'OCCUPIED' ? 'is-serving' : (state == 'RESERVED' ? 'is-booked' : 'is-' + #strings.toLowerCase(state))}">
             <a class="plan-table-hit" th:if="${booking != null}" th:href="@{${opsBase + '/reservations/{id}'}(id=${booking.id})}" th:aria-label="${'Chi tiết ' + table.code}"></a>
             <a class="plan-table-hit" th:if="${booking == null and table.active}" th:href="@{${opsBase + '/reservations/new'}(tableId=${table.id},date=${selectedDate})}" th:aria-label="${'Đặt ' + table.code}"></a>
             <img class="plan-table-image" th:src="@{/images/tables/{image}(image=${tableImage})}" alt="" width="120" height="84" />
             <h3 th:text="${table.code}"></h3><p class="plan-table-meta" th:text="${table.capacity + ' chỗ · ' + table.tableType}"></p>
-            <span class="plan-table-state" th:text="${item.state == 'FREE' ? 'Bàn trống' : (item.state == 'PENDING' ? 'Chờ nhân viên xác nhận' : (item.state == 'OCCUPIED' ? 'Đang phục vụ' : 'Đã xác nhận đặt'))}"></span>
+            <span class="plan-table-state" th:text="${state == 'FREE' ? 'Bàn trống' : (state == 'RESERVED' ? 'Đã xác nhận đặt' : item.state.label)}"></span>
             <div class="plan-table-customer" th:if="${booking != null}">
               <strong th:text="${booking.guestName}"></strong><span th:text="${booking.guestPhone}"></span>
               <span th:text="${#temporals.format(booking.startsAt,'dd/MM HH:mm') + ' · ' + booking.guestCount + ' khách · ' + booking.statusLabel + (booking.depositAmount.signum() > 0 ? ' · Cọc: ' + booking.depositStatusLabel : '')}"></span>
             </div>
             <div class="plan-table-actions" th:if="${booking != null}">
               <a class="staff-button is-outline" th:href="@{${opsBase + '/reservations/{id}'}(id=${booking.id})}">Chi tiết / chuyển bàn</a>
-              <a class="staff-button is-outline" th:if="${item.state == 'OCCUPIED'}" th:href="@{${opsBase + '/orders/{id}'}(id=${booking.id})}">Đặt món / tính tiền</a>
+              <a class="staff-button is-outline" th:if="${state == 'OCCUPIED'}" th:href="@{${opsBase + '/orders/{id}'}(id=${booking.id})}">Đặt món / tính tiền</a>
               <form th:if="${booking.status == 'CHECKED_IN'}" th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
                 <input type="hidden" name="from" value="table" /><input type="hidden" name="returnDate" th:value="${selectedDate}" /><button class="staff-button" name="status" value="SEATED">Nhận bàn</button>
               </form>
             </div>
-            <p class="plan-table-inactive" th:if="${!table.active}">Tạm ngưng</p>
+            <form class="plan-table-actions" th:if="${state == 'FREE' or state == 'INACTIVE'}"
+                th:action="@{${opsBase + '/tables/{id}/availability'}(id=${table.id})}" method="post">
+              <button class="staff-link staff-link-button" name="active" th:value="${!table.active}"
+                  th:text="${table.active ? 'Tạm ngưng' : 'Mở lại bàn'}"></button>
+            </form>
           </article>
         </div>
       </section>

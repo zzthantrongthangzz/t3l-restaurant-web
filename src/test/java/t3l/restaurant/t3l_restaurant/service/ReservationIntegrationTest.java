@@ -161,7 +161,9 @@ class ReservationIntegrationTest {
   }
 
   private String csrf(MockHttpSession session) throws Exception {
-    String html = mvc.perform(get("/reservations/new").session(session))
+    Long tableId = tables.findByActiveTrueOrderByCodeAsc().getFirst().getId();
+    String html = mvc.perform(get("/reservations/new").session(session)
+            .param("date", date.toString()).param("tableId", tableId.toString()))
         .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
     var match = Pattern.compile("name=\"_csrf\"[^>]*value=\"([^\"]+)\"").matcher(html);
     assertTrue(match.find());
@@ -239,8 +241,10 @@ class ReservationIntegrationTest {
   @Test
   void invalidArrivalIsRedisplayedWithInputsPreserved() throws Exception {
     var session = new MockHttpSession();
+    Long tableId = tables.findByActiveTrueOrderByCodeAsc().getFirst().getId();
     mvc.perform(post("/reservations").session(session).param("_csrf", csrf(session))
-            .param("date", date.toString()).param("time", "20:30").param("guests", "2")
+            .param("date", date.toString()).param("time", "20:30").param("guests", "2").param("tableId", tableId.toString())
+            .param("guestName", "T3L MVC test").param("guestPhone", "0901234567")
             .param("note", "Retained note")
             .param("consentAccepted", "true"))
         .andExpect(status().isOk()).andExpect(model().attributeHasFieldErrors("form", "time"))

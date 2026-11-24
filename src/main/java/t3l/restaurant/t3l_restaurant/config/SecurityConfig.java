@@ -113,13 +113,13 @@ public class SecurityConfig {
             a.requestMatchers("/account", "/account/**", "/reservations/lookup/*/claim")
                 .hasRole("BUYER")
                 .requestMatchers("/login", "/oauth2/authorization/google", "/login/oauth2/code/google", "/login/sms/**",
-                    "/login/recover/**", "/staff/login")
+                    "/login/recover/**", "/register", "/register/verify", "/staff/login")
                 .permitAll()
                 .requestMatchers("/chat/**").access(new org.springframework.security.web.access.expression.WebExpressionAuthorizationManager(
                     "isAnonymous() or hasRole('BUYER')"))
                 .requestMatchers("/js/chatbox.js").permitAll()
                 .requestMatchers(
-                    "/", "/menu", "/about", "/contact", "/faq", "/register", "/reservations/**", "/css/**", "/fonts/**", "/images/**", "/error")
+                    "/", "/menu", "/about", "/contact", "/faq", "/reservations/**", "/css/**", "/fonts/**", "/images/**", "/error")
                 .permitAll()
                 .requestMatchers("/admin", "/admin/**")
                 .hasRole("ADMIN")

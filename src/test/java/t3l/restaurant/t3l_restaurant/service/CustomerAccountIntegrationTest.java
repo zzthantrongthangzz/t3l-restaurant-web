@@ -294,7 +294,8 @@ class CustomerAccountIntegrationTest {
     var employee = accounts.save(new UserAccount("employee-" + UUID.randomUUID(), passwords.encode(PASSWORD), "STAFF"));
     mvc.perform(get("/login")).andExpect(status().isOk())
         .andExpect(content().string(not(containsString("name=\"password\""))));
-    mvc.perform(get("/register")).andExpect(redirectedUrl("/login"));
+    mvc.perform(get("/register")).andExpect(status().isOk())
+        .andExpect(content().string(not(containsString("name=\"password\""))));
     mvc.perform(get("/staff/reservations")).andExpect(redirectedUrlPattern("**/staff/login"));
     mvc.perform(get("/staff/login")).andExpect(content().string(containsString("name=\"password\"")));
     mvc.perform(post("/login").with(csrf()).param("username", buyer.getUsername()).param("password", PASSWORD))
@@ -310,6 +311,21 @@ class CustomerAccountIntegrationTest {
   }
 
   @Test
+  void registersAndSignsInWithSmsWithoutAnExistingSessionLogin() throws Exception {
+    String phone = "0971234567";
+    var code = simulateSms();
+    var session = new MockHttpSession();
+    mvc.perform(post("/register").session(session).with(csrf())
+        .param("fullName", "Nguyễn An").param("phone", phone))
+        .andExpect(status().isOk()).andExpect(model().attribute("registrationPending", true));
+    assertNotNull(code.get());
+    mvc.perform(post("/register/verify").session(session).with(csrf()).param("code", code.get()))
+        .andExpect(redirectedUrl("/"));
+    assertEquals("Nguyễn An", accounts.findByVerifiedPhone(phone).orElseThrow().getFullName());
+    mvc.perform(get("/account").session(session)).andExpect(status().isOk());
+  }
+
+  @Test
   void localSmsKeepsBookingDraftAndRequiresProfileBeforeCreatingBooking() throws Exception {
     jdbc.update("insert into restaurant_tables(code, table_type, capacity, active) values (?, ?, ?, ?)",
         "SMS-QA-TABLE", "Bàn nhỏ", 4, true);
@@ -318,7 +334,7 @@ class CustomerAccountIntegrationTest {
     long before = bookings.count();
     String next = mvc.perform(post("/reservations").session(session).with(csrf()).param("date", date)
         .param("time", "18:00").param("guests", "3").param("preferredArea", "Bàn nhỏ")
-        .param("note", "Ghi chú cần giữ").param("consentAccepted", "true"))
+        .param("note", "Ghi chú cần giữ").param("consentAccepted", "true").param("loginOnly", "true"))
         .andExpect(status().is3xxRedirection()).andReturn().getResponse().getRedirectedUrl();
     var login = UriComponentsBuilder.fromUriString(next).build();
     assertEquals("/login", login.getPath());
@@ -461,7 +477,7 @@ class CustomerAccountIntegrationTest {
     String date = "2098-12-09";
     String start = mvc.perform(post("/reservations").session(session).with(csrf()).param("date", date)
         .param("time", "18:30").param("guests", "3").param("note", "Ghi chú của lịch Google")
-        .param("consentAccepted", "true")).andReturn().getResponse().getRedirectedUrl();
+        .param("consentAccepted", "true").param("loginOnly", "true")).andReturn().getResponse().getRedirectedUrl();
     assertNotNull(start);
     String target = URLDecoder.decode(UriComponentsBuilder.fromUriString(start).build()
         .getQueryParams().getFirst("returnTo"), StandardCharsets.UTF_8);

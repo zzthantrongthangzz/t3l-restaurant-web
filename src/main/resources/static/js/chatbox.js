@@ -71,17 +71,17 @@
       anchor.textContent = linkLabels.get(link);
       actions.append(anchor);
     }
-    if (reply.draft) actions.append(draftButton());
+    if (reply.draftToken) actions.append(draftButton(reply.draftToken));
     if (actions.childElementCount) log.append(actions);
     focusLog();
   }
 
-  function draftButton() {
+  function draftButton(token) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 't3l-chat-draft';
     button.textContent = 'Mở biểu mẫu đã điền';
-    button.addEventListener('click', () => openDraft(button));
+    button.addEventListener('click', () => openDraft(button, token));
     return button;
   }
 
@@ -111,7 +111,7 @@
       if (snapshot.draftAvailable) {
         const actions = document.createElement('div');
         actions.className = 't3l-chat-actions';
-        actions.append(draftButton());
+        actions.append(draftButton(snapshot.draftToken));
         log.append(actions);
         focusLog();
       }
@@ -122,9 +122,9 @@
     return sessionRequest;
   }
 
-  async function write(url, method, body) {
+  async function write(url, method, body, extraHeaders) {
     const state = await loadSession();
-    const headers = { [state.csrfHeader]: state.csrfToken };
+    const headers = { ...extraHeaders, [state.csrfHeader]: state.csrfToken };
     if (body) headers['Content-Type'] = 'application/json';
     return read(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
   }
@@ -166,13 +166,13 @@
     }
   }
 
-  async function openDraft(button) {
+  async function openDraft(button, token) {
     if (pending) return;
     pending = true;
     button.disabled = true;
     notice('Đang kiểm tra lại chỗ trống…');
     try {
-      const reply = await write(widget.dataset.chatDraft, 'POST');
+      const reply = await write(widget.dataset.chatDraft, 'POST', undefined, { 'X-Chat-Draft': token });
       const url = new URL(reply.url, location.href);
       if (url.origin !== location.origin || url.pathname !== appPath + '/reservations/new') {
         throw new Error('Không mở được biểu mẫu đặt bàn.');

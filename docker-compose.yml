@@ -35,7 +35,7 @@ services:
     container_name: t3l-restaurant-mongodb
     restart: unless-stopped
     ports:
-      - "27018:27017"
+      - "127.0.0.1:27018:27017"
     volumes:
       - t3l_mongo_data:/data/db
       - ./database/mongodb/01_faq_seed.js:/docker-entrypoint-initdb.d/01_faq_seed.js:ro

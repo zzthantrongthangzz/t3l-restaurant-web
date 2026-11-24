@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mongodb.MongoTimeoutException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -74,6 +75,12 @@ class ChatWebIntegrationTest {
         .content("{\"text\":\"Chào\"}")).andExpect(status().isForbidden());
     mvc.perform(post("/chat/messages").session(guest).with(csrf()).contentType(MediaType.APPLICATION_JSON)
         .content("{\"text\":\"" + "a".repeat(801) + "\"}")).andExpect(status().isBadRequest());
+    for (String invalid : List.of("{\"text\":123}", "{\"text\":null}", "{\"text\":[]}", "{}",
+        "{\"text\":\"\\u0000\"}", "{\"text\":\"\\u00a0\"}", "{")) {
+      mvc.perform(post("/chat/messages").session(guest).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+          .content(invalid)).andExpect(status().isBadRequest());
+    }
+    verify(store, never()).append(anyString(), any());
     mvc.perform(post("/chat/messages").session(guest).with(csrf()).contentType(MediaType.APPLICATION_JSON)
         .content("{\"text\":\"Chào\"}")).andExpect(status().isOk()).andExpect(jsonPath("$.text").value(containsString("T3L")));
     mvc.perform(get("/chat/session").session(guest)).andExpect(status().isOk())
@@ -90,6 +97,21 @@ class ChatWebIntegrationTest {
   }
 
   @Test
+  void reportsMongoFailureAndRecovers() throws Exception {
+    when(store.history(anyString())).thenThrow(new MongoTimeoutException("private database detail"));
+    var guest = new MockHttpSession();
+    mvc.perform(get("/chat/session").session(guest)).andExpect(status().isOk())
+        .andExpect(jsonPath("$.conversationAvailable").value(false)).andExpect(jsonPath("$.history").isEmpty());
+    mvc.perform(post("/chat/messages").session(guest).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+        .content("{\"text\":\"Chào\"}")).andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(not(containsString("private database detail"))));
+    verify(store, never()).append(anyString(), any());
+    doReturn(List.of()).when(store).history(anyString());
+    mvc.perform(get("/chat/session").session(guest)).andExpect(status().isOk())
+        .andExpect(jsonPath("$.conversationAvailable").value(true));
+  }
+
+  @Test
   void previewsAvailabilityAndPrefillsExistingFormWithoutCreatingReservation() throws Exception {
     var date = schedule.today().plusDays(10);
     var slot = schedule.getOpeningTime();
@@ -99,11 +121,24 @@ class ChatWebIntegrationTest {
     var guest = new MockHttpSession();
     long count = reservations.count();
     mvc.perform(post("/chat/booking-draft").session(guest).with(csrf())).andExpect(status().isConflict());
-    mvc.perform(post("/chat/messages").session(guest).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+    var preview = mvc.perform(post("/chat/messages").session(guest).with(csrf()).contentType(MediaType.APPLICATION_JSON)
         .content(json.writeValueAsString(new ChatController.Message("Đặt bàn " + date + " " + slot + " cho 16 khách"))))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.draft").value(true)).andReturn();
+    var oldToken = json.readTree(preview.getResponse().getContentAsString()).get("draftToken").asText();
+    mvc.perform(post("/chat/messages").session(guest).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+        .content(json.writeValueAsString(new ChatController.Message("17 khách"))))
         .andExpect(status().isOk()).andExpect(jsonPath("$.draft").value(true));
-    var draft = mvc.perform(post("/chat/booking-draft").session(guest).with(csrf()))
+    var snapshot = mvc.perform(get("/chat/session").session(guest)).andExpect(status().isOk())
+        .andExpect(jsonPath("$.draftAvailable").value(true)).andReturn();
+    var token = json.readTree(snapshot.getResponse().getContentAsString()).get("draftToken").asText();
+    assertThat(token).isNotEqualTo(oldToken);
+    mvc.perform(post("/chat/booking-draft").session(guest).with(csrf()).header("X-Chat-Draft", oldToken))
+        .andExpect(status().isConflict());
+    mvc.perform(post("/chat/booking-draft").with(csrf()).header("X-Chat-Draft", token)).andExpect(status().isConflict());
+    var draft = mvc.perform(post("/chat/booking-draft").session(guest).with(csrf()).header("X-Chat-Draft", token))
         .andExpect(status().isOk()).andReturn();
+    mvc.perform(post("/chat/booking-draft").session(guest).with(csrf()).header("X-Chat-Draft", token))
+        .andExpect(status().isConflict());
     var url = json.readTree(draft.getResponse().getContentAsString()).get("url").asText();
     mvc.perform(get(url).session(guest)).andExpect(status().isOk())
         .andExpect(model().attributeExists("form"))
@@ -111,7 +146,7 @@ class ChatWebIntegrationTest {
           var form = (ReservationForm) result.getModelAndView().getModel().get("form");
           assertThat(form.getDate()).isEqualTo(date);
           assertThat(form.getTime()).isEqualTo(slot);
-          assertThat(form.getGuests()).isEqualTo(16);
+          assertThat(form.getGuests()).isEqualTo(17);
           assertThat(form.isConsentAccepted()).isFalse();
         });
     assertThat(reservations.count()).isEqualTo(count);
@@ -139,6 +174,12 @@ class ChatWebIntegrationTest {
     mvc.perform(post("/chat/messages").with(user(other.getUsername()).roles("BUYER")).with(csrf())
         .contentType(MediaType.APPLICATION_JSON).content(lookup)).andExpect(status().isOk())
         .andExpect(jsonPath("$.text").value(not(containsString(booking.getCode()))));
+    var ownerSession = new MockHttpSession();
+    mvc.perform(post("/chat/messages").session(ownerSession).with(user(owner.getUsername()).roles("BUYER")).with(csrf())
+        .contentType(MediaType.APPLICATION_JSON).content("{\"text\":\"Xem lịch đã đặt\"}"))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.text").value(containsString(booking.getCode())));
+    mvc.perform(get("/chat/session").session(ownerSession).with(user(owner.getUsername()).roles("BUYER")))
+        .andExpect(status().isOk()).andExpect(content().string(not(containsString(booking.getCode()))));
 
     // Both server queries use the same capacity and overlap rules.
     for (var candidate : tables.findByActiveTrueOrderByCodeAsc()) {
