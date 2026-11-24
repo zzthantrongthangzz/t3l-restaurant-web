@@ -141,9 +141,6 @@ body { accent-color: var(--accent); }
   color: var(--text); background: var(--surface-muted); border-color: var(--border);
 }
 .home .account-area .account-button.is-primary { background: var(--action); color: var(--on-action); border-color: var(--action); }
-body :is(.customer-dropdown, .customer-avatar) { background: var(--surface); color: var(--text); border-color: var(--border); }
-body .customer-dropdown .customer-option { color: var(--text); }
-body .customer-dropdown .customer-option:is(:hover, [aria-current="page"]) { color: var(--accent-text); background: var(--accent-wash); }
 
 body.staff-page, body.customer-page {
   --staff-bg: var(--page);
@@ -203,8 +200,6 @@ body.staff-page, body.customer-page {
 }
 .home :is(.account-content .account-notice.is-error, .contact-form-error) { color: var(--error); }
 .home :is(.contact-map, .home-dish-image) { background: var(--surface-muted); }
-.home :is(.customer-menu-name, .customer-dropdown form) { border-color: var(--border); }
-.home .customer-menu-name { color: var(--text); }
 .home.confirmation-page { background: var(--page); }
 .staff-page :is(a.staff-metric:hover, .staff-button.is-outline:hover, .staff-button.is-danger:hover,
   .staff-request-blocked, .staff-deposit-panel) { background: var(--accent-wash); border-color: var(--border); }

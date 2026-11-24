@@ -58,7 +58,6 @@
     border-top: 1px solid var(--border);
     padding: 13px 5px 0;
   }
-  .restaurant-sidebar .customer-menu .customer-dropdown { right: auto; left: calc(100% + 24px); top: auto; bottom: 0; }
   .home.faq-page .faq-main { padding-top: 56px; }
   body.staff-page:has(> .staff-header) { padding-inline-start: 220px; }
   .staff-page > .staff-header {
@@ -82,6 +81,11 @@
 
 @media (max-width: 1100px) {
   .home.faq-page .faq-main { padding-top: 125px; }
+  .restaurant-sidebar-actions .customer-menu { position: static; }
+  .restaurant-sidebar-actions .customer-menu .customer-dropdown {
+    inset-inline-end: 12px;
+    top: calc(100% + 8px);
+  }
   .home .restaurant-sidebar.nav-ready .home-nav {
     width: min(310px, 100%);
     inset-inline: 0 auto;
@@ -119,6 +123,14 @@
 @media (min-width: 1101px) {
   .restaurant-sidebar .restaurant-mobile-account { display: none; }
   .restaurant-sidebar-actions { display: grid; justify-content: stretch; gap: 10px; }
+  .restaurant-sidebar-actions:has(.customer-menu) {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .restaurant-sidebar-actions .customer-menu { position: static; min-width: 0; }
+  .restaurant-sidebar-actions .customer-menu .customer-dropdown {
+    right: auto; left: calc(100% + 18px); top: auto; bottom: 0;
+  }
   .restaurant-sidebar-actions .sidebar-employee { display: flex; }
   .restaurant-sidebar-actions .customer-menu > summary { justify-content: start; }
   .restaurant-sidebar-actions .customer-menu summary .sidebar-account-label { display: grid; flex: 1; }
