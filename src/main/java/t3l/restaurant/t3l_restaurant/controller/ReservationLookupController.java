@@ -13,6 +13,7 @@ import t3l.restaurant.t3l_restaurant.dto.*;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.repository.RestaurantTableRepository;
+import t3l.restaurant.t3l_restaurant.repository.DiningOrderRepository;
 import t3l.restaurant.t3l_restaurant.service.*;
 
 @Controller
@@ -26,11 +27,15 @@ public class ReservationLookupController {
   private final ReservationSchedule schedule;
   private final RestaurantTableRepository tables;
   private final CustomerAccountService customers;
+  private final PaymentIntentService paymentIntents;
+  private final SepayProperties sepay;
+  private final DiningOrderRepository diningOrders;
 
   public ReservationLookupController(ReservationManagementService management, ReservationService bookings,
       ReservationLookupAccess access, ReservationConfirmationAccess confirmationAccess,
       ReservationChangePolicy policy, ReservationSchedule schedule, RestaurantTableRepository tables,
-      CustomerAccountService customers) {
+      CustomerAccountService customers, PaymentIntentService paymentIntents, SepayProperties sepay,
+      DiningOrderRepository diningOrders) {
     this.management = management;
     this.bookings = bookings;
     this.access = access;
@@ -39,6 +44,9 @@ public class ReservationLookupController {
     this.schedule = schedule;
     this.tables = tables;
     this.customers = customers;
+    this.paymentIntents = paymentIntents;
+    this.sepay = sepay;
+    this.diningOrders = diningOrders;
   }
 
   @ModelAttribute
@@ -170,6 +178,13 @@ public class ReservationLookupController {
 
   private void addDetails(Model model, Reservation booking, UserAccount customer) {
     model.addAttribute("reservation", booking);
+    model.addAttribute("preorder", diningOrders.findByReservation_Id(booking.getId()).orElse(null));
+    model.addAttribute("depositRefundTerms", bookings.depositRefundTerms());
+    model.addAttribute("depositOverdue", booking.hasExpiredDeposit(policy.now()));
+    model.addAttribute("depositCheckout", paymentIntents.depositCheckout(booking.getId()));
+    model.addAttribute("paymentStatus", paymentIntents.depositStatus(booking));
+    model.addAttribute("qrPayments", paymentIntents.usesQr());
+    model.addAttribute("demoEnabled", sepay.demoAllowed());
     model.addAttribute("ownedBooking", bookings.owns(booking, customer));
     model.addAttribute("canClaimBooking", customer != null && booking.getCustomerId() == null);
     model.addAttribute("history", management.history(booking.getId()));

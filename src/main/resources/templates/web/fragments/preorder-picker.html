@@ -1,0 +1,55 @@
+<section xmlns:th="http://www.thymeleaf.org" th:fragment="picker(cards,minimum,paid,buyer,note)"
+    class="preorder-picker" data-preorder-picker
+    th:attr="data-minimum=${minimum},data-paid=${paid},data-buyer=${buyer},data-placeholder=@{/images/dish-placeholder.svg}">
+  <h2>Món đặt trước</h2>
+  <p class="preorder-hint" th:unless="${buyer}">Bạn có thể chọn món ngay. Giỏ món sẽ được lưu khi đăng nhập hoặc đăng ký.</p>
+  <div class="preorder-layout">
+    <div class="preorder-catalog">
+      <div class="preorder-filters">
+        <label>Tìm món <input type="search" data-preorder-search placeholder="Nhập tên món" /></label>
+        <label>Danh mục <select data-preorder-category><option value="">Tất cả danh mục</option></select></label>
+      </div>
+      <div class="preorder-products" aria-label="Thực đơn đặt trước">
+        <article class="preorder-product" th:each="card : ${cards}" data-preorder-product
+            th:attr="data-id=${card.id},data-name=${card.name},data-category=${card.category},data-price=${card.price},data-quantity=${card.quantity},data-available=${card.available}">
+          <img width="88" height="72" loading="lazy" decoding="async" alt=""
+              th:src="${card.image != null and !card.image.isBlank()} ? ${card.image} : @{/images/dish-placeholder.svg}" />
+          <div class="preorder-product-info">
+            <small th:text="${card.category}"></small>
+            <h3 th:text="${card.name}"></h3>
+            <strong th:if="${card.available}" th:text="${#numbers.formatInteger(card.price,1,'POINT') + ' đ'}"></strong>
+            <span th:unless="${card.available}">Bỏ món này để tiếp tục</span>
+          </div>
+          <div class="preorder-stepper">
+            <button type="button" data-preorder-step="-1" th:aria-label="${'Giảm ' + card.name}">−</button>
+            <output data-preorder-count th:text="${card.quantity}">0</output>
+            <button type="button" data-preorder-step="1" th:aria-label="${'Thêm ' + card.name}">+</button>
+          </div>
+          <span th:each="tier : ${card.existing}" data-preorder-tier hidden
+              th:attr="data-price=${tier.price},data-quantity=${tier.quantity}"></span>
+        </article>
+      </div>
+      <p data-preorder-no-results class="preorder-hint" hidden>Không tìm thấy món phù hợp.</p>
+    </div>
+    <aside class="preorder-cart" aria-label="Giỏ món ăn">
+      <h3>Giỏ món ăn</h3>
+      <p data-preorder-empty class="preorder-hint">Chưa chọn món.</p>
+      <ul data-preorder-lines></ul>
+      <dl class="preorder-totals" aria-live="polite">
+        <div><dt>Tổng tiền món đặt trước</dt><dd data-preorder-total>0 đ</dd></div>
+        <div><dt>Cọc bắt buộc</dt><dd data-preorder-deposit th:text="${#numbers.formatInteger(minimum,1,'POINT') + ' đ'}"></dd></div>
+        <div th:if="${paid.signum() > 0}"><dt>Cọc đã nhận</dt><dd th:text="${#numbers.formatInteger(paid,1,'POINT') + ' đ'}"></dd></div>
+        <div th:if="${paid.signum() > 0}"><dt>Cần nộp thêm</dt><dd data-preorder-topup>0 đ</dd></div>
+        <div><dt>Dự kiến còn lại cho món</dt><dd data-preorder-balance>0 đ</dd></div>
+      </dl>
+      <p class="preorder-hint">Cọc là mức cao hơn giữa cọc tối thiểu của bàn và 70% tiền món. Tiền còn lại tính riêng cho món đã chọn.</p>
+      <label>Ghi chú cho bếp
+        <textarea name="preorderNote" rows="2" maxlength="500" th:text="${note}" placeholder="Ví dụ: để sốt riêng"></textarea>
+      </label>
+      <p class="preorder-hint" role="status" data-preorder-warning></p>
+    </aside>
+  </div>
+  <div data-preorder-fields></div>
+  <input type="hidden" name="preorderExpectedTotal" data-preorder-expected />
+  <noscript><p>Bật JavaScript để chọn hoặc chỉnh số lượng món.</p></noscript>
+</section>

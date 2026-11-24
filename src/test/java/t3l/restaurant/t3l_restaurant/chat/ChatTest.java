@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mongodb.MongoTimeoutException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -12,6 +13,7 @@ import java.util.List;
 import org.bson.Document;
 import org.junit.jupiter.api.Test;
 import t3l.restaurant.t3l_restaurant.config.RestaurantInfo;
+import t3l.restaurant.t3l_restaurant.document.FaqEntry;
 import t3l.restaurant.t3l_restaurant.entity.Dish;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.repository.DishRepository;
@@ -41,6 +43,30 @@ class ChatTest {
     assertThat(second.guests()).isEqualTo(4);
     assertThat(ChatIntent.parse("Bàn trống 7h tối ngày mai cho 2 người?", null, today).time())
         .isEqualTo(LocalTime.of(19, 0));
+    assertThat(ChatIntent.parse("Đặt bàn ngày mai 19h 30 cho 4 khách", null, today).time())
+        .isEqualTo(LocalTime.of(19, 30));
+    assertThat(ChatIntent.parse("Đặt bàn ngày mai 19 giờ 4 khách", null, today).time())
+        .isEqualTo(LocalTime.of(19, 0));
+    assertThat(ChatIntent.parse("Giờ mở cửa ngày mai?", first, today).kind()).isEqualTo(ChatIntent.Kind.INFO);
+    assertThat(ChatIntent.parse("Tra cứu giờ mở cửa", first, today).kind()).isEqualTo(ChatIntent.Kind.INFO);
+  }
+
+  @Test
+  void invalidBookingChangesNeverReuseTheOldValueOrConsultTheModel() {
+    when(schedule.today()).thenReturn(LocalDate.of(2026, 11, 20));
+    var assistant = new ChatAssistant(gemini, knowledge, dishes, reservations, schedule);
+    var first = assistant.reply("Đặt bàn ngày mai 18h cho 4 khách", List.of(), null);
+    assertThat(first.reply().draft()).isTrue();
+    clearInvocations(reservations);
+    for (String change : List.of("19h99", "19:", "999:00", "31/02/2027", "Đặt bàn -2 khách", "Đặt bàn 2,5 khách",
+        "Đặt bàn 10000 khách")) {
+      var corrected = assistant.reply(change, List.of(first.turn()), null);
+      assertThat(corrected.reply().draft()).as(change).isFalse();
+    }
+    var invalid = assistant.reply("31/02/2027 19h", List.of(first.turn()), null);
+    assertThat(assistant.reply("20h", List.of(invalid.turn()), null).reply().draft()).isFalse();
+    verifyNoInteractions(reservations);
+    verify(gemini, never()).structured(anyString(), any(), anyMap());
   }
 
   @Test
@@ -59,6 +85,16 @@ class ChatTest {
         .extracting(ChatAssistant.DishCard::name).containsExactly("Nước suối");
     verifyNoInteractions(reservations);
     assertThat(assistant.reply("Món gì cho khách dị ứng tôm?", List.of(), null).reply().dishes()).isEmpty();
+    assertThat(assistant.reply("Tôi dị ứng đậu phộng", List.of(), null).reply().text()).contains("dị ứng");
+    for (String amount : List.of("200.000 ₫", "200.000 đồng", "200000 VND", "0,2 triệu")) {
+      var result = assistant.reply("Gợi ý món chay cho 2 người, ngân sách " + amount, List.of(), null);
+      assertThat(result.reply().dishes()).as(amount).extracting(ChatAssistant.DishCard::name).containsExactly("Salad");
+    }
+    for (String amount : List.of("0k", "-200k", "9.999.999.999 đồng")) {
+      var result = assistant.reply("Gợi ý món với " + amount, List.of(), null);
+      assertThat(result.reply().dishes()).as(amount).isEmpty();
+      assertThat(result.reply().text()).contains("ngân sách hợp lệ");
+    }
   }
 
   @Test
@@ -74,6 +110,42 @@ class ChatTest {
     verify(reservations).findVisibleByCode("T3L-ABCD1234", owner, false);
     verifyNoInteractions(gemini);
     assertThat(ChatIntent.safe("0901 234 567 test@example.com T3L-ABCD1234")).doesNotContain("0901", "example", "ABCD");
+    assertThat(ChatIntent.safe("Toi ten:Nguyen Van A, xin chào")).doesNotContain("Nguyen Van A");
+  }
+
+  @Test
+  void answersFromPublishedFaqDuringVectorOrGeminiFailureAndAdmitsUnknown() {
+    hours();
+    when(schedule.today()).thenReturn(LocalDate.of(2026, 11, 20));
+    var faq = mock(FaqEntry.class);
+    when(faq.getId()).thenReturn("parking");
+    when(faq.getQuestion()).thenReturn("Nhà hàng có bãi đỗ xe không?");
+    when(faq.getAnswer()).thenReturn("Có bãi đỗ xe bên cạnh nhà hàng.");
+    when(faqs.findByPublishedTrueOrderByDisplayOrderAsc()).thenReturn(List.of(faq));
+    when(gemini.configured()).thenReturn(true);
+    when(gemini.structured(anyString(), any(), anyMap())).thenThrow(new GeminiChat.Unavailable());
+    when(index.ready()).thenThrow(new MongoTimeoutException("offline")).thenReturn(true);
+    when(gemini.embedding(anyString(), eq(true))).thenThrow(new GeminiChat.Unavailable());
+    var assistant = new ChatAssistant(gemini, knowledge, dishes, reservations, schedule);
+    assertThat(assistant.reply("Có bãi đỗ xe không?", List.of(), null).reply().text())
+        .isEqualTo("Có bãi đỗ xe bên cạnh nhà hàng.");
+    assertThat(assistant.reply("xyzzy quux?", List.of(), null).reply().text()).contains("chưa tìm được");
+  }
+
+  @Test
+  void modelCannotTurnUnknownInputIntoAGreetingOrPersonalLookup() {
+    hours();
+    when(schedule.today()).thenReturn(LocalDate.of(2026, 11, 20));
+    when(gemini.configured()).thenReturn(true);
+    var json = new ObjectMapper();
+    when(gemini.structured(anyString(), any(), anyMap()))
+        .thenReturn(json.createObjectNode().put("intent", "GREETING"), json.createObjectNode().put("intent", "LOOKUP"));
+    var assistant = new ChatAssistant(gemini, knowledge, dishes, reservations, schedule);
+    var customer = mock(UserAccount.class);
+    for (int attempt = 0; attempt < 2; attempt++) {
+      assertThat(assistant.reply("xyzzy quux?", List.of(), customer).reply().text()).contains("chưa tìm được");
+    }
+    verifyNoInteractions(reservations);
   }
 
   @Test

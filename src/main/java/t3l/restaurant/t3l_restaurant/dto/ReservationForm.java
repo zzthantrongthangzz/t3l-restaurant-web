@@ -9,7 +9,8 @@ import org.springframework.format.annotation.DateTimeFormat;
 
 @Getter
 @Setter
-public class ReservationForm {
+public class ReservationForm extends PreorderForm {
+  private java.util.List<Long> preorderDishIds = new java.util.ArrayList<>();
   @NotBlank(message = "Vui lòng nhập họ tên.")
   @Size(max = 120, message = "Họ tên không vượt quá 120 ký tự.")
   private String guestName;

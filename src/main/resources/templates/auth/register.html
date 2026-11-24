@@ -17,6 +17,7 @@
       </p>
       <form class="login-form register-form" method="post" th:action="@{/register}"
           th:object="${registrationForm}" th:if="${smsAvailable}">
+        <input type="hidden" name="returnTo" th:if="${registrationReturnTo != null}" th:value="${registrationReturnTo}" />
         <div class="login-field register-wide">
           <label for="fullName">Họ và tên <span aria-hidden="true">*</span></label>
           <input id="fullName" th:field="*{fullName}" autocomplete="name" maxlength="120"
@@ -45,7 +46,7 @@
           <button class="home-button login-submit" type="submit">Xác nhận và tạo tài khoản</button>
         </form>
       </section>
-      <a class="login-home-link" th:href="@{/login}">Đã có tài khoản? Đăng nhập</a>
+      <a class="login-home-link" th:href="@{/login(returnTo=${registrationReturnTo})}">Đã có tài khoản? Đăng nhập</a>
     </th:block>
   </body>
 </html>

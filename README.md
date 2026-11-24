@@ -58,7 +58,7 @@ Theo hướng dẫn thực hành, Spring MVC nhận yêu cầu tại controller,
 Yêu cầu: JDK 21 và Docker Desktop.
 
 ```powershell
-git clone --branch versionb https://github.com/zzthantrongthangzz/t3l-restaurant-web.git
+git clone --branch main https://github.com/zzthantrongthangzz/t3l-restaurant-web.git
 cd t3l-restaurant-web
 Copy-Item .env.example .env
 # Mở .env, đặt MYSQL_PASSWORD và MYSQL_ROOT_PASSWORD trước lần đầu khởi tạo.
@@ -66,20 +66,60 @@ docker compose up -d --wait mysql mongodb
 .\mvnw.cmd spring-boot:run
 ```
 
-Mở <http://localhost:8085/menu>. MySQL dùng cổng `3307`, MongoDB dùng cổng `27018`. Khi tạo volume mới, Docker nạp 54 món, link ảnh Cloudinary và FAQ mẫu. Nếu đã có volume, Docker giữ dữ liệu hiện tại. Chạy các migration còn thiếu theo thứ tự, gồm `17_menu_images.sql` để bổ sung link ảnh còn thiếu.
+Mở <http://localhost:8085/menu>. MySQL dùng cổng `3307`, MongoDB dùng cổng `27018`. Khi tạo volume mới, Docker nạp 54 món, link ảnh Cloudinary và FAQ mẫu. Nếu đã có volume, Docker giữ dữ liệu hiện tại. Chạy các migration còn thiếu theo thứ tự. Với database đã chạy `versionb`, dùng các script `18_deposit_settlement.sql`, `19_preorder_cart.sql` và `20_sepay_payments.sql` theo thứ tự sau khi cập nhật container.
 
-Thành viên đã clone dùng `git switch versionb` và `git pull --ff-only`. Nếu database đã có danh mục 54 món, có thể nạp riêng link ảnh sau khi cập nhật container MySQL:
+Thành viên đã clone dùng `git switch main` và `git pull --ff-only`. Với volume MySQL đã tạo, mở dấu nhắc MySQL để chạy các migration còn thiếu:
 
 ```powershell
 docker compose up -d --wait mysql
 docker compose exec mysql mysql -uroot -p --default-character-set=utf8mb4
 ```
 
-Nhập `MYSQL_ROOT_PASSWORD` khi được hỏi, rồi chạy `SOURCE /docker-entrypoint-initdb.d/17_menu_images.sql;` tại dấu nhắc MySQL.
+Nhập `MYSQL_ROOT_PASSWORD` khi được hỏi. Ví dụ, với database đã có cấu trúc `versionb` và danh mục món mẫu:
 
-Mỗi thành viên dùng `.env` riêng. Các giá trị MySQL trong file đó được dùng cho cả Docker Compose và Spring Boot. Đặt mật khẩu demo của nhân viên/admin qua `APP_STAFF_PASSWORD` và `APP_ADMIN_PASSWORD`, rồi đăng nhập tại `/staff/login`. Khi cần thử Buyer trên máy cá nhân, bật `SMS_OTP_LOCAL_ENABLED=true` và dùng số ở `SMS_OTP_LOCAL_PHONE`.
+```sql
+SOURCE /docker-entrypoint-initdb.d/17_menu_images.sql;
+SOURCE /docker-entrypoint-initdb.d/18_deposit_settlement.sql;
+SOURCE /docker-entrypoint-initdb.d/19_preorder_cart.sql;
+SOURCE /docker-entrypoint-initdb.d/20_sepay_payments.sql;
+```
+
+Script 17 đồng bộ link ảnh theo tên món mẫu. Có thể bỏ qua script 17 nếu muốn giữ các ảnh đã thay trên database hiện tại.
+
+Mỗi thành viên dùng `.env` riêng. Các giá trị MySQL trong file đó được dùng cho cả Docker Compose và Spring Boot. Đặt mật khẩu demo của nhân viên/admin qua `APP_STAFF_PASSWORD` và `APP_ADMIN_PASSWORD`, rồi đăng nhập tại `/staff/login`. Khi cần thử Buyer trên máy cá nhân, bật `SMS_OTP_LOCAL_ENABLED=true` và dùng số ở `SMS_OTP_LOCAL_PHONE`. Với bản chạy dùng chung, thay `APP_JWT_SECRET` bằng khóa ngẫu nhiên tối thiểu 32 byte, mã hóa Base64.
 
 Nếu cần cùng nhìn thấy các lượt đặt và thay đổi thực đơn mới phát sinh, dùng MySQL và MongoDB dành riêng cho nhóm. Chia sẻ trực tiếp `MYSQL_URL`, `MYSQL_USER`, `MYSQL_PASSWORD` và `MONGODB_URI` qua kênh riêng. Để các thành viên khởi tạo cùng một bản dữ liệu trên máy riêng, có thể gửi bản backup demo đã lọc thông tin khách hàng. Chỉ đưa `.env.example` và dữ liệu mẫu vào Git.
+
+### AI ChatBox
+
+ChatBox dùng MySQL cho thực đơn và đặt bàn. MongoDB ở `127.0.0.1:27018` lưu FAQ, lịch sử chat và bộ đếm giới hạn yêu cầu. Để bật tìm kiếm ngữ nghĩa, chạy thêm Atlas Local và điền `GEMINI_API_KEY` cùng `CHAT_VECTOR_MONGODB_URI=mongodb://127.0.0.1:27019/t3l_restaurant?directConnection=true` trong `.env`.
+
+```powershell
+docker compose --profile atlas-local up -d mongodb-vector
+```
+
+Gemini dùng mặc định `gemini-3.1-flash-lite` và `gemini-embedding-001` với 768 chiều. Ứng dụng tự tạo index `semantic` và chạy đồng bộ định kỳ từ FAQ đã xuất bản cùng thông tin công khai của nhà hàng. Lần chạy đầu có thể mất thời gian để index sẵn sàng. Khi dịch vụ AI chưa sẵn sàng, ChatBox vẫn xử lý được các câu hỏi khớp dữ liệu nhà hàng và các yêu cầu đặt bàn đủ thông tin.
+
+Để chạy cả hai test MongoDB thật, đặt `T3L_CHAT_MONGO_TEST_URI` và `T3L_CHAT_VECTOR_TEST_URI` trỏ vào dịch vụ QA trước khi chạy `.\mvnw.cmd verify`. URI của Atlas phải chứa tên database. Các test này tạo rồi dọn dữ liệu QA riêng.
+
+## Chính sách tiền cọc
+
+- Bàn thường chỉ cần cọc khi đặt món trước. Bàn lớn cọc tối thiểu 300.000 đ, bàn VIP tối thiểu 500.000 đ. Cọc phải trả là mức cao hơn giữa mức tối thiểu của bàn và 70% tổng tiền món đặt trước, làm tròn lên đến đồng. Mức tối thiểu theo loại bàn cũng áp dụng cho khách vãng lai. Khách đến trực tiếp do nhân viên tiếp nhận được miễn cọc.
+- Khi dùng đối soát thủ công, sau khi duyệt khách có tối đa 120 phút để gửi mã giao dịch. Nhân viên có tối đa 120 phút để đối soát kể từ khi nhận mã. Cả hai hạn kết thúc muộn nhất vào giờ đến. Khi quá hạn, bàn được giải phóng. Giao dịch đã gửi mà chưa xác nhận được tiếp tục đối soát để hoàn tiền nếu nhà hàng thực nhận.
+- Yêu cầu hủy đủ 24 giờ được hoàn 100%, hủy muộn được hoàn 50%, không đến được hoàn 0% theo mặc định. Quy định thời gian gửi yêu cầu đổi/hủy vẫn áp dụng. Nhà hàng hủy hoặc hết hạn giữ bàn hoàn đủ tiền đã nhận. Đổi lịch và chuyển bàn trước check-in tính lại mức cọc, giữ tiền đã nhận để khấu trừ và yêu cầu nộp thêm nếu thiếu. Chuyển bàn lúc đang phục vụ giữ nguyên chính sách đã chốt.
+- Điều chỉnh thời hạn và tỷ lệ hoàn trong các biến `DEPOSIT_*` của `.env.example`. Khi hoàn tiền, nhân viên chuyển hoàn bên ngoài hệ thống rồi ghi lại số tiền và mã giao dịch. Doanh thu ghi nhận phần cọc đã khấu trừ tại lúc chốt thanh toán hoặc phần cọc giữ theo chính sách.
+
+### Thanh toán QR SePay
+
+Mặc định cọc và chuyển khoản được nhân viên đối soát thủ công. Để bật QR và tự đối soát cọc, cấu hình `SEPAY_ENABLED=true`, `SEPAY_API_TOKEN`, `SEPAY_BANK_NAME`, `SEPAY_BANK_ACCOUNT` và `SEPAY_ACCOUNT_HOLDER` trong `.env`. Khi bật SePay, yêu cầu cần đủ cọc trước khi xác nhận. Khoản thanh toán hóa đơn bằng QR vẫn cần nhân viên xác nhận sau khi SePay đối soát.
+
+`SEPAY_DEMO_ENABLED` mặc định tắt. Chế độ mô phỏng chỉ hoạt động trong profile local, dev, development, QA hoặc test. Giao dịch DEMO được gắn nhãn và loại khỏi doanh thu thực tế.
+
+## Món đặt trước
+
+- Giỏ nhận tối đa 30 loại món và 20 phần mỗi loại. Giỏ và ghi chú bếp được giữ khi khách đăng nhập, đăng ký hoặc bổ sung hồ sơ.
+- Khách có thể gửi yêu cầu đổi món trước thời hạn đổi lịch hiện hành, khi chưa check-in và cọc không trong quá trình đối soát. Nhân viên duyệt giỏ mới sau khi kiểm tra giá và trạng thái bán. Phần đã đặt giữ giá cũ, phần thêm theo giá hiện hành.
+- Cọc đã nhận được giữ để đối trừ. Khi cọc mới cao hơn, khách nộp phần thiếu. Món hết được loại khỏi đơn trước khi tính tiền. Đơn đặt trước được tiếp tục khi nhận bàn và được đóng nếu lượt đặt bị hủy hoặc khách không đến.
 
 ## Script database
 
@@ -90,6 +130,10 @@ Nếu cần cùng nhìn thấy các lượt đặt và thay đổi thực đơn 
 - `database/mysql/04_menu_catalog_seed.sql`: đồng bộ 54 món ăn/nước theo danh mục ảnh; dọn món cũ ngoài danh mục và an toàn khi chạy lại. Nếu món cũ đã có giao dịch bán hàng, khóa ngoại sẽ giữ dữ liệu để bảo toàn lịch sử.
 - `database/mysql/17_menu_images.sql` bổ sung ảnh Cloudinary cho 54 món đã có trong danh mục. Ảnh đã được cập nhật riêng trên từng máy được giữ lại.
 - `database/mysql/05_clear_menu_images.sql`: gỡ URL/ID ảnh khỏi các món để hiển thị ảnh minh họa trong lúc chuẩn bị ảnh mới.
+- `database/mysql/15_reservation_deposits.sql`: bổ sung số tiền, trạng thái và mã giao dịch cọc vào đặt bàn.
+- `database/mysql/18_deposit_settlement.sql`: bổ sung hạn cọc, ghi nhận hoàn tiền, khấu trừ hóa đơn và mã giao dịch duy nhất. Chạy sau `15` khi nâng cấp một database đã tồn tại.
+- `database/mysql/19_preorder_cart.sql`: thêm nhận diện món đặt trước, ghi chú món, ghi chú bếp và yêu cầu đổi món, giữ nguyên dòng hóa đơn cũ.
+- `database/mysql/20_sepay_payments.sql`: thêm bảng yêu cầu thanh toán QR và cờ giao dịch DEMO. Chạy sau `18` và `19`.
 - `database/menu-image-catalog.tsv`: ánh xạ tên file ảnh sang tên món, danh mục, mô tả và giá.
 - `database/mongodb/01_faq_seed.js`: dữ liệu FAQ mẫu.
 

@@ -34,7 +34,7 @@ class ChatStore {
   List<Turn> history(String id) {
     indexes();
     Document doc = threads().find(eq("_id", id)).first();
-    if (doc == null || !doc.getDate("expiresAt").after(new Date())) return List.of();
+    if (doc == null || doc.getDate("expiresAt") == null || !doc.getDate("expiresAt").after(new Date())) return List.of();
     List<Turn> turns = new ArrayList<>();
     for (Document turn : doc.getList("turns", Document.class, List.of())) {
       turns.add(new Turn(turn.getString("user"), turn.getString("reply"), turn.get("context", Document.class)));
@@ -43,11 +43,14 @@ class ChatStore {
   }
 
   void append(String id, Turn turn) {
-    Document entry = new Document("user", turn.user()).append("reply", turn.reply()).append("context", turn.context());
-    threads().updateOne(eq("_id", id),
-        combine(set("expiresAt", Date.from(Instant.now().plus(Duration.ofDays(2)))),
-            pushEach("turns", List.of(entry), new com.mongodb.client.model.PushOptions().slice(-16))),
-        new UpdateOptions().upsert(true));
+    var now = Instant.now();
+    var entry = new Document("user", turn.user()).append("reply", turn.reply()).append("context", turn.context());
+    var previous = new Document("$cond", List.of(new Document("$gt", List.of("$expiresAt", Date.from(now))),
+        new Document("$ifNull", List.of("$turns", List.of())), List.of()));
+    var turns = new Document("$concatArrays", List.of(previous, new Document("$literal", List.of(entry))));
+    var update = new Document("turns", new Document("$slice", List.of(turns, -16)))
+        .append("expiresAt", Date.from(now.plus(Duration.ofDays(2))));
+    threads().updateOne(eq("_id", id), List.of(new Document("$set", update)), new UpdateOptions().upsert(true));
   }
 
   void clear(String id) { threads().deleteOne(eq("_id", id)); }

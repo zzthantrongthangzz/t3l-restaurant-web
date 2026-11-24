@@ -61,7 +61,7 @@ public class ReservationEmailSender {
     if (!configured) return new Result(Status.FAILED, "SMTP_NOT_CONFIGURED");
     MimeMessage message;
     try {
-      Message text = copyFor(email.getKind());
+      Message text = copyFor(email);
       String dateTime = DATE_TIME.format(email.getStartsAt());
       String detailsUrl = websiteBase + UriComponentsBuilder.fromPath("/reservations/lookup")
           .queryParam("code", email.getBookingCode()).build().encode().toUriString();
@@ -105,6 +105,7 @@ public class ReservationEmailSender {
         .append("Loại bàn: ").append(email.getArea()).append("\n")
         .append("Trạng thái đặt bàn: ").append(email.getBookingStatus()).append("\n");
     if (email.getReviewNote() != null) body.append("Phản hồi từ T3L: ").append(email.getReviewNote()).append("\n");
+    if (email.getDepositSummary() != null) body.append("Tiền cọc: ").append(email.getDepositSummary()).append("\n");
     body.append("\nXem chi tiết đặt bàn: ").append(detailsUrl).append("\n\n")
         .append("Liên hệ T3L Restaurant\n").append(restaurant.getAddress()).append("\n");
     if (!restaurant.getPhone().isBlank()) body.append(restaurant.getPhone()).append("\n");
@@ -150,8 +151,12 @@ public class ReservationEmailSender {
     }
   }
 
-  private static Message copyFor(Kind kind) {
-    return switch (kind) {
+  private static Message copyFor(ReservationEmail email) {
+    if (email.getKind() == Kind.CONFIRMED && ReservationEmail.AWAITING_DEPOSIT.equals(email.getBookingStatus())) {
+      return new Message("Đã duyệt giữ bàn, chờ tiền cọc",
+          "Nhân viên đã duyệt chỗ cho bạn. Vui lòng xem chi tiết đặt bàn để gửi mã giao dịch sau khi chuyển khoản theo hướng dẫn của nhà hàng.");
+    }
+    return switch (email.getKind()) {
       case RECEIVED -> new Message("Đã tiếp nhận yêu cầu đặt bàn",
           "T3L đã nhận yêu cầu của bạn. Lịch đặt bàn đang chờ nhân viên kiểm tra. T3L sẽ gửi email riêng khi lịch được xác nhận chính thức.");
       case CONFIRMED -> new Message("Xác nhận đặt bàn chính thức",
@@ -170,6 +175,22 @@ public class ReservationEmailSender {
           "T3L không thể duyệt yêu cầu đổi lịch. Thông tin đặt bàn hiện tại được hiển thị bên dưới.");
       case CANCELLATION_DECLINED -> new Message("Yêu cầu hủy đặt bàn không được duyệt",
           "T3L không thể duyệt yêu cầu hủy. Thông tin và trạng thái đặt bàn hiện tại được hiển thị bên dưới.");
+      case DEPOSIT_VERIFIED -> new Message("Đã đối soát tiền cọc",
+          "T3L đã xác nhận giao dịch cọc. Xem chi tiết đặt bàn để kiểm tra số tiền đã nhận và tình trạng lượt đặt.");
+      case DEPOSIT_REJECTED -> new Message("Giao dịch cọc chưa được xác nhận",
+          "T3L chưa xác nhận được giao dịch. Vui lòng xem chi tiết để kiểm tra hạn gửi lại mã hoặc liên hệ nhà hàng.");
+      case DEPOSIT_REFUNDED -> new Message("Đã ghi nhận hoàn tiền cọc",
+          "Nhà hàng đã xác nhận việc hoàn cọc. Vui lòng xem chi tiết đặt bàn để kiểm tra số tiền.");
+      case DEPOSIT_EXPIRED -> new Message("Đã giải phóng bàn do quá hạn cọc",
+          "Thời hạn thanh toán hoặc đối soát đã hết. Nếu đã chuyển khoản, vui lòng xem chi tiết để theo dõi hoàn cọc.");
+      case DEPOSIT_APPLIED -> new Message("Đã đối trừ tiền cọc vào hóa đơn",
+          "Vui lòng xem chi tiết đặt bàn để kiểm tra tiền cọc đã khấu trừ và số tiền cần hoàn, nếu có.");
+      case PREORDER_CHANGED -> new Message("Đã cập nhật món đặt trước",
+          "Nhà hàng đã duyệt giỏ món mới. Vui lòng xem chi tiết để kiểm tra món và khoản cọc còn phải thanh toán, nếu có.");
+      case PREORDER_DECLINED -> new Message("Yêu cầu đổi món chưa được duyệt",
+          "Nhà hàng giữ giỏ món hiện tại. Bạn có thể xem phản hồi và gửi một yêu cầu khác nếu còn thời hạn.");
+      case PREORDER_UNAVAILABLE -> new Message("Một số món đặt trước đã hết",
+          "Nhà hàng đã cập nhật những món có thể phục vụ. Vui lòng xem lại món và số tiền cọc trong chi tiết đặt bàn.");
     };
   }
 

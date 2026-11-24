@@ -124,10 +124,12 @@
       </section>
     </main>
     <dialog class="booking-profile-dialog" id="booking-profile" aria-labelledby="booking-profile-title"
-        th:if="${bookingProfileMissing and profileForm != null}" open>
+        th:fragment="profileDialog(board)" th:if="${bookingProfileMissing and profileForm != null}" open>
       <header class="booking-profile-heading">
         <h2 id="booking-profile-title">HOÀN THIỆN HỒ SƠ CỦA BẠN</h2>
-        <form method="dialog"><button type="submit" class="booking-profile-close" aria-label="Đóng">×</button></form>
+        <a th:if="${board}" class="booking-profile-close" aria-label="Quay lại sơ đồ"
+            th:href="@{/reservations/new(draft=${bookingDraft},choose=true)}">×</a>
+        <form th:unless="${board}" method="dialog"><button type="submit" class="booking-profile-close" aria-label="Đóng">×</button></form>
       </header>
       <p class="booking-profile-description">Bổ sung họ tên và số điện thoại để T3L liên hệ xác nhận đặt bàn.</p>
       <form class="account-form" th:action="@{/reservations/profile}" th:object="${profileForm}" method="post">

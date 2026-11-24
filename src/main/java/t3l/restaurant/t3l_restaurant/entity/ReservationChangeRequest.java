@@ -40,6 +40,8 @@ public class ReservationChangeRequest {
   private String requestedArea;
   @Column(length = 500)
   private String reason;
+  @Column(name = "preorder_payload", columnDefinition = "TEXT")
+  private String preorderPayload;
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
   @Column(name = "reviewed_at")
@@ -76,6 +78,12 @@ public class ReservationChangeRequest {
     return form;
   }
 
+  public static ReservationChangeRequest preorder(Reservation booking, String payload, LocalDateTime now) {
+    var request = new ReservationChangeRequest(booking, "PREORDER", null, null, now);
+    request.preorderPayload = payload;
+    return request;
+  }
+
   public void review(boolean approved, String reviewer, String note, LocalDateTime now) {
     status = approved ? "APPROVED" : "REJECTED";
     reviewedBy = reviewer;
@@ -84,7 +92,11 @@ public class ReservationChangeRequest {
   }
 
   public String getTypeLabel() {
-    return "CANCEL".equals(requestType) ? "Yêu cầu hủy đặt bàn" : "Yêu cầu thay đổi lịch";
+    return switch (requestType) {
+      case "CANCEL" -> "Yêu cầu hủy đặt bàn";
+      case "PREORDER" -> "Yêu cầu đổi món đặt trước";
+      default -> "Yêu cầu thay đổi lịch";
+    };
   }
 
   public String getStatusLabel() {

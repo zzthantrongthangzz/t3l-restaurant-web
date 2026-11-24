@@ -24,6 +24,8 @@ class ChatVectorIndexIntegrationTest {
       var collection = client.getDatabase(connection.getDatabase()).getCollection(name);
       var index = new ChatVectorIndex(null, new ChatSettings("", "test", model, dimensions, 4, 30, 8, uri));
       try {
+        assertThat(index.ready()).isFalse();
+        index.ensureIndex();
         index.ensureIndex();
         List<Double> query = new ArrayList<>(Collections.nCopies(dimensions, 0d));
         query.set(0, 1d);

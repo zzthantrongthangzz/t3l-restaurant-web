@@ -47,8 +47,13 @@ public class CustomerAccountService {
   }
 
   public CustomerProfileForm profileForm(UserAccount account, CustomerProfile profile) {
+    return profileForm(account, profile, null);
+  }
+
+  public CustomerProfileForm profileForm(UserAccount account, CustomerProfile profile, String draftName) {
     var form = new CustomerProfileForm();
     String fullName = account.getFullName();
+    if ((fullName == null || fullName.isBlank()) && draftName != null) fullName = draftName.strip();
     if (profile.getGivenName() != null) {
       form.setFamilyName(profile.getFamilyName());
       form.setGivenName(profile.getGivenName());

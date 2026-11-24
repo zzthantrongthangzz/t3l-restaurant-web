@@ -34,24 +34,41 @@
         <section class="staff-panel">
           <div class="staff-panel-heading"><h2>Việc cần xử lý</h2></div>
           <a class="staff-task-link" th:href="@{/staff/reservations} + '#request-queue-title'">
-            <span>Yêu cầu đổi lịch hoặc hủy</span><strong th:text="${dashboard.changeRequests}"></strong>
+            <span>Yêu cầu đổi lịch, đổi món hoặc hủy</span><strong th:text="${dashboard.changeRequests}"></strong>
           </a>
           <a class="staff-task-link" th:href="@{/staff/orders}" th:if="${dashboard.awaitingPayment > 0}">
             <span>Hóa đơn chờ thu tiền</span><strong th:text="${dashboard.awaitingPayment}"></strong>
           </a>
           <ul class="staff-feed">
-            <li th:each="booking : ${dashboard.checkedIn}">
-              <div><strong th:text="${booking.guestName}"></strong><p th:text="${booking.guestCount + ' khách đã check-in'}"></p></div>
-              <a class="staff-link" th:href="@{/staff/reservations/{id}(id=${booking.id})}">Nhận bàn</a>
+            <li th:each="booking : ${dashboard.checkedIn}" th:with="actions=${bookingActions.get(booking.id)}"
+                th:attr="data-payment-status-url=@{/staff/reservations/{id}/payment-status(id=${booking.id})}">
+              <div><strong th:text="${booking.guestName}"></strong><p th:text="${booking.guestCount + ' khách · ' + #temporals.format(booking.startsAt, 'HH:mm')}"></p>
+                <span class="staff-badge is-warning" th:if="${actions.late}">Đến trễ</span>
+                <span class="staff-badge staff-deposit-state" th:if="${booking.depositAmount.signum() > 0}" th:text="${booking.depositStatusLabel}"></span></div>
+              <form class="staff-dashboard-action" th:if="${actions.receive}" th:action="@{/staff/reservations/{id}/status(id=${booking.id})}" method="post">
+                <button class="staff-button" name="status" value="SEATED" th:disabled="${!actions.receiveEnabled}" th:title="${actions.receiveReason}">Nhận khách &amp; bàn</button>
+                <small th:if="${!actions.receiveEnabled}" th:text="${actions.receiveReason}"></small>
+              </form>
+              <a class="staff-link" th:unless="${actions.receive}" th:href="@{/staff/reservations/{id}(id=${booking.id})}">Chi tiết</a>
             </li>
-            <li th:each="booking : ${dashboard.toConfirm}">
-              <div><strong th:text="${booking.guestName}"></strong><p th:text="${#temporals.format(booking.startsAt, 'dd/MM · HH:mm')}"></p></div>
-              <a class="staff-link" th:href="@{/staff/reservations/{id}(id=${booking.id})}">Xử lý</a>
+            <li th:each="booking : ${dashboard.toConfirm}" th:with="actions=${bookingActions.get(booking.id)}"
+                th:attr="data-payment-status-url=@{/staff/reservations/{id}/payment-status(id=${booking.id})}">
+              <div><strong th:text="${booking.guestName}"></strong><p th:text="${#temporals.format(booking.startsAt, 'dd/MM · HH:mm')}"></p>
+                <span class="staff-badge is-warning" th:if="${actions.late}">Đến trễ</span>
+                <span class="staff-badge staff-deposit-state" th:if="${booking.depositAmount.signum() > 0}" th:text="${booking.depositStatusLabel}"></span></div>
+              <div class="staff-dashboard-action">
+                <form th:if="${actions.confirm}" th:action="@{/staff/reservations/{id}/status(id=${booking.id})}" method="post">
+                  <button class="staff-button" name="status" value="CONFIRMED" th:disabled="${!actions.confirmEnabled}" th:title="${actions.confirmReason}">Xác nhận đặt bàn</button>
+                  <small th:if="${!actions.confirmEnabled}" th:text="${actions.confirmReason}"></small>
+                </form>
+                <a class="staff-link" th:href="@{/staff/reservations/{id}(id=${booking.id})}">Chi tiết</a>
+              </div>
             </li>
           </ul>
           <p class="staff-empty" th:if="${#lists.isEmpty(dashboard.toConfirm) and #lists.isEmpty(dashboard.checkedIn) and dashboard.changeRequests == 0 and dashboard.awaitingPayment == 0}">Mọi yêu cầu đã được xử lý.</p>
         </section>
       </div>
     </main>
+    <script th:src="@{/js/staff-payment-status.js(v=20261124-sepay)}" defer></script>
   </body>
 </html>

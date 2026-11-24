@@ -3,6 +3,7 @@ package t3l.restaurant.t3l_restaurant.entity;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -21,8 +22,12 @@ import org.hibernate.type.SqlTypes;
 @Getter
 @NoArgsConstructor(access = lombok.AccessLevel.PROTECTED)
 public class ReservationEmail {
+  public static final String AWAITING_DEPOSIT = "Đã duyệt, chờ hoàn tất tiền cọc";
+
   public enum Kind {
-    RECEIVED, CONFIRMED, REJECTED, CANCELLED, RESCHEDULED, CANCELLATION_APPROVED, CHANGE_DECLINED, CANCELLATION_DECLINED, NO_SHOW
+    RECEIVED, CONFIRMED, REJECTED, CANCELLED, RESCHEDULED, CANCELLATION_APPROVED, CHANGE_DECLINED, CANCELLATION_DECLINED, NO_SHOW,
+    DEPOSIT_VERIFIED, DEPOSIT_REJECTED, DEPOSIT_REFUNDED, DEPOSIT_EXPIRED, DEPOSIT_APPLIED,
+    PREORDER_CHANGED, PREORDER_DECLINED, PREORDER_UNAVAILABLE
   }
 
   public enum Status {
@@ -70,6 +75,9 @@ public class ReservationEmail {
   @Column(name = "review_note", length = 500)
   private String reviewNote;
 
+  @Column(name = "deposit_summary", length = 400)
+  private String depositSummary;
+
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.VARCHAR)
   @Column(nullable = false, length = 32)
@@ -104,8 +112,24 @@ public class ReservationEmail {
     this.startsAt = reservation.getStartsAt();
     this.guestCount = reservation.getGuestCount();
     this.area = reservation.getTable() == null ? "Chờ sắp xếp" : reservation.getTable().getKind().getLabel();
-    this.bookingStatus = reservation.getStatusLabel();
+    this.bookingStatus = Reservation.CONFIRMED.equals(reservation.getStatus()) && reservation.isDepositOutstanding()
+        ? AWAITING_DEPOSIT : reservation.getStatusLabel();
     this.reviewNote = reviewNote;
+    if (reservation.getDepositAmount().signum() > 0 || reservation.getDepositPaid().signum() > 0) {
+      var summary = new StringBuilder(reservation.getDepositStatusLabel())
+          .append(". Đã nhận ").append(reservation.getDepositPaid().toPlainString()).append(" đ.");
+      if ("WAITING_PAYMENT".equals(reservation.getDepositStatus()) && reservation.getDepositDueAt() != null) {
+        summary.append(" Còn phải cọc ").append(reservation.getDepositRemaining().toPlainString()).append(" đ trước ")
+            .append(reservation.getDepositDueAt().format(DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy"))).append('.');
+      }
+      if (reservation.getRefundRemaining().signum() > 0) summary.append(" Chờ hoàn ")
+          .append(reservation.getRefundRemaining().toPlainString()).append(" đ.");
+      if (reservation.getDepositRefunded().signum() > 0) summary.append(" Đã hoàn ")
+          .append(reservation.getDepositRefunded().toPlainString()).append(" đ.");
+      if (reservation.getDepositRetained().signum() > 0) summary.append(" Giữ cọc ")
+          .append(reservation.getDepositRetained().toPlainString()).append(" đ.");
+      this.depositSummary = summary.toString();
+    }
     this.status = status;
     this.createdAt = now;
     if (status == Status.PENDING) nextAttemptAt = now;

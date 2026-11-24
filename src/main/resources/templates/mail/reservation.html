@@ -31,6 +31,7 @@
             <tr><th scope="row" align="left" style="padding:10px 12px;border-top:1px solid #e3d5c3;color:#625143;">Trạng thái</th>
                 <td style="padding:10px 12px;border-top:1px solid #e3d5c3;font-weight:bold;" th:text="${email.bookingStatus}"></td></tr>
           </table>
+          <p th:if="${email.depositSummary != null}" th:text="${email.depositSummary}" style="margin:18px 0 0;font-size:15px;line-height:1.6;"></p>
           <p th:if="${email.reviewNote != null}" style="margin:18px 0 0;font-size:15px;line-height:1.6;">
             <strong>Phản hồi từ T3L</strong><br>
             <span th:text="${email.reviewNote}" style="white-space:pre-line;"></span>

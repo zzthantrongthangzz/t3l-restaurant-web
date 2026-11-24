@@ -34,11 +34,21 @@ public class AdminReportingService {
   private static final String RECEIPTS = """
       WITH receipts AS (
         SELECT p.paid_at AS recorded_at, p.received_by AS employee, p.payment_method AS method, p.amount,
-          CONCAT('T3L-HD-', o.id) AS reference_code, 'DINING' AS source_type
+          CONCAT('T3L-HD-', o.id) AS reference_code, 'DINING' AS source_type, o.id AS invoice_id
         FROM dining_payments p JOIN dining_orders o ON o.id=p.order_id AND o.status='PAID'
-        WHERE p.paid_at >= :start AND p.paid_at < :end
+        WHERE p.paid_at >= :start AND p.paid_at < :end AND p.is_demo=FALSE AND (p.amount > 0 OR p.deposit_applied=0)
         UNION ALL
-        SELECT s.created_at, a.username, s.payment_method, s.total_amount, CONCAT('BL-',s.id), 'DIRECT'
+        SELECT p.paid_at, p.received_by, 'TRANSFER', p.deposit_applied,
+          CONCAT('T3L-HD-',o.id, '-COC'), 'DEPOSIT', o.id
+        FROM dining_payments p JOIN dining_orders o ON o.id=p.order_id AND o.status='PAID'
+        JOIN reservations r ON r.id=o.reservation_id
+        WHERE p.paid_at >= :start AND p.paid_at < :end AND r.deposit_demo=FALSE AND p.deposit_applied>0
+        UNION ALL
+        SELECT r.deposit_closed_at, '', 'TRANSFER', r.deposit_retained, CONCAT(r.code,'-COC'), 'DEPOSIT_RETAINED', NULL
+        FROM reservations r
+        WHERE r.deposit_closed_at >= :start AND r.deposit_closed_at < :end AND r.deposit_retained>0 AND r.deposit_demo=FALSE
+        UNION ALL
+        SELECT s.created_at, a.username, s.payment_method, s.total_amount, CONCAT('BL-',s.id), 'DIRECT', NULL
         FROM cash_sales s JOIN staff_shifts sh ON sh.id=s.shift_id JOIN app_users a ON a.id=sh.employee_id
         WHERE s.created_at >= :start AND s.created_at < :end
       )
@@ -52,7 +62,7 @@ public class AdminReportingService {
   public record RevenueRow(String code, LocalDateTime time, String actor, String method, BigDecimal amount, String source) {}
   public record RevenueSummary(BigDecimal total, long dining, long direct) {}
   public record InvoiceRow(Long id, LocalDateTime time, String bookingCode, String table, String status,
-                           String employee, String method, BigDecimal amount) {
+                           String employee, String method, BigDecimal amount, boolean demo) {
     public String getCode() { return "T3L-HD-" + id; }
     public String getStatusLabel() {
       return switch (status) {
@@ -156,7 +166,7 @@ public class AdminReportingService {
           SELECT i.dish_id, i.dish_name, i.quantity FROM dining_order_items i
           JOIN dining_orders o ON o.id=i.order_id AND o.status='PAID'
           JOIN dining_payments p ON p.order_id=o.id
-          WHERE i.cancelled=FALSE AND p.paid_at >= :start AND p.paid_at < :end
+          WHERE i.cancelled=FALSE AND p.is_demo=FALSE AND p.paid_at >= :start AND p.paid_at < :end
           UNION ALL
           SELECT dish_id,dish_name,quantity FROM cash_sales WHERE created_at >= :start AND created_at < :end
         ) s LEFT JOIN dishes d ON d.id=s.dish_id
@@ -173,7 +183,8 @@ public class AdminReportingService {
             JOIN reservations r ON r.id=e.reservation_id
           UNION ALL SELECT p.paid_at, p.received_by, 'Xác nhận thanh toán', CONCAT('T3L-HD-',p.order_id) FROM dining_payments p
           UNION ALL SELECT c.reviewed_at, c.reviewed_by,
-              CASE WHEN c.request_type='CANCEL' THEN 'Xử lý yêu cầu hủy bàn' ELSE 'Xử lý yêu cầu đổi lịch' END, r.code
+              CASE c.request_type WHEN 'CANCEL' THEN 'Xử lý yêu cầu hủy bàn'
+                WHEN 'PREORDER' THEN 'Xử lý yêu cầu đổi món' ELSE 'Xử lý yêu cầu đổi lịch' END, r.code
             FROM reservation_change_requests c JOIN reservations r ON r.id=c.reservation_id WHERE c.reviewed_at IS NOT NULL
           UNION ALL SELECT s.closed_at, a.username, 'Kết ca', CONCAT('Ca #',s.id)
             FROM staff_shifts s JOIN app_users a ON a.id=s.employee_id WHERE s.closed_at IS NOT NULL
@@ -203,7 +214,7 @@ public class AdminReportingService {
   public RevenueSummary revenueSummary(Filter filter) {
     return db.queryForObject(RECEIPTS + """
         SELECT COALESCE(SUM(amount),0) AS total,
-          COALESCE(SUM(CASE WHEN source_type='DINING' THEN 1 ELSE 0 END),0) AS dining,
+          COUNT(DISTINCT invoice_id) AS dining,
           COALESCE(SUM(CASE WHEN source_type='DIRECT' THEN 1 ELSE 0 END),0) AS direct_sales
         FROM receipts WHERE (:employee='' OR employee=:employee) AND (:method='' OR method=:method)
         """, parameters(filter), (row, index) -> new RevenueSummary(row.getBigDecimal("total"), row.getLong("dining"), row.getLong("direct_sales")));
@@ -245,16 +256,18 @@ public class AdminReportingService {
          FROM dining_orders o JOIN reservations r ON r.id=o.reservation_id
          LEFT JOIN restaurant_tables t ON t.id=r.table_id LEFT JOIN dining_payments p ON p.order_id=o.id
          WHERE COALESCE(p.paid_at,o.opened_at) >= :start AND COALESCE(p.paid_at,o.opened_at) < :end
-         AND (:employee='' OR COALESCE(p.received_by,o.opened_by)=:employee) AND (:method='' OR p.payment_method=:method)
+         AND (:employee='' OR COALESCE(p.received_by,o.opened_by)=:employee)
+         AND (:method='' OR p.payment_method=:method OR (:method='TRANSFER' AND p.deposit_applied>0))
          AND (:status='' OR o.status=:status)
          AND (LOWER(r.code) LIKE :code ESCAPE '!' OR LOWER(CONCAT('T3L-HD-',o.id)) LIKE :code ESCAPE '!')
         """;
     return page("", criteria, """
         SELECT o.id, COALESCE(p.paid_at,o.opened_at) AS recorded_at, r.code, t.code AS table_code, o.status,
-          COALESCE(p.received_by,o.opened_by) AS employee, p.payment_method, COALESCE(p.amount,o.total_amount) AS amount
+          COALESCE(p.received_by,o.opened_by) AS employee, p.payment_method, COALESCE(o.total_amount,p.amount) AS amount,
+          COALESCE(p.is_demo,FALSE) AS is_demo
         """, " ORDER BY recorded_at DESC, o.id DESC", args, page,
         (row, index) -> new InvoiceRow(row.getLong("id"), row.getObject("recorded_at", LocalDateTime.class), row.getString("code"),
-            row.getString("table_code"), row.getString("status"), row.getString("employee"), row.getString("payment_method"), row.getBigDecimal("amount")));
+            row.getString("table_code"), row.getString("status"), row.getString("employee"), row.getString("payment_method"), row.getBigDecimal("amount"), row.getBoolean("is_demo")));
   }
 
   @Transactional(readOnly = true)
@@ -270,7 +283,7 @@ public class AdminReportingService {
           s.opening_cash + CASE WHEN s.status='CLOSED' THEN COALESCE(s.cash_sales,0)
             ELSE COALESCE((SELECT SUM(p.amount) FROM dining_payments p
                            JOIN dining_orders o ON o.id=p.order_id AND o.status='PAID'
-                           WHERE p.shift_id=s.id AND p.payment_method='CASH'),0)
+                           WHERE p.shift_id=s.id AND p.payment_method='CASH' AND p.is_demo=FALSE),0)
                + COALESCE((SELECT SUM(c.total_amount) FROM cash_sales c
                            WHERE c.shift_id=s.id AND c.payment_method='CASH'),0) END AS expected
         """, " ORDER BY s.opened_at DESC,s.id DESC", args, page,

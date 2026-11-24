@@ -1,10 +1,15 @@
 package t3l.restaurant.t3l_restaurant.chat;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.mongodb.MongoException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.io.Serializable;
 import java.time.Duration;
@@ -47,25 +52,37 @@ class ChatController {
     this.reservations = reservations;
   }
 
-  record Message(@NotBlank @Size(max = 800) String text) {}
+  record Message(@NotBlank @Size(max = 800)
+                 @Pattern(regexp = "(?sU)(?=.*\\S)[^\\p{Cc}&&[^\\t\\r\\n]]+") String text) {
+    @JsonCreator
+    static Message fromJson(@JsonProperty("text") JsonNode text) {
+      return new Message(text != null && text.isTextual() ? text.textValue() : null);
+    }
+  }
   record Entry(String user, String reply) {}
   record SessionView(String csrfHeader, String csrfToken, List<Entry> history,
-                     boolean conversationAvailable, boolean aiConfigured, boolean draftAvailable) {}
+                     boolean conversationAvailable, boolean aiConfigured, boolean draftAvailable, String draftToken) {}
+  record MessageView(@JsonUnwrapped ChatAssistant.Reply reply, String draftToken) {}
   private record Scope(String id, Long accountId) implements Serializable {}
+  private record DraftReady(String scopeId, String token) implements Serializable {}
   private static final String SCOPE = ChatController.class.getName();
   private static final String DRAFT_READY = SCOPE + ".draft";
 
   @GetMapping("/session")
   ResponseEntity<SessionView> session(HttpServletRequest request, Authentication auth, CsrfToken csrf) {
     var session = request.getSession();
-    var scope = scope(session, customers.signedInCustomer(auth));
-    try {
-      var history = store.history(scope.id()).stream().map(turn -> new Entry(turn.user(), turn.reply())).toList();
-      return response(HttpStatus.OK, new SessionView(csrf.getHeaderName(), csrf.getToken(), history,
-          true, settings.configured(), !history.isEmpty() && scope.id().equals(session.getAttribute(DRAFT_READY))));
-    } catch (MongoException | DataAccessException error) {
-      return response(HttpStatus.OK, new SessionView(csrf.getHeaderName(), csrf.getToken(), List.of(), false,
-          settings.configured(), false));
+    var customer = customers.signedInCustomer(auth);
+    synchronized (session) {
+      var scope = scope(session, customer);
+      try {
+        var history = store.history(scope.id()).stream().map(turn -> new Entry(turn.user(), turn.reply())).toList();
+        String token = history.isEmpty() ? null : draftToken(session, scope);
+        return response(HttpStatus.OK, new SessionView(csrf.getHeaderName(), csrf.getToken(), history,
+            true, settings.configured(), token != null, token));
+      } catch (MongoException | DataAccessException error) {
+        return response(HttpStatus.OK, new SessionView(csrf.getHeaderName(), csrf.getToken(), List.of(), false,
+            settings.configured(), false, null));
+      }
     }
   }
 
@@ -73,28 +90,31 @@ class ChatController {
   ResponseEntity<?> message(@Valid @RequestBody Message message, HttpServletRequest request, Authentication auth) {
     UserAccount customer = customers.signedInCustomer(auth);
     var session = request.getSession();
-    var scope = scope(session, customer);
     var minute = Duration.ofMinutes(1);
-    if (!store.allow("ip:" + ChatStore.hash(request.getRemoteAddr()), minute, settings.requestsPerMinute * 6)
-        || !store.allow(customer == null ? "guest:" + scope.id() : "customer:" + customer.getId(),
-            minute, settings.requestsPerMinute)) return limited();
+    if (!store.allow("ip:" + ChatStore.hash(request.getRemoteAddr()), minute, settings.requestsPerMinute * 6)) return limited();
     synchronized (session) {
+      var scope = scope(session, customer);
+      if (!store.allow(customer == null ? "guest:" + scope.id() : "customer:" + customer.getId(),
+          minute, settings.requestsPerMinute)) return limited();
       var result = assistant.reply(message.text().strip(), store.history(scope.id()), customer);
       store.append(scope.id(), result.turn());
-      session.setAttribute(DRAFT_READY, result.reply().draft() ? scope.id() : "");
-      return response(HttpStatus.OK, result.reply());
+      String token = result.reply().draft() ? UUID.randomUUID().toString() : null;
+      session.setAttribute(DRAFT_READY, token == null ? null : new DraftReady(scope.id(), token));
+      return response(HttpStatus.OK, new MessageView(result.reply(), token));
     }
   }
 
   @PostMapping("/booking-draft")
-  ResponseEntity<?> draft(HttpServletRequest request, Authentication auth) {
+  ResponseEntity<?> draft(@RequestHeader(name = "X-Chat-Draft", required = false) String token,
+      HttpServletRequest request, Authentication auth) {
     var session = request.getSession();
-    var scope = scope(session, customers.signedInCustomer(auth));
-    if (!store.allow("draft:" + scope.id(), Duration.ofMinutes(1), 5)) return limited();
+    var customer = customers.signedInCustomer(auth);
     synchronized (session) {
+      var scope = scope(session, customer);
+      if (!store.allow("draft:" + scope.id(), Duration.ofMinutes(1), 5)) return limited();
       var history = store.history(scope.id());
       var intent = history.isEmpty() ? null : ChatIntent.stored(history.getLast().context());
-      if (!scope.id().equals(session.getAttribute(DRAFT_READY)) || intent == null || !ChatAssistant.complete(intent)
+      if (token == null || !token.equals(draftToken(session, scope)) || intent == null || !ChatAssistant.complete(intent)
           || (intent.kind() != ChatIntent.Kind.AVAILABILITY && intent.kind() != ChatIntent.Kind.DRAFT)
           || intent.guests() < 1 || intent.guests() > 20) {
         return response(HttpStatus.CONFLICT, Map.of("error", "Bạn hãy kiểm tra lại ngày, giờ và số khách trước."));
@@ -110,9 +130,9 @@ class ChatController {
   @DeleteMapping("/session")
   ResponseEntity<?> clear(HttpServletRequest request, Authentication auth) {
     var session = request.getSession();
-    var scope = scope(session, customers.signedInCustomer(auth));
+    var customer = customers.signedInCustomer(auth);
     synchronized (session) {
-      store.clear(scope.id());
+      store.clear(scope(session, customer).id());
       session.removeAttribute(DRAFT_READY);
     }
     return response(HttpStatus.OK, Map.of());
@@ -120,15 +140,18 @@ class ChatController {
 
   private Scope scope(HttpSession session, UserAccount customer) {
     Long account = customer == null ? null : customer.getId();
-    synchronized (session) {
-      if (session.getAttribute(SCOPE) instanceof Scope current && Objects.equals(current.accountId(), account)) {
-        return current;
-      }
-      var scope = new Scope(UUID.randomUUID().toString(), account);
-      session.setAttribute(SCOPE, scope);
-      session.removeAttribute(DRAFT_READY);
-      return scope;
+    if (session.getAttribute(SCOPE) instanceof Scope current && Objects.equals(current.accountId(), account)) {
+      return current;
     }
+    var scope = new Scope(UUID.randomUUID().toString(), account);
+    session.setAttribute(SCOPE, scope);
+    session.removeAttribute(DRAFT_READY);
+    return scope;
+  }
+
+  private static String draftToken(HttpSession session, Scope scope) {
+    return session.getAttribute(DRAFT_READY) instanceof DraftReady draft && scope.id().equals(draft.scopeId())
+        ? draft.token() : null;
   }
 
   @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class})

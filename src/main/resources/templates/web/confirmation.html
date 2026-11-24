@@ -24,6 +24,7 @@
             <svg th:unless="${confirmed or closedEarly}" viewBox="0 0 32 32"><circle cx="16" cy="16" r="10" /><path d="M16 10v6l4 3" /></svg>
           </div>
           <th:block th:switch="${reservation.status}">
+            <th:block th:case="'PENDING_CONFIRMATION'"><th:block th:if="${reservation.depositAmount.signum() > 0 and reservation.depositStatus == 'PAID'}"><h1 id="receipt-title">Đã nhận tiền cọc – <em>chờ nhà hàng xác nhận.</em></h1><p>SePay đã xác minh khoản cọc. Nhân viên T3L sẽ xác nhận chỗ ngồi và gửi thông báo cho bạn.</p></th:block><th:block th:if="${reservation.depositAmount.signum() > 0 and reservation.depositStatus != 'PAID'}"><h1 id="receipt-title">Đã giữ bàn tạm thời – <em>vui lòng thanh toán cọc.</em></h1><p>Quét mã QR bên dưới để thanh toán đúng số tiền và nội dung. Sau khi SePay xác minh, nhân viên sẽ xác nhận đặt bàn.</p></th:block><th:block th:if="${reservation.depositAmount.signum() <= 0}"><h1 id="receipt-title">Đã tiếp nhận <em>yêu cầu của bạn.</em></h1><p>Nhân viên T3L sẽ kiểm tra và xác nhận chỗ ngồi trong thời gian sớm nhất.</p></th:block></th:block>
             <th:block th:case="'CONFIRMED'"><h1 id="receipt-title" th:text="${reservation.depositStatus == 'WAITING_PAYMENT' or reservation.depositStatus == 'TRANSFER_SUBMITTED' ? 'Chỗ ngồi đã duyệt, chờ hoàn tất tiền cọc.' : 'Cuộc hẹn đã được xác nhận.'}"></h1><p th:text="${reservation.depositStatus == 'WAITING_PAYMENT' or reservation.depositStatus == 'TRANSFER_SUBMITTED' ? 'Nhân viên đã duyệt chỗ. Vui lòng thanh toán cọc và chờ đối chiếu để hoàn tất đặt bàn.' : 'Thông tin đặt bàn của bạn đã được nhân viên xác nhận. T3L mong được đón tiếp bạn trong buổi hẹn sắp tới.'}"></p></th:block>
             <th:block th:case="'CANCELLED'"><h1 id="receipt-title">Yêu cầu đặt bàn <em>đã được hủy.</em></h1><p>Yêu cầu này đã được hủy và không còn giữ chỗ.<br /> Hẹn gặp bạn tại T3L trong một dịp khác.</p></th:block>
             <th:block th:case="'CHECKED_IN'"><h1 id="receipt-title">T3L đã <em>đón tiếp bạn.</em></h1><p>Nhân viên đã ghi nhận bạn đến và sẽ hướng dẫn bạn nhận bàn.</p></th:block>
@@ -61,27 +62,26 @@
               <div th:if="${reservation.table != null}"><dt>Loại bàn</dt><dd th:text="${reservation.table.kind.label}"></dd></div>
               <div class="receipt-note"><dt>Ghi chú đặc biệt</dt><dd th:text="${reservation.note != null and !reservation.note.isBlank() ? reservation.note : 'Không có ghi chú đặc biệt.'}"></dd></div>
             </dl>
-            <section class="receipt-deposit" th:if="${preorder != null and preorder.hasItems()}">
+            <section class="receipt-deposit" th:if="${preorder != null and !preorder.preorderItems.isEmpty()}">
               <h2>Món bạn đã đặt trước</h2>
-              <ul>
-                <li th:each="item : ${preorder.items}" th:unless="${item.cancelled}">
-                  <span th:text="${item.dishName + ' × ' + item.quantity + ' · ' + #numbers.formatInteger(item.amount,1,'POINT') + ' đ'}"></span>
-                  <small th:if="${item.note != null}" th:text="${'Ghi chú: ' + item.note}"></small>
-                </li>
-              </ul>
-              <p th:if="${reservation.depositAmount.signum() > 0}">Tiền cọc được tính bằng 70% tổng giá món đặt trước, tối thiểu theo chính sách của loại bàn.</p>
+              <ul><li th:each="item : ${preorder.preorderItems}">
+                <span th:text="${item.dishName + ' × ' + item.quantity + ' · ' + #numbers.formatInteger(item.amount,1,'POINT') + ' đ'}"></span>
+                <small th:if="${item.note != null}" th:text="${'Ghi chú: ' + item.note}"></small>
+              </li></ul>
+              <p th:if="${preorder.preorderNote != null}" th:text="${'Ghi chú cho bếp: ' + preorder.preorderNote}"></p>
+              <p th:text="${'Tổng món đặt trước: ' + #numbers.formatInteger(preorder.preorderTotal,1,'POINT') + ' đ'}"></p>
+              <p th:if="${preorder.status == 'VOID'}">Đơn đã hủy.</p>
             </section>
-            <section class="receipt-deposit" th:if="${reservation.depositAmount.signum() > 0}">
-              <h2>Đặt cọc món đặt trước</h2>
-              <p>Số tiền cọc: <strong th:text="${#numbers.formatInteger(reservation.depositAmount,1,'POINT') + ' đ'}"></strong></p>
-              <p>Trạng thái: <strong th:text="${reservation.depositStatusLabel}"></strong></p>
-              <p th:if="${reservation.depositStatus == 'WAITING_PAYMENT'}">Chuyển khoản theo hướng dẫn của nhân viên nhà hàng, sau đó nhập mã giao dịch bên dưới. Cọc chỉ được ghi nhận sau khi nhân viên đối chiếu.</p>
-              <form class="receipt-deposit-form" th:if="${reservation.depositStatus == 'WAITING_PAYMENT'}"
-                  th:action="@{/reservations/{code}/deposit-reference(code=${reservation.code})}" method="post">
-                <label for="deposit-reference">Mã giao dịch chuyển khoản</label><input id="deposit-reference" name="reference" minlength="4" maxlength="80" required autocomplete="off" />
-                <button class="home-button" type="submit">Gửi mã giao dịch</button>
-              </form>
-              <p th:if="${reservation.depositStatus == 'TRANSFER_SUBMITTED'}" th:text="${'Mã giao dịch ' + reservation.depositReference + ' đang chờ nhân viên xác nhận.'}"></p>
+            <section th:replace="~{web/fragments/deposit :: details(${reservation})}"></section>
+            <section class="receipt-deposit" th:if="${preorder != null and preorder.legacyCustomerOrder}">
+              <h2>Chi tiết đơn cũ</h2>
+              <ul><li th:each="item : ${preorder.items}" th:unless="${item.cancelled}"
+                  th:text="${item.dishName + ' × ' + item.quantity + ' · ' + #numbers.formatInteger(item.amount,1,'POINT') + ' đ'}"></li></ul>
+            </section>
+            <section class="receipt-deposit" th:if="${payment != null}">
+              <p th:text="${'Tổng hóa đơn: ' + #numbers.formatInteger(preorder.totalAmount,1,'POINT') + ' đ'}"></p>
+              <p th:text="${'Cọc đã khấu trừ: ' + #numbers.formatInteger(payment.depositApplied,1,'POINT') + ' đ'}"></p>
+              <p th:text="${'Đã thu thêm: ' + #numbers.formatInteger(payment.amount,1,'POINT') + ' đ'}"></p>
             </section>
             <div class="receipt-actions">
               <a class="home-button" th:href="@{/reservations/lookup(code=${reservation.code})}">Tra cứu đặt bàn <span aria-hidden="true">↗</span></a>
@@ -96,7 +96,7 @@
               <h2 id="next-title">Hương vị tinh tế.<br /><em>Khoảnh khắc đáng nhớ.</em></h2>
               <ol class="receipt-steps" th:unless="${closedEarly}">
                 <li class="step-done"><span aria-hidden="true">01</span><div><h3>Tiếp nhận yêu cầu</h3><p>Thông tin buổi hẹn đã được ghi nhận.</p></div></li>
-                <li th:class="${confirmed ? 'step-done' : 'step-current'}"><span aria-hidden="true">02</span><div><h3 th:text="${confirmed ? 'Đã xác nhận chỗ ngồi' : 'Nhân viên xác nhận'}"></h3><p th:text="${confirmed ? 'Đặt bàn đã được xác nhận.' : 'Chúng tôi sẽ liên hệ để xác nhận với bạn.'}"></p></div></li>
+                <li th:class="${confirmed ? 'step-done' : 'step-current'}"><span aria-hidden="true">02</span><div><h3 th:text="${confirmed ? 'Đã xác nhận chỗ ngồi' : (paymentStatus.status == 'RECEIVED' ? 'Đã nhận cọc · chờ nhà hàng' : ((paymentStatus.status == 'NO_DEPOSIT' or !qrPayments) ? 'Nhân viên xác nhận' : 'Thanh toán cọc · chờ xác minh'))}"></h3><p th:text="${confirmed ? 'Đặt bàn đã được xác nhận.' : (paymentStatus.status == 'RECEIVED' ? 'Nhân viên sẽ xác nhận đặt bàn sau khi đã nhận đủ tiền cọc.' : ((paymentStatus.status == 'NO_DEPOSIT' or !qrPayments) ? 'Yêu cầu đang chờ nhà hàng xác nhận.' : 'SePay tự động xác minh khoản chuyển trước khi nhân viên xác nhận.'))}"></p></div></li>
                 <li th:classappend="${reservation.status == 'COMPLETED' ? 'step-done' : ''}"><span aria-hidden="true">03</span><div><h3>Hẹn gặp tại T3L</h3><p>Thưởng thức món ngon và những câu chuyện.</p></div></li>
               </ol>
               <div class="receipt-cancel-note" th:if="${closedEarly}"><p>Để sắp xếp một cuộc hẹn khác, bạn có thể gửi yêu cầu đặt bàn mới.</p><a class="home-text-link" th:href="@{/reservations/new}">Chọn buổi hẹn khác <span aria-hidden="true">↗</span></a></div>

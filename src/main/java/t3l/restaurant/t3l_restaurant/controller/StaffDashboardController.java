@@ -16,8 +16,13 @@ public class StaffDashboardController {
 
   @GetMapping({"/staff", "/staff/dashboard"})
   public String dashboard(Authentication actor, Model model) {
-    model.addAttribute("dashboard", workspace.dashboard());
-    model.addAttribute("openShift", shifts.current(actor.getName()) != null);
+    var dashboard = workspace.dashboard();
+    boolean shiftOpen = shifts.current(actor.getName()) != null;
+    var actions = java.util.stream.Stream.concat(dashboard.toConfirm().stream(), dashboard.checkedIn().stream()).distinct()
+        .collect(java.util.stream.Collectors.toMap(booking -> booking.getId(), booking -> workspace.actions(booking, shiftOpen)));
+    model.addAttribute("dashboard", dashboard);
+    model.addAttribute("bookingActions", actions);
+    model.addAttribute("openShift", shiftOpen);
     return "staff/dashboard";
   }
 }

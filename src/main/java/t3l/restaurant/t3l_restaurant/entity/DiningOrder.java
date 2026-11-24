@@ -45,6 +45,9 @@ public class DiningOrder {
   @Column(name = "total_amount", precision = 16, scale = 0)
   private BigDecimal totalAmount;
 
+  @Column(name = "preorder_note", length = 500)
+  private String preorderNote;
+
   public DiningOrder(Reservation reservation, String openedBy, LocalDateTime openedAt) {
     this.reservation = reservation;
     this.openedBy = openedBy;
@@ -56,8 +59,30 @@ public class DiningOrder {
   }
 
   public void addItem(Dish dish, int quantity, String note) {
-    items.add(new DiningOrderItem(this, dish, quantity, note));
+    addItem(dish, quantity, note, false);
   }
+
+  public void addItem(Dish dish, int quantity, String note, boolean preordered) {
+    items.add(new DiningOrderItem(this, dish, quantity, note, preordered));
+  }
+
+  public List<DiningOrderItem> getPreorderItems() {
+    return items.stream().filter(DiningOrderItem::isPreordered).filter(item -> !item.isCancelled()).toList();
+  }
+
+  public BigDecimal getPreorderTotal() {
+    return getPreorderItems().stream().map(DiningOrderItem::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  public boolean isLegacyCustomerOrder() {
+    return "CUSTOMER".equals(openedBy) && !items.isEmpty() && items.stream().noneMatch(DiningOrderItem::isPreordered);
+  }
+
+  public void addPreorderItem(Long dishId, String dishName, BigDecimal price, int quantity) {
+    items.add(new DiningOrderItem(this, dishId, dishName, price, quantity, true));
+  }
+
+  public void setPreorderNote(String note) { preorderNote = note; }
 
   public BigDecimal getCurrentTotal() {
     return items.stream().filter(item -> !item.isCancelled()).map(DiningOrderItem::getAmount)
@@ -85,7 +110,7 @@ public class DiningOrder {
       case DRAFT -> "Đang gọi món";
       case FINALIZED -> "Chờ thanh toán";
       case PAID -> "Đã thanh toán";
-      case VOID -> "Đã đóng đơn trống";
+      case VOID -> items.isEmpty() ? "Đã đóng đơn trống" : "Đã hủy đơn";
       default -> status;
     };
   }

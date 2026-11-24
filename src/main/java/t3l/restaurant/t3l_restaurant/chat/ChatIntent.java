@@ -19,13 +19,15 @@ record ChatIntent(Kind kind, LocalDate date, LocalTime time, Integer guests, Big
   private static final Pattern EMAIL = Pattern.compile("(?iu)[\\p{L}0-9._%+-]+@[\\p{L}0-9.-]+\\.[\\p{L}]{2,}");
   private static final Pattern PHONE = Pattern.compile("(?<![\\d/-])(?:\\+?84|0)[ .()\\-]*(?:\\d[ .()\\-]*){7,10}\\d(?![\\d/-])|(?<!\\d)\\d{8,}(?!\\d)");
   private static final Pattern PERSONAL = Pattern.compile(
-      "(?iu)\\b(?:tôi tên|mình tên|tên (?:của tôi|khách|là)|họ và tên|liên hệ với tôi)(?:\\s*[:=])?\\s+[^\\n,.!?;]{2,80}");
-  private static final Pattern PARTY = Pattern.compile("\\b(\\d{1,3})\\s*(?:nguoi|khach|vi|suat)\\b");
-  private static final Pattern CLOCK = Pattern.compile("(?<![\\d/])([0-2]?\\d)\\s*(?:h(?:\\s*([0-5]\\d))?|:([0-5]\\d)|gio(?:\\s+([0-5]\\d))?)(?![a-z0-9])");
+      "(?iu)\\b(?:t[ôo]i t[êe]n|m[ìi]nh t[êe]n|t[êe]n (?:c[ủu]a t[ôo]i|kh[áa]ch|l[àa])|h[ọo] v[àa] t[êe]n|li[êe]n h[ệe] v[ớo]i t[ôo]i)(?:\\s*[:=]\\s*|\\s+)[^\\n,.!?;]{2,80}");
+  private static final Pattern PARTY = Pattern.compile("(?<![\\w.,])([+-]?\\d+(?:[.,]\\d+)?)\\s*(?:nguoi|khach|vi|suat)\\b");
+  private static final Pattern CLOCK = Pattern.compile(
+      "(?<![\\d/])([+-]?\\d+)\\s*(?::(\\d*)|(?:h|gio)(?:\\s*(\\d+)(?![\\d/:-]|\\s*(?:nguoi|khach|vi|suat)\\b))?)(?![a-z0-9])");
   private static final Pattern ISO = Pattern.compile("\\b\\d{4}-\\d{2}-\\d{2}\\b");
   private static final Pattern DATE = Pattern.compile("\\b(\\d{1,2})/(\\d{1,2})(?:/(\\d{4}))?\\b");
   private static final Pattern BUDGET = Pattern.compile(
-      "\\b(\\d{1,9}(?:[,.]\\d{1,3})?)\\s*(k|nghin|ngan|trieu|vnd|dong)\\b|\\b(\\d{1,3}(?:[.,]\\d{3})+)(?!\\d)");
+      "(?<![\\d.,])(-?\\d+(?:[,.]\\d+)*)\\s*(?:(k|nghin|ngan|trieu|vnd|dong|d)\\b|₫)|(?<![\\d.,])(-?\\d{1,3}(?:[.,]\\d{3})+)(?![\\d.,])");
+  private static final BigDecimal MAX_BUDGET = BigDecimal.valueOf(1_000_000_000);
   private static final List<String> DIETS = List.of("thuan chay", "an chay", "mon chay", "vegan", "vegetarian");
   private static final List<String> CATEGORIES = List.of("bo", "hai san", "ca", "tom", "ga", "heo", "salad",
       "steak", "mon chinh", "khai vi", "trang mieng", "do uong", "thuc uong", "nuoc uong",
@@ -51,23 +53,26 @@ record ChatIntent(Kind kind, LocalDate date, LocalTime time, Integer guests, Big
     String text = normalize(message);
     LocalDate date = date(text, today);
     LocalTime time = time(text);
-    Integer guests = matchNumber(PARTY, text);
+    Integer guests = guests(text);
     BigDecimal budget = budget(text);
     String preference = preference(text);
-    Kind kind = kind(text, message);
-    if (kind == Kind.INFO && previous != null && (date != null || time != null || guests != null
+    Kind kind = kind(text);
+    if (kind == null && previous != null && (date != null || time != null || guests != null
+        || invalidBookingField(message, today) != null
         || (previous.kind == Kind.MENU && (budget != null || !preference.isBlank())))) {
       if (previous.kind == Kind.AVAILABILITY || previous.kind == Kind.DRAFT || previous.kind == Kind.MENU) {
         kind = previous.kind;
       }
     }
-    ChatIntent intent = new ChatIntent(kind, date, time, guests, budget, preference);
-    return intent.inherit(previous);
+    return new ChatIntent(kind == null ? Kind.INFO : kind, date, time, guests, budget, preference).inherit(previous);
   }
 
-  private static Kind kind(String text, String message) {
-    if (bookingCode(message) != null || contains(text, "tra cuu", "lich dat cua", "don dat cua", "dat ban cua",
-        "lich dat ban cua", "dat cho cua", "dat ban cua toi", "kiem tra ma", "tinh trang dat ban", "trang thai dat ban")) {
+  static boolean needsClassification(String message) { return kind(normalize(message)) == null; }
+
+  private static Kind kind(String text) {
+    if (contains(text, "lich dat cua", "don dat cua", "dat ban cua", "dat cho cua", "kiem tra ma", "tinh trang dat ban",
+        "trang thai dat ban", "lich su dat ban", "lich da dat", "lich dat ban sap toi", "lich dat ban truoc day",
+        "xem lich hen", "lich hen cua", "toi da dat ban", "minh da dat ban")) {
       return Kind.LOOKUP;
     }
     if (contains(text, "mo cua", "dong cua", "gio hoat dong", "chinh sach", "quy dinh", "dia chi", "hotline",
@@ -75,22 +80,30 @@ record ChatIntent(Kind kind, LocalDate date, LocalTime time, Integer guests, Big
         "dat ban truoc bao lau", "dat ban truoc", "dat ban nhu the nao", "doi so khach")) {
       return Kind.INFO;
     }
+    if (contains(text, "tra cuu") && contains(text, "dat ban", "dat cho")) return Kind.LOOKUP;
     if (contains(text, "ban trong", "con ban", "het ban", "co ban", "kiem tra ban", "kiem tra cho", "con cho",
         "co cho trong", "con trong", "co cho khong")) return Kind.AVAILABILITY;
     if (contains(text, "dat ban", "dat cho", "giu ban", "giu cho", "dien form")) return Kind.DRAFT;
-    if (contains(text, "mon", "thuc don", "menu", "an gi", "ngan sach", "gia bao nhieu", "gia cua", "tu van",
+    if (contains(text, "thuc don", "menu", "an gi", "ngan sach", "gia bao nhieu", "gia cua", "tu van",
+        "di ung",
         "goi y mon", "goi y an", "buffet", "combo") || containsToken(text, CATEGORIES) || containsToken(text, DIETS)) return Kind.MENU;
-    if (text.matches("(?:xin )?chao[ !.]*|hello[ !.]*|hi[ !.]*|cam on[ !.]*|ban la ai[? !.]*")) {
+    if (token(text, "mon")) return Kind.MENU;
+    if (text.matches("(?:xin )?chao(?: ban| buoi (?:sang|trua|chieu|toi))?[ !.]*|hello[ !.]*|hi[ !.]*|cam on[ !.]*|ban la ai[? !.]*")) {
       return Kind.GREETING;
     }
-    return Kind.INFO;
+    return null;
   }
 
   ChatIntent modelFields(JsonNode output, ChatIntent previous) {
     if (output == null || !output.isObject()) return this;
     Kind next = kind;
     if (kind == Kind.INFO && !output.path("intent").asText().isBlank()) {
-      try { next = Kind.valueOf(output.path("intent").asText()); } catch (IllegalArgumentException ignored) {}
+      next = switch (output.path("intent").asText()) {
+        case "MENU" -> Kind.MENU;
+        case "AVAILABILITY" -> Kind.AVAILABILITY;
+        case "DRAFT" -> Kind.DRAFT;
+        default -> Kind.INFO;
+      };
     }
     Integer count = guests;
     if (count == null && output.path("guests").isIntegralNumber() && output.path("guests").canConvertToInt()) {
@@ -100,7 +113,7 @@ record ChatIntent(Kind kind, LocalDate date, LocalTime time, Integer guests, Big
     BigDecimal amount = budget;
     if (amount == null && output.path("budget").isIntegralNumber() && output.path("budget").canConvertToLong()) {
       long proposed = output.get("budget").longValue();
-      if (proposed > 0 && proposed <= 1_000_000_000) amount = BigDecimal.valueOf(proposed);
+      amount = validatedBudget(BigDecimal.valueOf(proposed));
     }
     String modelPreference = output.path("preference").asText();
     if (modelPreference.length() > 120) modelPreference = "";
@@ -138,12 +151,10 @@ record ChatIntent(Kind kind, LocalDate date, LocalTime time, Integer guests, Big
 
   static Map<String, Object> schema() {
     return Map.of("type", "OBJECT", "required", List.of("intent"), "properties", Map.of(
-        "intent", Map.of("type", "STRING", "enum", List.of("INFO", "MENU", "AVAILABILITY", "DRAFT", "LOOKUP", "GREETING")),
+        "intent", Map.of("type", "STRING", "enum", List.of("INFO", "MENU", "AVAILABILITY", "DRAFT")),
         "date", Map.of("type", "STRING"), "time", Map.of("type", "STRING"),
         "guests", Map.of("type", "INTEGER"), "budget", Map.of("type", "INTEGER"), "preference", Map.of("type", "STRING")));
   }
-
-  static boolean dietaryRestriction(String text) { return ALLERGY.matcher(normalize(text)).find(); }
 
   private static String preference(String text) {
     if (ALLERGY.matcher(text).find()) return "restriction";
@@ -163,9 +174,20 @@ record ChatIntent(Kind kind, LocalDate date, LocalTime time, Integer guests, Big
     return java.util.Arrays.stream(terms).anyMatch(text::contains);
   }
 
-  private static Integer matchNumber(Pattern pattern, String text) {
-    Matcher matcher = pattern.matcher(text);
-    return matcher.find() ? Integer.valueOf(matcher.group(1)) : null;
+  private static Integer guests(String text) {
+    Matcher matcher = PARTY.matcher(text);
+    if (!matcher.find()) return null;
+    String count = matcher.group(1);
+    if (!count.matches("\\+?\\d+")) return 0;
+    String digits = count.replaceFirst("^\\+?0*(?=\\d)", "");
+    return digits.length() > 3 ? 1000 : Integer.valueOf(digits);
+  }
+
+  static String invalidBookingField(String message, LocalDate today) {
+    String text = normalize(message);
+    if ((ISO.matcher(text).find() || DATE.matcher(text).find()) && date(text, today) == null) return "ngày đến";
+    if (CLOCK.matcher(text).find() && time(text) == null) return "giờ đến";
+    return null;
   }
 
   private static LocalDate date(String text, LocalDate today) {
@@ -188,30 +210,41 @@ record ChatIntent(Kind kind, LocalDate date, LocalTime time, Integer guests, Big
   private static LocalTime time(String text) {
     Matcher matcher = CLOCK.matcher(text);
     if (!matcher.find() || text.substring(Math.max(0, matcher.start() - 6), matcher.start()).endsWith("truoc ")) return null;
-    int hour = Integer.parseInt(matcher.group(1));
-    String digits = java.util.stream.IntStream.rangeClosed(2, 4).mapToObj(matcher::group)
-        .filter(java.util.Objects::nonNull).findFirst().orElse("0");
+    String hours = matcher.group(1);
+    if (hours.startsWith("-") || hours.length() > (hours.startsWith("+") ? 3 : 2)) return null;
+    int hour = Integer.parseInt(hours);
+    String digits = matcher.group(2) != null ? matcher.group(2) : matcher.group(3);
     String before = text.substring(0, matcher.start()).stripTrailing();
     String after = text.substring(matcher.end()).stripLeading();
     boolean evening = before.matches(".*\\b(?:chieu|toi)(?: nay| mai| ngay mai)?(?: luc)?$")
         || after.matches("^(?:toi|chieu|pm)(?:\\b.*)?$");
+    if (digits != null && (digits.isEmpty() || digits.length() > 2)) return null;
     if (hour < 12 && evening) hour += 12;
-    try { return LocalTime.of(hour, Integer.parseInt(digits)); } catch (java.time.DateTimeException ignored) { return null; }
+    if (hour == 12 && (before.endsWith("sang") || after.matches("^(?:sang|am)(?:\\b.*)?$"))) hour = 0;
+    try { return LocalTime.of(hour, digits == null ? 0 : Integer.parseInt(digits)); }
+    catch (java.time.DateTimeException ignored) { return null; }
   }
 
   private static BigDecimal budget(String text) {
     Matcher matcher = BUDGET.matcher(text);
     if (!matcher.find()) return null;
     String unit = matcher.group(2);
-    String value = unit == null ? matcher.group(3) : matcher.group(1);
+    String value = matcher.group(1) == null ? matcher.group(3) : matcher.group(1);
     long multiplier = unit == null ? 1 : switch (unit) {
       case "trieu" -> 1_000_000;
       case "k", "nghin", "ngan" -> 1000;
       default -> 1;
     };
-    String numeric = multiplier == 1 ? value.replaceAll("[,.]", "") : value.replace(',', '.');
+    boolean grouped = value.matches("-?\\d{1,3}(?:\\.\\d{3})+") || value.matches("-?\\d{1,3}(?:,\\d{3})+");
+    String numeric = grouped && (multiplier == 1 || value.chars().filter(c -> c == '.' || c == ',').count() > 1)
+        ? value.replaceAll("[,.]", "") : value.replace(',', '.');
+    if (!numeric.matches("-?\\d+(?:\\.\\d+)?") || (multiplier == 1 && numeric.contains("."))) return BigDecimal.ZERO;
     var amount = new BigDecimal(numeric).multiply(BigDecimal.valueOf(multiplier)).setScale(0, java.math.RoundingMode.DOWN);
-    return amount.signum() > 0 && amount.compareTo(BigDecimal.valueOf(1_000_000_000)) <= 0 ? amount : null;
+    return validatedBudget(amount);
+  }
+
+  private static BigDecimal validatedBudget(BigDecimal amount) {
+    return amount.signum() > 0 && amount.compareTo(MAX_BUDGET) <= 0 ? amount : BigDecimal.ZERO;
   }
 
   private static LocalDate isoDate(String value) {

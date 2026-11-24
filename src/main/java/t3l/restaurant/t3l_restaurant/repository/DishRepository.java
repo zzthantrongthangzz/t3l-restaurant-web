@@ -18,6 +18,9 @@ public interface DishRepository extends JpaRepository<Dish, Long> {
   @Query("select d from Dish d where d.id = :id and " + SELLABLE)
   Optional<Dish> findSellable(@Param("id") Long id);
 
+  @Query("select d from Dish d where d.id in :ids and " + SELLABLE)
+  List<Dish> findSellableByIdIn(@Param("ids") java.util.Collection<Long> ids);
+
   @Query("select distinct d.categoryName from Dish d order by d.categoryName")
   List<String> categoryNames();
 

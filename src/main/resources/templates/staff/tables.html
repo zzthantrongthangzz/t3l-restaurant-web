@@ -29,6 +29,12 @@
             </select>
           </label>
           <label class="staff-field">Ngày xem <input type="date" name="date" th:value="${selectedDate}" data-board-date required /></label>
+          <label class="staff-field">Giờ đến
+            <select name="time"><option value="">Cả ngày</option>
+              <option th:each="slot : ${timeSlots}" th:value="${slot}" th:selected="${slot == selectedTime}" th:text="${#temporals.format(slot, 'HH:mm')}"></option>
+            </select>
+          </label>
+          <label class="staff-field">Số khách <input type="number" name="guests" min="1" max="20" th:value="${selectedGuests}" /></label>
           <button class="staff-button is-outline" type="submit">Làm mới</button>
         </form>
       </div>
@@ -51,7 +57,7 @@
               <path d="m15 5 4 4M4 20l4.5-1 11-11a2.8 2.8 0 0 0-4-4l-11 11L4 20z"/>
             </svg>
           </a>
-          <form class="table-board-confirm" th:if="${state == 'PENDING' and item.actions.confirm}"
+          <form class="table-board-confirm" th:if="${state == 'PENDING' and item.actions.confirmEnabled}"
                 th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
             <input type="hidden" name="from" value="table" />
             <input type="hidden" name="returnDate" th:value="${selectedDate}" />
@@ -70,15 +76,15 @@
             <div class="staff-actions">
               <a class="staff-button" data-table-action="walk-in" th:if="${state == 'FREE' and selectedDate == today}"
                  th:href="@{${opsBase + '/reservations/new'}(tableId=${table.id},walkIn=true)}">Đặt bàn ngay</a>
-              <a class="staff-button is-outline" data-table-action="reserve" th:if="${state != 'INACTIVE' and !selectedDate.isBefore(today)}"
-                 th:href="@{${opsBase + '/reservations/new'}(tableId=${table.id},date=${selectedDate})}">Đặt bàn chờ</a>
+              <a class="staff-button is-outline" data-table-action="reserve" th:if="${state != 'INACTIVE' and state != 'TOO_SMALL' and !selectedDate.isBefore(today)}"
+                 th:href="@{${opsBase + '/reservations/new'}(tableId=${table.id},date=${selectedDate},time=${selectedTime},guests=${selectedGuests})}">Đặt bàn chờ</a>
               <th:block th:if="${booking != null}" th:with="actions=${item.actions}">
-                <form th:if="${actions.confirm or actions.cancel or actions.checkIn or actions.seat}"
+                <form th:if="${actions.confirm or actions.cancel or actions.receiveEnabled}"
                       th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post" class="staff-actions">
                   <input type="hidden" name="from" value="table" />
                   <input type="hidden" name="returnDate" th:value="${selectedDate}" />
-                  <button class="staff-button" type="submit" th:if="${actions.confirm}" name="status" value="CONFIRMED">Xác nhận</button>
-                  <button class="staff-button" type="submit" data-table-action="receive" th:if="${actions.checkIn or actions.seat}"
+                  <button class="staff-button" type="submit" th:if="${actions.confirm}" th:disabled="${!actions.confirmEnabled}" name="status" value="CONFIRMED">Xác nhận</button>
+                  <button class="staff-button" type="submit" data-table-action="receive" th:if="${actions.receiveEnabled}"
                           name="status" value="RECEIVE">Nhận bàn chờ</button>
                   <button class="staff-button is-danger" type="submit" data-table-action="cancel" th:if="${actions.cancel}" name="status"
                           value="CANCELLED" data-confirm="Hủy lượt đặt bàn chờ này?" th:text="${state == 'PENDING' ? 'Từ chối / Hủy bàn chờ' : 'Hủy bàn chờ'}"></button>

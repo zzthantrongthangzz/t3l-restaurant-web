@@ -27,6 +27,9 @@ services:
       - ./database/mysql/15_reservation_deposits.sql:/docker-entrypoint-initdb.d/15_reservation_deposits.sql:ro
       - ./database/mysql/16_table_kinds.sql:/docker-entrypoint-initdb.d/16_table_kinds.sql:ro
       - ./database/mysql/17_menu_images.sql:/docker-entrypoint-initdb.d/17_menu_images.sql:ro
+      - ./database/mysql/18_deposit_settlement.sql:/docker-entrypoint-initdb.d/18_deposit_settlement.sql:ro
+      - ./database/mysql/19_preorder_cart.sql:/docker-entrypoint-initdb.d/19_preorder_cart.sql:ro
+      - ./database/mysql/20_sepay_payments.sql:/docker-entrypoint-initdb.d/20_sepay_payments.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${MYSQL_ROOT_PASSWORD:-change-this-root-password}"]
       interval: 10s
@@ -39,7 +42,7 @@ services:
     container_name: t3l-restaurant-mongodb
     restart: unless-stopped
     ports:
-      - "27018:27017"
+      - "127.0.0.1:27018:27017"
     volumes:
       - t3l_mongo_data:/data/db
       - ./database/mongodb/01_faq_seed.js:/docker-entrypoint-initdb.d/01_faq_seed.js:ro

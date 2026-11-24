@@ -336,15 +336,57 @@ class CustomerAccountIntegrationTest {
   }
 
   @Test
+  void registersAndSignsInWithSmsWithoutAnExistingSessionLogin() throws Exception {
+    String phone = "0971234567";
+    var code = simulateSms();
+    var session = new MockHttpSession();
+    mvc.perform(post("/register").session(session).with(csrf())
+        .param("fullName", "Nguyễn An").param("phone", phone))
+        .andExpect(status().isOk()).andExpect(model().attribute("registrationPending", true));
+    assertNotNull(code.get());
+    mvc.perform(post("/register/verify").session(session).with(csrf()).param("code", code.get()))
+        .andExpect(redirectedUrl("/"));
+    assertEquals("Nguyễn An", accounts.findByVerifiedPhone(phone).orElseThrow().getFullName());
+    mvc.perform(get("/account").session(session)).andExpect(status().isOk());
+  }
+
+  @Test
+  void registrationResumesTheGuestTableDraft() throws Exception {
+    jdbc.update("insert into restaurant_tables(code, table_type, capacity, active) values (?, ?, ?, ?)",
+        "REGISTER-QA-TABLE", "Bàn nhỏ", 4, true);
+    Long tableId = jdbc.queryForObject("select id from restaurant_tables where code='REGISTER-QA-TABLE'", Long.class);
+    var session = new MockHttpSession();
+    String draft = (String) mvc.perform(get("/reservations/new").session(session)
+        .param("date", "2098-12-17").param("time", "18:00").param("guests", "3").param("tableId", tableId.toString()))
+        .andExpect(status().isOk()).andReturn().getModelAndView().getModel().get("bookingDraft");
+    String target = "/reservations/new?draft=" + draft;
+    mvc.perform(get("/register").session(session).param("returnTo", target))
+        .andExpect(model().attribute("registrationReturnTo", target));
+    var sentCode = simulateSms();
+    mvc.perform(post("/register").session(session).with(csrf()).param("returnTo", target)
+        .param("fullName", "Khách đăng ký").param("phone", "0966543210"))
+        .andExpect(model().attribute("registrationPending", true));
+    mvc.perform(post("/register/verify").session(session).with(csrf()).param("code", sentCode.get()))
+        .andExpect(redirectedUrl(target));
+    var resumed = (ReservationForm) mvc.perform(get(target).session(session))
+        .andExpect(content().string(containsString("Yêu cầu đặt REGISTER-QA-TABLE")))
+        .andReturn().getModelAndView().getModel().get("form");
+    assertEquals(tableId, resumed.getTableId());
+    assertEquals(LocalTime.of(18, 0), resumed.getTime());
+    assertEquals("Khách đăng ký", resumed.getGuestName());
+  }
+
+  @Test
   void localSmsKeepsBookingDraftAndRequiresProfileBeforeCreatingBooking() throws Exception {
     jdbc.update("insert into restaurant_tables(code, table_type, capacity, active) values (?, ?, ?, ?)",
         "SMS-QA-TABLE", "Bàn nhỏ", 4, true);
     var session = new MockHttpSession();
     String date = "2098-11-19";
     long before = bookings.count();
-    String next = mvc.perform(post("/reservations").session(session).with(csrf()).param("date", date).param("loginOnly", "true")
+    String next = mvc.perform(post("/reservations").session(session).with(csrf()).param("date", date)
+        .param("guestName", "Nguyễn Linh").param("guestPhone", "0900000000")
         .param("time", "18:00").param("guests", "3").param("preferredArea", "Bàn nhỏ")
-        .param("note", "Ghi chú cần giữ").param("consentAccepted", "true"))
+        .param("note", "Ghi chú cần giữ").param("consentAccepted", "true").param("loginOnly", "true"))
         .andExpect(status().is3xxRedirection()).andReturn().getResponse().getRedirectedUrl();
     var login = UriComponentsBuilder.fromUriString(next).build();
     assertEquals("/login", login.getPath());
@@ -371,6 +413,8 @@ class CustomerAccountIntegrationTest {
     mvc.perform(get(target).session(session)).andExpect(status().isOk())
         .andExpect(content().string(containsString("HOÀN THIỆN HỒ SƠ CỦA BẠN")))
         .andExpect(content().string(containsString("0900000000")))
+        .andExpect(model().attribute("profileForm", org.hamcrest.Matchers.hasProperty("givenName",
+            org.hamcrest.Matchers.equalTo("Linh"))))
         .andExpect(model().attribute("form", org.hamcrest.Matchers.hasProperty("note",
             org.hamcrest.Matchers.equalTo("Ghi chú cần giữ"))));
     mvc.perform(post("/reservations/profile").session(session).with(csrf()).param("draft", draft)
@@ -485,13 +529,25 @@ class CustomerAccountIntegrationTest {
         "GOOGLE-QA-TABLE", "Bàn nhỏ", 4, true);
     var session = new MockHttpSession();
     String date = "2098-12-09";
-    String start = mvc.perform(post("/reservations").session(session).with(csrf()).param("date", date).param("loginOnly", "true")
+    Long tableId = jdbc.queryForObject("select id from restaurant_tables where code='GOOGLE-QA-TABLE'", Long.class);
+    jdbc.update("insert into dishes(name,description,price,category_name,available) values (?,?,?,'Món chính',true)",
+        "Món giỏ Google QA", "", 100000);
+    Long dishId = jdbc.queryForObject("select id from dishes where name='Món giỏ Google QA'", Long.class);
+    String quantityField = "preorderQuantities[" + dishId + "]";
+    String guestDraft = (String) mvc.perform(get("/reservations/new").session(session)
+        .param("date", date).param("time", "18:30").param("guests", "3").param("tableId", tableId.toString()))
+        .andExpect(view().name("web/table-plan")).andExpect(content().string(containsString("Yêu cầu đặt GOOGLE-QA-TABLE")))
+        .andReturn().getModelAndView().getModel().get("bookingDraft");
+    String start = mvc.perform(post("/reservations").session(session).with(csrf()).param("date", date)
+        .param("draft", guestDraft).param("tableId", tableId.toString())
         .param("time", "18:30").param("guests", "3").param("note", "Ghi chú của lịch Google")
-        .param("consentAccepted", "true")).andReturn().getResponse().getRedirectedUrl();
+        .param(quantityField, "3").param("preorderNote", "Để sốt riêng")
+        .param("consentAccepted", "true").param("loginOnly", "true")).andReturn().getResponse().getRedirectedUrl();
     assertNotNull(start);
     String target = URLDecoder.decode(UriComponentsBuilder.fromUriString(start).build()
         .getQueryParams().getFirst("returnTo"), StandardCharsets.UTF_8);
     String draft = UriComponentsBuilder.fromUriString(target).build().getQueryParams().getFirst("draft");
+    assertEquals(guestDraft, draft);
     var identity = googleUser("google-booking-qa", "google-booking-qa@example.test", true);
     String state = startGoogleSignIn(session, target);
     assertEquals(target, completeGoogleSignIn(session, state, null, identity));
@@ -517,12 +573,21 @@ class CustomerAccountIntegrationTest {
     assertEquals(LocalTime.of(18, 30), resumed.getTime());
     assertEquals(3, resumed.getGuests());
     assertEquals("Ghi chú của lịch Google", resumed.getNote());
+    assertEquals(tableId, resumed.getTableId());
+    assertTrue(resumed.isConsentAccepted());
+    assertEquals(identity.getEmail(), resumed.getGuestEmail());
+    assertEquals(Map.of(dishId, 3), resumed.getPreorderQuantities());
+    assertEquals("Để sốt riêng", resumed.getPreorderNote());
     mvc.perform(post("/reservations").session(session).with(csrf()).param("draft", draft)
+        .param("tableId", tableId.toString())
+        .param(quantityField, "3").param("preorderNote", "Để sốt riêng").param("preorderExpectedTotal", "300000")
         .param("date", date).param("time", "18:30").param("guests", "3").param("consentAccepted", "true"))
         .andExpect(redirectedUrlPattern("/reservations/confirmation?code=*"));
     Long owner = profiles.findAccountIdByGoogleSubject(identity.getSubject()).orElseThrow();
     var saved = bookings.findByCustomerIdOrderByReservationDateAscReservationTimeAscIdAsc(owner).getFirst();
     assertEquals(identity.getEmail(), saved.getGuestEmail());
+    assertEquals(new java.math.BigDecimal("210000"), saved.getDepositAmount());
+    assertEquals(tableId, bookings.findOneById(saved.getId()).orElseThrow().getTable().getId());
     mvc.perform(get("/account/reservations").session(session)).andExpect(content().string(containsString(saved.getCode())));
   }
 

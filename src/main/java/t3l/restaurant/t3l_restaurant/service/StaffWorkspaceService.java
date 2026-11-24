@@ -3,6 +3,7 @@ package t3l.restaurant.t3l_restaurant.service;
 import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -43,9 +44,11 @@ public class StaffWorkspaceService {
   private final ReservationChangeRequestRepository requests;
   private final DiningOrderRepository orders;
   private final ReservationSchedule schedule;
+  private final ReservationService bookings;
+  private final PaymentIntentService paymentIntents;
 
   public enum TableState {
-    FREE("Bàn trống"), PENDING("Đợi xác nhận"), RESERVED("Đã xác nhận"), OCCUPIED("Đang phục vụ"), INACTIVE("Tạm ngưng");
+    FREE("Bàn trống"), PENDING("Đợi xác nhận"), RESERVED("Đã xác nhận"), OCCUPIED("Đang phục vụ"), INACTIVE("Tạm ngưng"), TOO_SMALL("Không đủ chỗ");
 
     private final String label;
     TableState(String label) { this.label = label; }
@@ -57,15 +60,16 @@ public class StaffWorkspaceService {
   public record Dashboard(LocalDate date, long bookingsToday, long pending, long guestsArrived, long serving,
                           long free, long changeRequests, long awaitingPayment, List<Reservation> upcoming, List<Reservation> toConfirm,
                           List<Reservation> checkedIn) {}
-  public record BookingActions(boolean confirm, boolean cancel, boolean checkIn, boolean seat, boolean complete,
-                               boolean noShow, boolean moveTable, boolean reschedule) {}
+  public record BookingActions(boolean confirm, boolean confirmEnabled, String confirmReason,
+                               boolean cancel, boolean receive, boolean receiveEnabled, String receiveReason,
+                               boolean complete, boolean noShow, boolean late, boolean moveTable, boolean reschedule) {}
 
   @Transactional(readOnly = true)
   public Dashboard dashboard() {
     LocalDateTime now = LocalDateTime.now(schedule.getClock());
     LocalDate today = now.toLocalDate();
     var bookings = reservations.findByReservationDateOrderByReservationTimeAscIdAsc(today);
-    var board = boardAt(today, now);
+    var board = boardAt(today, now, null, 1, false);
     var upcoming = Stream.concat(bookings.stream()
         .filter(booking -> SCHEDULED.contains(booking.getStatus()) && !booking.getStartsAt().isBefore(now)),
         reservations.findTop10ByStatusInAndReservationDateGreaterThanOrderByReservationDateAscReservationTimeAscIdAsc(SCHEDULED, today).stream())
@@ -76,18 +80,22 @@ public class StaffWorkspaceService {
         board.stream().filter(table -> table.state() == TableState.FREE).count(),
         requests.countByStatus("PENDING"), orders.countByStatus(DiningOrder.FINALIZED), upcoming,
         reservations.findTop8ByStatusOrderByReservationDateAscReservationTimeAscIdAsc(PENDING),
-        reservations.findByStatusInAndTableIsNotNull(List.of(CHECKED_IN)).stream()
+        reservations.findByStatusInAndTableIsNotNull(List.of(CONFIRMED, CHECKED_IN)).stream()
+            .filter(booking -> booking.getReservationDate().equals(today))
+            .filter(booking -> !booking.getStartsAt().isAfter(now.plusMinutes(schedule.getCheckInMinutes())))
             .sorted(Comparator.comparing(Reservation::getStartsAt)).limit(8).toList());
   }
 
   @Transactional(readOnly = true)
-  public List<TableView> board(LocalDate date) {
-    return boardAt(date, LocalDateTime.now(schedule.getClock()));
+  public List<TableView> board(LocalDate date, LocalTime time, int guests, boolean shiftOpen) {
+    return boardAt(date, LocalDateTime.now(schedule.getClock()), time, guests, shiftOpen);
   }
 
-  private List<TableView> boardAt(LocalDate date, LocalDateTime now) {
+  private List<TableView> boardAt(LocalDate date, LocalDateTime now, LocalTime time, int guests, boolean shiftOpen) {
+    var blocked = time == null ? Map.<Long, Reservation>of() : bookings.blockingByTable(
+        date.atTime(time), date.atTime(time).plusMinutes(schedule.getDurationMinutes()));
     var scheduledByTable = reservations.findByReservationDateBetweenAndStatusNot(date, date, CANCELLED)
-        .stream().filter(booking -> booking.getTable() != null && ReservationService.BLOCKING_STATUSES.contains(booking.getStatus()))
+        .stream().filter(booking -> booking.getTable() != null && !booking.hasExpiredDeposit(now) && ReservationService.BLOCKING_STATUSES.contains(booking.getStatus()))
         .sorted(Comparator.comparing(Reservation::getStartsAt))
         .collect(Collectors.groupingBy(booking -> booking.getTable().getId()));
     var arrivedByTable = date.equals(now.toLocalDate())
@@ -110,14 +118,16 @@ public class StaffWorkspaceService {
           .orElseGet(() -> scheduled.stream()
               .filter(booking -> !booking.getStartsAt().isBefore(now) || booking.effectiveEndsAt(schedule.getDurationMinutes()).isAfter(now))
               .findFirst().orElseGet(() -> scheduled.isEmpty() ? null : scheduled.getFirst()));
-      var others = scheduled.stream().filter(booking -> current == null || !Objects.equals(booking.getId(), current.getId())).toList();
-      TableState state = !activeIds.contains(table.getId()) ? TableState.INACTIVE : current == null ? TableState.FREE
+      if (time != null) current = blocked.get(table.getId());
+      Reservation selected = current;
+      var others = scheduled.stream().filter(booking -> selected == null || !Objects.equals(booking.getId(), selected.getId())).toList();
+      TableState state = !activeIds.contains(table.getId()) ? TableState.INACTIVE : current == null ? (table.getCapacity() >= guests ? TableState.FREE : TableState.TOO_SMALL)
           : switch (current.getStatus()) {
             case SEATED -> TableState.OCCUPIED;
             case PENDING -> TableState.PENDING;
             default -> TableState.RESERVED;
           };
-      board.add(new TableView(table, state, current, others, current == null ? null : actions(current, now),
+      board.add(new TableView(table, state, current, others, current == null ? null : actions(current, now, shiftOpen),
           current != null && !lockedOrders.contains(current.getId())));
     }
     return board;
@@ -148,6 +158,36 @@ public class StaffWorkspaceService {
     return reservations.findAll(spec, PageRequest.of(Math.max(page, 0), 20, sort));
   }
 
+  @Transactional(readOnly = true)
+  public Page<Reservation> searchQuick(LocalDate date, String status, String query, int page) {
+    String value = query == null ? "" : query.strip();
+    String like = like(value.toLowerCase(Locale.ROOT));
+    String codeLike = like(value.toUpperCase(Locale.ROOT));
+    String phoneValue = ReservationManagementService.canonicalPhone(value);
+    String phoneLike = like(phoneValue);
+    Specification<Reservation> spec = (root, criteriaQuery, cb) -> {
+      List<Predicate> conditions = new ArrayList<>();
+      if (date != null) conditions.add(cb.equal(root.get("reservationDate"), date));
+      if (STATUSES.contains(status)) conditions.add(cb.equal(root.get("status"), status));
+      if (!value.isEmpty()) {
+        List<Predicate> matches = new ArrayList<>();
+        matches.add(cb.like(cb.lower(root.get("guestName")), like, '!'));
+        matches.add(cb.like(cb.upper(root.get("code")), codeLike, '!'));
+        if (!phoneValue.isBlank()) {
+          var digits = cb.function("regexp_replace", String.class, root.get("guestPhone"), cb.literal("[^0-9]"), cb.literal(""));
+          var canonical = cb.<String>selectCase().when(cb.and(cb.like(digits, "84%"), cb.equal(cb.length(digits), 11)),
+              cb.concat("0", cb.substring(digits, 3))).otherwise(digits);
+          matches.add(cb.like(canonical, phoneLike, '!'));
+        }
+        conditions.add(cb.or(matches.toArray(Predicate[]::new)));
+      }
+      return cb.and(conditions.toArray(Predicate[]::new));
+    };
+    var sort = date == null ? Sort.by(Sort.Direction.DESC, "reservationDate", "reservationTime", "id")
+        : Sort.by("reservationTime", "id");
+    return reservations.findAll(spec, PageRequest.of(Math.max(page, 0), 20, sort));
+  }
+
   private String like(String value) {
     return "%" + value.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
   }
@@ -155,21 +195,32 @@ public class StaffWorkspaceService {
   @Transactional(readOnly = true)
   public List<ReservationEvent> history(Long id) { return events.findByReservation_IdOrderByIdDesc(id); }
 
-  public BookingActions actions(Reservation booking) {
-    return actions(booking, LocalDateTime.now(schedule.getClock()));
+  public BookingActions actions(Reservation booking, boolean shiftOpen) {
+    return actions(booking, LocalDateTime.now(schedule.getClock()), shiftOpen);
   }
 
-  private BookingActions actions(Reservation booking, LocalDateTime now) {
+  private BookingActions actions(Reservation booking, LocalDateTime now, boolean shiftOpen) {
     boolean pending = PENDING.equals(booking.getStatus());
     boolean confirmed = CONFIRMED.equals(booking.getStatus());
     boolean checkedIn = CHECKED_IN.equals(booking.getStatus());
     boolean serving = SEATED.equals(booking.getStatus());
     boolean future = booking.getStartsAt().isAfter(now);
     boolean serviceHours = !now.toLocalTime().isBefore(schedule.getOpeningTime()) && now.toLocalTime().isBefore(schedule.getClosingTime());
-    boolean depositCleared = booking.getDepositAmount().signum() == 0 || "PAID".equals(booking.getDepositStatus());
-    return new BookingActions(pending && future, pending || confirmed || checkedIn,
-        confirmed && depositCleared && serviceHours && booking.getReservationDate().equals(now.toLocalDate()) && !now.isBefore(booking.getStartsAt().minusMinutes(schedule.getCheckInMinutes())),
-        checkedIn && serviceHours, serving, confirmed && !now.isBefore(booking.getStartsAt().plusMinutes(schedule.getNoShowMinutes())),
+    boolean insideNoShow = now.isBefore(booking.getStartsAt().plusMinutes(schedule.getNoShowMinutes()));
+    boolean confirm = pending && (future || insideNoShow);
+    boolean confirmEnabled = confirm && (!paymentIntents.usesQr() || !booking.isDepositOutstanding());
+    String confirmReason = paymentIntents.usesQr() && booking.isDepositOutstanding() ? "Chưa xác minh đủ tiền cọc."
+        : !confirm ? "Đã qua thời hạn xác nhận của lượt đặt này." : "";
+    boolean receive = (confirmed || checkedIn) && booking.getReservationDate().equals(now.toLocalDate());
+    boolean earlyWindow = !now.isBefore(booking.getStartsAt().minusMinutes(schedule.getCheckInMinutes())) && insideNoShow;
+    boolean receiveEnabled = receive && !booking.isDepositOutstanding() && serviceHours && earlyWindow && shiftOpen;
+    String receiveReason = !shiftOpen ? "Cần mở ca làm trước khi nhận khách."
+        : booking.isDepositOutstanding() ? "Chưa xác minh đủ tiền cọc."
+        : !serviceHours ? "Ngoài giờ phục vụ."
+        : !earlyWindow ? "Chỉ nhận khách từ " + schedule.getCheckInMinutes() + " phút trước giờ đặt đến hết thời gian chờ khách." : "";
+    boolean late = (pending || confirmed) && booking.getStartsAt().isBefore(now);
+    return new BookingActions(confirm, confirmEnabled, confirmReason, pending || confirmed || checkedIn,
+        receive, receiveEnabled, receiveReason, serving, confirmed && !insideNoShow, late,
         ((pending || confirmed) && future) || checkedIn || serving, pending || confirmed);
   }
 }

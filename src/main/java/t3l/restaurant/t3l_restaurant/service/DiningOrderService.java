@@ -1,9 +1,9 @@
 package t3l.restaurant.t3l_restaurant.service;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -16,12 +16,14 @@ import t3l.restaurant.t3l_restaurant.entity.DiningOrder;
 import t3l.restaurant.t3l_restaurant.entity.DiningOrderItem;
 import t3l.restaurant.t3l_restaurant.entity.DiningPayment;
 import t3l.restaurant.t3l_restaurant.entity.Dish;
+import t3l.restaurant.t3l_restaurant.entity.PaymentIntent;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
 import t3l.restaurant.t3l_restaurant.repository.DiningOrderRepository;
 import t3l.restaurant.t3l_restaurant.repository.DiningPaymentRepository;
 import t3l.restaurant.t3l_restaurant.repository.DishRepository;
 import t3l.restaurant.t3l_restaurant.repository.ReservationRepository;
 import t3l.restaurant.t3l_restaurant.repository.RestaurantTableRepository;
+import t3l.restaurant.t3l_restaurant.repository.PaymentIntentRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -35,8 +37,21 @@ public class DiningOrderService {
   private final DishRepository dishes;
   private final StaffShiftService shifts;
   private final ReservationSchedule schedule;
+  private final PaymentIntentRepository paymentIntents;
+  private final ReservationEmailQueue emails;
+  private final PaymentReferences references;
+  private final PaymentIntentService qrPayments;
 
-  public record OrderView(Reservation booking, DiningOrder order, DiningPayment payment) {}
+  public record OrderView(Reservation booking, DiningOrder order, DiningPayment payment) {
+    public BigDecimal getTotal() {
+      return order == null ? BigDecimal.ZERO : order.getTotalAmount() == null ? order.getCurrentTotal() : order.getTotalAmount();
+    }
+    public BigDecimal getDepositApplied() { return payment == null ? booking.getAvailableDeposit().min(getTotal()) : payment.getDepositApplied(); }
+    public BigDecimal getBalance() { return payment == null ? getTotal().subtract(getDepositApplied()) : BigDecimal.ZERO; }
+    public BigDecimal getExcess() {
+      return payment == null ? booking.getAvailableDeposit().subtract(getDepositApplied()) : booking.getRefundRemaining();
+    }
+  }
   public record ServingTable(Reservation booking, DiningOrder order) {}
 
   @Transactional(readOnly = true)
@@ -107,7 +122,12 @@ public class DiningOrderService {
   @Transactional(isolation = Isolation.READ_COMMITTED)
   public void collect(Long reservationId, String method, String reference, boolean received, String actor) {
     if (!received) throw new BookingException(null, "Hãy xác nhận đã thực nhận tiền trước khi ghi thanh toán.");
-    String transferReference = paymentReference(method, reference);
+    boolean transfer = "TRANSFER".equals(method);
+    if (transfer && qrPayments.usesQr()) {
+      throw new BookingException(null, "Chuyển khoản phải được SePay xác minh qua mã QR trước khi xác nhận.");
+    }
+    if (!transfer) requireManualPaymentMethod(method);
+    String transferReference = transfer ? references.normalize(reference, 1) : null;
     tables.lockInventory();
     Reservation booking = lockBooking(reservationId);
     DiningOrder order = requireOrder(reservationId);
@@ -118,24 +138,76 @@ public class DiningOrderService {
     }
     requireSeated(booking);
     if (!DiningOrder.FINALIZED.equals(order.getStatus())) throw new BookingException(null, "Hãy chốt hóa đơn trước khi thu tiền.");
-    var shift = shifts.requireOpenShiftForUpdate(actor);
-    if (transferReference != null && payments.existsByTransferReference(transferReference)) {
-      throw new BookingException(null, "Mã giao dịch đã được dùng cho một hóa đơn khác.");
+    var applied = booking.getAvailableDeposit().min(order.getTotalAmount());
+    boolean covered = applied.compareTo(order.getTotalAmount()) == 0;
+    if (covered != "DEPOSIT".equals(method)) {
+      throw new BookingException(null, covered ? "Hóa đơn đã được cọc chi trả. Hãy chốt bằng tiền cọc."
+          : "Hóa đơn còn số tiền cần thu.");
     }
-    LocalDateTime paidAt = now();
-    payments.saveAndFlush(new DiningPayment(order, shift, method, transferReference, actor, paidAt));
+    var shift = shifts.requireOpenShiftForUpdate(actor);
+    if (transfer) references.claim(transferReference, "INVOICE", order.getId());
+    var paidAt = now();
+    payments.saveAndFlush(new DiningPayment(order, shift, method, transferReference, applied, actor, paidAt));
+    booking.settleDeposit(applied, paidAt);
+    if (applied.signum() > 0) markDepositIntentApplied(reservationId);
     order.markPaid();
-    bookingService.finishService(booking, actor, paidAt);
+    bookingService.finishService(booking, actor, now());
+    if (applied.signum() > 0) emails.enqueue(booking,
+        t3l.restaurant.t3l_restaurant.entity.ReservationEmail.Kind.DEPOSIT_APPLIED, null,
+        "Đã khấu trừ " + applied.toPlainString() + " đ, thu thêm " + order.getTotalAmount().subtract(applied).toPlainString() + " đ.");
   }
 
-  private String paymentReference(String method, String value) {
-    if ("CASH".equals(method)) return null;
-    if (!"TRANSFER".equals(method)) throw new BookingException(null, "Phương thức thanh toán không hợp lệ.");
-    String reference = value == null ? "" : value.strip().replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
-    if (reference.isBlank() || reference.length() > 80) {
-      throw new BookingException(null, "Nhập mã giao dịch chuyển khoản đã đối chiếu, tối đa 80 ký tự.");
+  @PreAuthorize("hasAnyRole('STAFF', 'ADMIN') and #actor == authentication.name")
+  @Transactional(isolation = Isolation.READ_COMMITTED)
+  public void collectVerifiedTransfer(Long reservationId, String paymentCode, String actor) {
+    if (!qrPayments.usesQr() || paymentCode == null || paymentCode.isBlank()) {
+      throw new BookingException(null, "Hãy chọn mã thanh toán đã được xác minh.");
     }
-    return reference;
+    tables.lockInventory();
+    Reservation booking = lockBooking(reservationId);
+    DiningOrder order = requireOrder(reservationId);
+    if (DiningOrder.PAID.equals(order.getStatus())) throw new BookingException(null, "Hóa đơn đã được thanh toán.");
+    requireSeated(booking);
+    if (!DiningOrder.FINALIZED.equals(order.getStatus())) throw new BookingException(null, "Hãy chốt hóa đơn trước khi thu tiền.");
+    PaymentIntent intent = paymentIntents.findByPaymentCode(paymentCode)
+        .flatMap(found -> paymentIntents.lockById(found.getId()))
+        .orElseThrow(() -> new BookingException(null, "Không tìm thấy mã thanh toán cho hóa đơn này."));
+    if (!PaymentIntent.INVOICE.equals(intent.getPaymentType()) || !PaymentIntent.RECEIVED.equals(intent.getStatus())
+        || !Objects.equals(intent.getReservationId(), reservationId) || !Objects.equals(intent.getOrderId(), order.getId())) {
+      throw new BookingException(null, "SePay chưa xác minh giao dịch cho hóa đơn này.");
+    }
+    BigDecimal applied = booking.getAvailableDeposit().min(order.getTotalAmount());
+    BigDecimal balance = order.getTotalAmount().subtract(applied);
+    if (balance.signum() <= 0 || balance.compareTo(intent.getAmount()) != 0) {
+      throw new BookingException(null, "Số tiền cần thanh toán đã thay đổi. Hãy tạo lại mã QR.");
+    }
+    var shift = shifts.requireOpenShiftForUpdate(actor);
+    String reference = intent.getProviderTransactionId();
+    if (reference == null || payments.existsByTransferReference(reference)) {
+      throw new BookingException(null, "Giao dịch này đã được ghi nhận cho một hóa đơn khác.");
+    }
+    payments.saveAndFlush(new DiningPayment(order, shift, "TRANSFER", reference, applied, actor, now(), intent.isDemo()));
+    booking.settleDeposit(applied, now());
+    if (applied.signum() > 0) markDepositIntentApplied(reservationId);
+    order.markPaid();
+    bookingService.finishService(booking, actor, now());
+    intent.markApplied(now());
+    if (applied.signum() > 0) emails.enqueue(booking,
+        t3l.restaurant.t3l_restaurant.entity.ReservationEmail.Kind.DEPOSIT_APPLIED, null,
+        "Đã khấu trừ " + applied.toPlainString() + " đ, thu thêm " + balance.toPlainString() + " đ."
+            + (intent.isDemo() ? " Khoản thanh toán hóa đơn này ở chế độ DEMO." : ""));
+  }
+
+  private void requireManualPaymentMethod(String method) {
+    if ("CASH".equals(method) || "CARD".equals(method) || "DEPOSIT".equals(method)) return;
+    throw new BookingException(null, "Phương thức thanh toán không hợp lệ.");
+  }
+
+  private void markDepositIntentApplied(Long reservationId) {
+    LocalDateTime appliedAt = now();
+    paymentIntents.findFirstByPaymentTypeAndReservationIdOrderByIdDesc(PaymentIntent.DEPOSIT, reservationId)
+        .filter(payment -> PaymentIntent.RECEIVED.equals(payment.getStatus()))
+        .ifPresent(payment -> payment.markApplied(appliedAt));
   }
 
   private DiningOrder draft(Long reservationId) {

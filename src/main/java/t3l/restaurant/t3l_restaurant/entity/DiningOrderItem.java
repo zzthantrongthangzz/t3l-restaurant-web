@@ -39,17 +39,34 @@ public class DiningOrderItem {
   @Column(nullable = false)
   private boolean cancelled;
 
-  public DiningOrderItem(DiningOrder order, Dish dish, int quantity, String note) {
-    this.order = order;
-    this.dishId = dish.getId();
-    this.dishName = dish.getName();
-    this.unitPrice = dish.getPrice();
-    this.quantity = quantity;
+  @Column(nullable = false)
+  @org.hibernate.annotations.ColumnDefault("false")
+  private boolean preordered;
+
+  public DiningOrderItem(DiningOrder order, Dish dish, int quantity) {
+    this(order, dish.getId(), dish.getName(), dish.getPrice(), quantity, false);
+  }
+
+  public DiningOrderItem(DiningOrder order, Dish dish, int quantity, String note, boolean preordered) {
+    this(order, dish.getId(), dish.getName(), dish.getPrice(), quantity, preordered);
     String normalized = note == null ? "" : note.strip();
     if (normalized.length() > MAX_NOTE_LENGTH || normalized.contains("\r") || normalized.contains("\n")) {
       throw new IllegalArgumentException("Ghi chú món chỉ gồm một dòng, tối đa 120 ký tự.");
     }
     this.note = normalized.isEmpty() ? null : normalized;
+  }
+
+  public DiningOrderItem(DiningOrder order, Dish dish, int quantity, String note) {
+    this(order, dish, quantity, note, false);
+  }
+
+  DiningOrderItem(DiningOrder order, Long dishId, String dishName, BigDecimal unitPrice, int quantity, boolean preordered) {
+    this.order = order;
+    this.dishId = dishId;
+    this.dishName = dishName;
+    this.unitPrice = unitPrice;
+    this.quantity = quantity;
+    this.preordered = preordered;
   }
 
   public BigDecimal getAmount() { return unitPrice.multiply(BigDecimal.valueOf(quantity)); }

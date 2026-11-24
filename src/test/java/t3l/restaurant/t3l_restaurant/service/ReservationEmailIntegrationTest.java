@@ -110,7 +110,8 @@ class ReservationEmailIntegrationTest {
     assertEquals(DATE.plusDays(1).atTime(19, 30), rescheduled.getStartsAt());
     assertEquals(3, rescheduled.getGuestCount());
     assertEquals("Phòng VIP", rescheduled.getArea());
-    assertEquals("Đã xác nhận", rescheduled.getBookingStatus());
+    assertEquals(ReservationEmail.AWAITING_DEPOSIT, rescheduled.getBookingStatus());
+    assertTrue(rescheduled.getDepositSummary().contains("500000 đ"));
     assertEquals("Vui lòng liên hệ nhà hàng", events.get(3).getReviewNote());
     assertEquals("Đã hủy", events.get(4).getBookingStatus());
     verify(mail, never()).send(any(MimeMessage.class));
@@ -131,7 +132,7 @@ class ReservationEmailIntegrationTest {
     var receipt = captor.getAllValues().getFirst();
     var confirmation = captor.getAllValues().getLast();
     assertTrue(receipt.getSubject().contains("Đã tiếp nhận yêu cầu"));
-    assertTrue(confirmation.getSubject().contains("Xác nhận đặt bàn chính thức"));
+    assertTrue(confirmation.getSubject().contains("Đã duyệt giữ bàn, chờ tiền cọc"));
     assertEquals(RECIPIENT, receipt.getAllRecipients()[0].toString());
     assertNotEquals(receipt.getMessageID(), confirmation.getMessageID());
     String html = content(receipt, "text/html");
@@ -143,7 +144,8 @@ class ReservationEmailIntegrationTest {
     assertTrue(html.contains("Phòng VIP"));
     assertTrue(html.contains("&lt;img"));
     assertFalse(html.contains("<img src="));
-    assertTrue(content(confirmation, "text/plain").contains("Đã xác nhận"));
+    assertTrue(content(confirmation, "text/plain").contains("Còn phải cọc 500000 đ trước"));
+    assertTrue(content(confirmation, "text/html").contains("Còn phải cọc 500000 đ trước"));
   }
 
   @Test

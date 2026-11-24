@@ -53,6 +53,15 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
 
   List<Reservation> findByStatusInAndReservationDateGreaterThanEqual(Collection<String> statuses, LocalDate date);
 
+  @Query("""
+      select r.id from Reservation r where r.status in ('PENDING_CONFIRMATION','CONFIRMED')
+        and r.depositPaid < r.depositAmount and
+        ((r.depositStatus = 'WAITING_PAYMENT' and r.depositDueAt <= :now)
+          or (r.depositStatus = 'TRANSFER_SUBMITTED' and r.depositReviewDueAt <= :now))
+      order by r.id
+      """)
+  List<Long> expiredDepositIds(@Param("now") LocalDateTime now, Pageable page);
+
   @EntityGraph(attributePaths = "table")
   List<Reservation> findByTable_IdAndStatusInAndReservationDateGreaterThanEqual(
       Long tableId, Collection<String> statuses, LocalDate date);

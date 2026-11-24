@@ -114,13 +114,14 @@ public class SecurityConfig {
                 .hasRole("BUYER")
                 .requestMatchers(HttpMethod.POST, "/reservations/*/preorder").hasAnyRole("BUYER", "STAFF", "ADMIN")
                 .requestMatchers("/login", "/oauth2/authorization/google", "/login/oauth2/code/google", "/login/sms/**",
-                    "/login/recover/**", "/staff/login")
+                    "/login/recover/**", "/register", "/register/verify", "/staff/login")
                 .permitAll()
                 .requestMatchers("/chat/**").access(new org.springframework.security.web.access.expression.WebExpressionAuthorizationManager(
                     "isAnonymous() or hasRole('BUYER')"))
-                .requestMatchers("/js/chatbox.js", "/js/theme.js", "/js/menu.js").permitAll()
+                .requestMatchers("/js/chatbox.js", "/js/theme.js", "/js/menu.js", "/js/preorder.js",
+                    "/js/payment-status.js", "/js/payment-copy.js").permitAll()
                 .requestMatchers(
-                    "/", "/menu", "/about", "/contact", "/faq", "/register", "/reservations/**", "/css/**", "/fonts/**", "/images/**", "/error")
+                    "/", "/menu", "/about", "/contact", "/faq", "/reservations/**", "/css/**", "/fonts/**", "/images/**", "/error")
                 .permitAll()
                 .requestMatchers("/admin", "/admin/**")
                 .hasRole("ADMIN")

@@ -55,14 +55,17 @@ public class CustomerLoginController {
   }
 
   @GetMapping("/register")
-  String registration(Authentication authentication, HttpServletRequest request, Model model) {
-    if (customers.signedInCustomer(authentication) != null) return "redirect:/account";
-    return registrationPage(request, model, registrationForm(request));
+  String registration(@RequestParam(required = false) String returnTo, Authentication authentication,
+      HttpServletRequest request, Model model) {
+    String target = LoginReturnTarget.validate(returnTo);
+    if (customers.signedInCustomer(authentication) != null) return "redirect:" + (target == null ? "/account" : target);
+    return registrationPage(request, model, registrationForm(registrationDraft(request)), target);
   }
 
   @PostMapping("/register")
   String beginRegistration(@Valid @ModelAttribute("registrationForm") CustomerRegistrationForm form,
-      BindingResult errors, HttpServletRequest request, Model model) {
+      BindingResult errors, @RequestParam(required = false) String returnTo, HttpServletRequest request, Model model) {
+    String target = LoginReturnTarget.validate(returnTo);
     String phone = SmsOtpService.normalizePhone(form.getPhone());
     if (!errors.hasErrors() && phone == null) {
       errors.rejectValue("phone", "phone.invalid", "Nhập số di động Việt Nam hợp lệ.");
@@ -71,11 +74,11 @@ public class CustomerLoginController {
       errors.rejectValue("phone", "phone.registered",
           "Số điện thoại đã có tài khoản. Vui lòng đăng nhập hoặc khôi phục tài khoản.");
     }
-    if (errors.hasErrors()) return registrationPage(request, model, form);
+    if (errors.hasErrors()) return registrationPage(request, model, form, target);
 
     try {
       var issue = otp.issue(request, null, phone, null);
-      RegistrationDraft draft = new RegistrationDraft(form.getFullName(), issue.phone(), Instant.now().plusSeconds(300));
+      var draft = new RegistrationDraft(form.getFullName(), issue.phone(), target, Instant.now().plusSeconds(300));
       request.getSession().setAttribute(REGISTRATION_DRAFT, draft);
       model.addAttribute("localCode", issue.localCode());
       model.addAttribute("registrationNotice", issue.localCode() == null
@@ -86,7 +89,7 @@ public class CustomerLoginController {
     } catch (DataAccessException exception) {
       model.addAttribute("registrationError", "Chưa thể gửi mã xác thực. Vui lòng thử lại.");
     }
-    return registrationPage(request, model, form);
+    return registrationPage(request, model, form, target);
   }
 
   @PostMapping("/register/verify")
@@ -96,7 +99,7 @@ public class CustomerLoginController {
     CustomerRegistrationForm form = registrationForm(draft);
     if (draft == null) {
       model.addAttribute("registrationError", "Phiên đăng ký đã hết hạn. Vui lòng nhập lại thông tin.");
-      return registrationPage(request, model, form);
+      return registrationPage(request, model, form, null);
     }
     try {
       var proof = otp.verify(request, null, code);
@@ -105,7 +108,7 @@ public class CustomerLoginController {
       }
       UserAccount customer = phones.register(draft.fullName(), proof.phone(), proof.local());
       request.getSession().removeAttribute(REGISTRATION_DRAFT);
-      return signedIn(request, response, customer, null);
+      return signedIn(request, response, customer, draft.returnTo());
     } catch (OtpException exception) {
       model.addAttribute("registrationError", exception.getMessage());
     } catch (DataIntegrityViolationException exception) {
@@ -113,7 +116,7 @@ public class CustomerLoginController {
     } catch (DataAccessException exception) {
       model.addAttribute("registrationError", "Chưa thể tạo tài khoản. Vui lòng thử lại.");
     }
-    return registrationPage(request, model, form);
+    return registrationPage(request, model, form, draft.returnTo());
   }
 
   @GetMapping({"/login/sms", "/account/sms"})
@@ -208,7 +211,7 @@ public class CustomerLoginController {
     return "auth/recover";
   }
 
-  private String registrationPage(HttpServletRequest request, Model model, CustomerRegistrationForm form) {
+  private String registrationPage(HttpServletRequest request, Model model, CustomerRegistrationForm form, String target) {
     RegistrationDraft draft = registrationDraft(request);
     String pendingPhone = otp.pendingPhone(request.getSession(false), null);
     boolean pending = draft != null && draft.phone().equals(pendingPhone);
@@ -216,12 +219,9 @@ public class CustomerLoginController {
     model.addAttribute("registrationPending", pending);
     model.addAttribute("registrationPhone", pending ? draft.phone() : null);
     model.addAttribute("registrationName", pending ? draft.fullName() : null);
+    model.addAttribute("registrationReturnTo", target != null ? target : pending ? draft.returnTo() : null);
     model.addAttribute("smsAvailable", otp.available(request));
     return "auth/register";
-  }
-
-  private CustomerRegistrationForm registrationForm(HttpServletRequest request) {
-    return registrationForm(registrationDraft(request));
   }
 
   private CustomerRegistrationForm registrationForm(RegistrationDraft draft) {
@@ -255,5 +255,5 @@ public class CustomerLoginController {
     return "auth/sms";
   }
 
-  private record RegistrationDraft(String fullName, String phone, Instant expiresAt) implements Serializable {}
+  private record RegistrationDraft(String fullName, String phone, String returnTo, Instant expiresAt) implements Serializable {}
 }

@@ -28,6 +28,10 @@ public class DiningPayment {
   @Column(nullable = false, precision = 16, scale = 0)
   private BigDecimal amount;
 
+  @Column(name = "deposit_applied", nullable = false, precision = 16, scale = 0)
+  @org.hibernate.annotations.ColumnDefault("0")
+  private BigDecimal depositApplied = BigDecimal.ZERO;
+
   @Column(name = "payment_method", nullable = false, length = 20)
   private String paymentMethod;
 
@@ -40,16 +44,33 @@ public class DiningPayment {
   @Column(name = "paid_at", nullable = false)
   private LocalDateTime paidAt;
 
+  @Column(name = "is_demo", nullable = false)
+  @org.hibernate.annotations.ColumnDefault("false")
+  private boolean demo;
+
   public DiningPayment(DiningOrder order, StaffShift shift, String method, String reference,
-      String receivedBy, LocalDateTime now) {
+      BigDecimal depositApplied, String receivedBy, LocalDateTime now) {
+    this(order, shift, method, reference, depositApplied, receivedBy, now, false);
+  }
+
+  public DiningPayment(DiningOrder order, StaffShift shift, String method, String reference,
+      BigDecimal depositApplied, String receivedBy, LocalDateTime now, boolean demo) {
     this.order = order;
     this.shift = shift;
-    this.amount = order.getTotalAmount();
+    this.depositApplied = depositApplied;
+    this.amount = order.getTotalAmount().subtract(depositApplied);
     this.paymentMethod = method;
     this.transferReference = reference;
     this.receivedBy = receivedBy;
     this.paidAt = now;
+    this.demo = demo;
   }
 
-  public String getMethodLabel() { return "CASH".equals(paymentMethod) ? "Tiền mặt" : "Chuyển khoản"; }
+  public String getMethodLabel() {
+    return switch (paymentMethod) {
+      case "CASH" -> "Tiền mặt";
+      case "DEPOSIT" -> "Đã thanh toán bằng cọc";
+      default -> "Chuyển khoản";
+    };
+  }
 }
