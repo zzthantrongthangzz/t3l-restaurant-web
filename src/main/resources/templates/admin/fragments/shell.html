@@ -8,46 +8,51 @@
   <link rel="stylesheet" th:href="@{/css/reservation-requests.css(v=20261120-staff)}" />
   <link rel="stylesheet" th:href="@{/css/staff.css(v=20261120)}" />
   <link rel="stylesheet" th:href="@{/css/table-plan.css(v=table-confirm)}" />
-  <link rel="stylesheet" th:href="@{/css/admin.css(v=sidebar-account)}" />
+  <link rel="stylesheet" th:href="@{/css/admin.css(v=top-navigation-mobile)}" />
   <script defer th:src="@{/js/staff.js(v=table-operations)}"></script>
-  <script defer th:src="@{/js/admin.js(v=20261120)}"></script>
+  <script defer th:src="@{/js/admin.js(v=top-navigation)}"></script>
   <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
 </head>
 <body>
-<header class="admin-sidebar" th:fragment="header(section)">
+<header class="admin-header" th:fragment="header(section)">
   <div class="admin-brand-row">
     <a class="staff-brand" th:href="@{/admin/dashboard}">
       <span class="staff-brand-mark">T3L<span>.</span></span>
       <span>T3L Restaurant<small>Quản trị nhà hàng</small></span>
     </a>
-    <div class="admin-brand-controls">
+    <div class="admin-nav-actions">
+      <a th:href="@{/}">Trang khách hàng</a>
+      <div th:replace="~{account/fragments/sidebar :: employee}"></div>
       <button th:replace="~{web/fragments/theme :: toggle}"></button>
       <button type="button" class="staff-signout admin-toggle" aria-expanded="false" aria-controls="admin-navigation" hidden>Menu</button>
     </div>
   </div>
-  <div class="admin-navigation" id="admin-navigation">
-    <nav aria-label="Điều hướng quản trị">
+  <nav class="admin-navigation" id="admin-navigation" aria-label="Điều hướng quản trị">
       <a th:href="@{/admin/dashboard}" th:attr="aria-current=${section == 'dashboard' ? 'page' : null}">Tổng quan</a>
-      <span class="admin-nav-label">Vận hành</span>
-      <a th:href="@{/admin/tables}" th:attr="aria-current=${section == 'tables' ? 'page' : null}">Quản lý đặt bàn</a>
-      <a th:href="@{/admin/reservations}" th:attr="aria-current=${section == 'reservations' ? 'page' : null}">Danh sách &amp; duyệt đặt bàn</a>
-      <a th:href="@{/admin/orders}" th:attr="aria-current=${section == 'orders' ? 'page' : null}">Đơn đang phục vụ</a>
-      <a th:href="@{/admin/invoices}" th:attr="aria-current=${section == 'invoices' ? 'page' : null}">Hóa đơn</a>
-      <a th:href="@{/admin/revenue}" th:attr="aria-current=${section == 'revenue' ? 'page' : null}">Doanh thu</a>
-      <a th:href="@{/admin/shifts}" th:attr="aria-current=${section == 'shift' ? 'page' : null}">Ca làm &amp; đối soát</a>
-      <span class="admin-nav-label">Quản lý</span>
-      <a th:href="@{/admin/accounts}" th:attr="aria-current=${section == 'accounts' ? 'page' : null}">Tài khoản</a>
-      <a th:href="@{/admin/inventory}" th:attr="aria-current=${section == 'inventory' ? 'page' : null}">Danh mục bàn</a>
-      <a th:href="@{/menu}" th:attr="aria-current=${section == 'dishes' ? 'page' : null}">Thực đơn</a>
-      <a th:href="@{/admin/contacts}" th:attr="aria-current=${section == 'contacts' ? 'page' : null}">Liên hệ</a>
-      <a th:href="@{/admin/settings}" th:attr="aria-current=${section == 'settings' ? 'page' : null}">Cấu hình</a>
-      <a th:href="@{/admin/activity}" th:attr="aria-current=${section == 'activity' ? 'page' : null}">Nhật ký quản trị</a>
-    </nav>
-    <div class="admin-nav-actions">
-      <a th:href="@{/}">Trang khách hàng</a>
-      <div th:replace="~{account/fragments/sidebar :: employee}"></div>
-    </div>
-  </div>
+      <details class="nav-group">
+        <summary>Vận hành</summary>
+        <div class="nav-group-links">
+          <a th:href="@{/admin/tables}" th:attr="aria-current=${section == 'tables' ? 'page' : null}">Quản lý đặt bàn</a>
+          <a th:href="@{/admin/reservations}" th:attr="aria-current=${section == 'reservations' ? 'page' : null}">Danh sách &amp; duyệt đặt bàn</a>
+          <a th:href="@{/admin/orders}" th:attr="aria-current=${section == 'orders' ? 'page' : null}">Đơn đang phục vụ</a>
+          <a th:href="@{/admin/invoices}" th:attr="aria-current=${section == 'invoices' ? 'page' : null}">Hóa đơn</a>
+          <a th:href="@{/admin/revenue}" th:attr="aria-current=${section == 'revenue' ? 'page' : null}">Doanh thu</a>
+          <a th:href="@{/admin/shifts}" th:attr="aria-current=${section == 'shift' ? 'page' : null}">Ca làm &amp; đối soát</a>
+        </div>
+      </details>
+      <details class="nav-group">
+        <summary>Quản lý</summary>
+        <div class="nav-group-links">
+          <a th:href="@{/admin/accounts}" th:attr="aria-current=${section == 'accounts' ? 'page' : null}">Tài khoản</a>
+          <a th:href="@{/admin/inventory}" th:attr="aria-current=${section == 'inventory' ? 'page' : null}">Danh mục bàn</a>
+          <a th:href="@{/menu}" th:attr="aria-current=${section == 'dishes' ? 'page' : null}">Thực đơn</a>
+          <a th:href="@{/admin/contacts}" th:attr="aria-current=${section == 'contacts' ? 'page' : null}">Liên hệ</a>
+          <a th:href="@{/admin/settings}" th:attr="aria-current=${section == 'settings' ? 'page' : null}">Cấu hình</a>
+          <a th:href="@{/admin/activity}" th:attr="aria-current=${section == 'activity' ? 'page' : null}">Nhật ký quản trị</a>
+        </div>
+      </details>
+      <a class="admin-mobile-home" th:href="@{/}">Trang khách hàng</a>
+  </nav>
 </header>
 <div th:fragment="messages" th:remove="tag">
   <div th:replace="~{staff/fragments/shell :: messages}"></div>

@@ -74,7 +74,7 @@
 .menu-detail, .menu-add { min-height: 35px; padding: 5px 9px; }
 .menu-add { min-width: 35px; color: var(--accent-text); font-size: 1.05rem; }
 .menu-booking {
-  position: sticky; top: 22px; padding: clamp(17px, 2vw, 27px);
+  position: sticky; top: 104px; padding: clamp(17px, 2vw, 27px);
   border: 1px solid var(--border); border-radius: 15px; background: var(--surface); box-shadow: var(--shadow);
 }
 .menu-booking p { color: var(--text-muted); }
@@ -86,7 +86,7 @@
 .menu-booking ul { display: grid; gap: 8px; margin: 0; padding: 0; max-height: 45vh; overflow-y: auto; scrollbar-width: thin; }
 .menu-booking ul:empty { display: none; }
 .menu-booking li {
-  display: grid; grid-template-columns: 36px minmax(0, 1fr) 48px auto; gap: 6px; align-items: center;
+  display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 6px; align-items: center;
   padding: 7px 8px; background: var(--surface-muted); border-radius: 8px; font-size: .83rem; overflow-wrap: anywhere;
 }
 .menu-booking li img { height: 36px; border-radius: 7px; }
@@ -96,10 +96,16 @@
   border: 1px solid var(--border); border-radius: 6px;
   background: var(--surface); color: var(--text); font: inherit;
 }
-.menu-item-quantity, .menu-item-price { text-align: right; }
-.menu-item-note-input { grid-column: 1 / -2; }
+.menu-item-stepper { grid-column: 1 / 3; display: grid; grid-template-columns: 32px 43px 32px; gap: 4px; }
+.menu-item-stepper button:disabled { opacity: .45; cursor: default; }
+.menu-item-stepper button:enabled:hover, .menu-booking li .menu-item-remove:hover { background: var(--accent-wash); }
+.menu-item-quantity { text-align: center; appearance: textfield; }
+.menu-item-quantity::-webkit-inner-spin-button, .menu-item-quantity::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.menu-item-price { text-align: right; }
+.menu-item-note-input { grid-column: 1 / -1; }
 .menu-item-note-input::placeholder { color: var(--text-muted); }
-.menu-item-remove { justify-self: end; }
+.menu-booking li .menu-item-remove { display: grid; place-items: center; justify-self: end; color: var(--error); }
+.menu-item-remove svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .menu-booking .menu-saved-items .menu-item-note { grid-column: 1 / -1; color: var(--text-muted); }
 .menu-total { display: flex; justify-content: space-between; padding-block: 12px; border-block-start: 1px solid var(--border); }
 .menu-total output { color: var(--accent-text); font-weight: 700; }
@@ -125,9 +131,6 @@
 }
 @media (min-width: 1101px) {
   .menu-booking form { min-height: min(60dvh, 570px); }
-}
-@media (max-width: 1100px) {
-  .menu-booking { top: 86px; }
 }
 @media (max-width: 850px) {
   .menu-workspace { grid-template-columns: minmax(0,1fr) minmax(235px, 32%); }

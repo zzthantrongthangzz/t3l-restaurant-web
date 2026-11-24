@@ -92,20 +92,40 @@
       quantity.required = true;
       quantity.value = item.quantity;
       quantity.setAttribute('aria-label', 'Số lượng ' + card.dataset.name);
-      quantity.title = 'Số lượng';
+
+      const stepper = document.createElement('div');
+      stepper.className = 'menu-item-stepper';
+      const decrease = document.createElement('button');
+      const increase = document.createElement('button');
+      for (const [button, delta, label, symbol] of [
+        [decrease, -1, 'Giảm số lượng ', '−'],
+        [increase, 1, 'Tăng số lượng ', '+']
+      ]) {
+        button.type = 'button';
+        button.textContent = symbol;
+        button.setAttribute('aria-label', label + card.dataset.name);
+        button.addEventListener('click', () => {
+          quantity.value = Math.min(100, Math.max(1, (validQuantity(quantity.valueAsNumber) ?? 1) + delta));
+          updateQuantity();
+        });
+      }
+      stepper.append(decrease, quantity, increase);
 
       const price = document.createElement('strong');
       price.className = 'menu-item-price';
-      const updatePrice = () => {
-        const count = validQuantity(item.quantity);
-        price.textContent = count === null ? '—' : formatPrice.format(Number(card.dataset.price) * count);
-      };
-      updatePrice();
-      quantity.addEventListener('input', () => {
+      function syncQuantity() {
         item.quantity = quantity.value;
-        updatePrice();
+        const count = validQuantity(quantity.valueAsNumber);
+        price.textContent = count === null ? '—' : formatPrice.format(Number(card.dataset.price) * count);
+        decrease.disabled = count === 1;
+        increase.disabled = count === 100;
+      }
+      syncQuantity();
+      function updateQuantity() {
+        syncQuantity();
         updateTotal();
-      });
+      }
+      quantity.addEventListener('input', updateQuantity);
 
       const note = document.createElement('input');
       note.className = 'menu-item-note-input';
@@ -113,20 +133,28 @@
       note.name = field + '.note';
       note.maxLength = 120;
       note.value = item.note;
-      note.placeholder = 'Ghi chú, ví dụ: Không bỏ hành';
+      note.placeholder = 'Nhập ghi chú cho món...';
       note.setAttribute('aria-label', 'Ghi chú ' + card.dataset.name);
       note.addEventListener('input', () => { item.note = note.value; });
 
       const remove = document.createElement('button');
       remove.className = 'menu-item-remove';
       remove.type = 'button';
-      remove.textContent = '×';
-      remove.setAttribute('aria-label', 'Bỏ ' + card.dataset.name);
+      remove.title = 'Xóa món';
+      remove.setAttribute('aria-label', 'Xóa món ' + card.dataset.name);
+      const svgNamespace = 'http://www.w3.org/2000/svg';
+      const trash = document.createElementNS(svgNamespace, 'svg');
+      trash.setAttribute('viewBox', '0 0 24 24');
+      trash.setAttribute('aria-hidden', 'true');
+      const lines = document.createElementNS(svgNamespace, 'path');
+      lines.setAttribute('d', 'M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 3v7m4-7v7');
+      trash.append(lines);
+      remove.append(trash);
       remove.addEventListener('click', () => {
         toggleDish(card);
         (selection.querySelector('.menu-item-quantity') || document.querySelector('#menu-preorder a')).focus();
       });
-      row.append(thumbnail, name, dishId, quantity, price, note, remove);
+      row.append(thumbnail, name, dishId, price, stepper, remove, note);
       selection.append(row);
     }
     emptySelection.hidden = picked.size > 0;

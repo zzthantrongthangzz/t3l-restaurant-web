@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
   <body>
-    <header th:fragment="header(activePage)" class="home-header restaurant-sidebar" id="home-header">
+    <header th:fragment="header(activePage)" class="home-header restaurant-header" id="home-header">
       <a class="home-brand" th:href="@{/}" aria-label="T3L Restaurant, trang chủ">
         <span class="home-brand-mark">T3L<span aria-hidden="true">.</span></span>
         <span class="home-brand-name">RESTAURANT</span>
@@ -10,12 +10,10 @@
         <span class="nav-toggle-lines" aria-hidden="true"></span><span class="nav-toggle-label">Mở menu</span>
       </button>
       <nav class="home-nav" id="home-nav" aria-label="Điều hướng chính"
-           th:with="visitorMenu=${#authorization.expression('isAnonymous() or hasRole(''BUYER'')')},
-                    systemPage=${activePage == 'home' or activePage == 'about' or activePage == 'contact' or activePage == 'faq'},
-                    bookingPage=${activePage == 'reservation' or activePage == 'lookup'}">
-        <details class="restaurant-nav-group" th:open="${visitorMenu or systemPage}">
+           th:attr="data-expand-groups=${#authorization.expression('isAnonymous() or hasRole(''BUYER'')')}">
+        <details class="nav-group">
           <summary><svg th:replace="~{web/fragments/restaurant-shell :: icon('home')}"></svg>Hệ thống</summary>
-          <div class="restaurant-nav-children">
+          <div class="nav-group-links">
             <a th:href="@{/}" th:attr="aria-current=${activePage == 'home' or activePage == 'about' ? 'page' : null},
                                     data-home-section=${activePage == 'home' ? 'intro' : null}">Giới thiệu</a>
             <a th:href="@{/#space}" data-home-section="space">Không gian</a>
@@ -23,17 +21,17 @@
             <a th:href="@{/faq}" th:attr="aria-current=${activePage == 'faq' ? 'page' : null}">Câu hỏi thường gặp</a>
           </div>
         </details>
-        <details class="restaurant-nav-group" th:open="${visitorMenu or bookingPage}">
+        <details class="nav-group">
           <summary><svg th:replace="~{web/fragments/restaurant-shell :: icon('calendar')}"></svg>Đặt bàn</summary>
-          <div class="restaurant-nav-children">
+          <div class="nav-group-links">
             <a th:href="@{/reservations/new}" th:attr="aria-current=${activePage == 'reservation' ? 'page' : null}">Chọn bàn và đặt lịch</a>
             <a th:href="@{/reservations/lookup}" th:attr="aria-current=${activePage == 'lookup' ? 'page' : null}">Tra cứu đặt bàn</a>
           </div>
         </details>
         <a th:href="@{/menu}" th:attr="aria-current=${activePage == 'menu' ? 'page' : null}"><svg th:replace="~{web/fragments/restaurant-shell :: icon('menu')}"></svg>Thực đơn</a>
-        <details sec:authorize="hasRole('BUYER')" class="restaurant-nav-group" open>
+        <details sec:authorize="hasRole('BUYER')" class="nav-group">
           <summary><svg th:replace="~{web/fragments/restaurant-shell :: icon('account')}"></svg>Tài khoản</summary>
-          <div class="restaurant-nav-children">
+          <div class="nav-group-links">
             <th:block th:replace="~{account/fragments/navigation :: links(${activePage == 'account' ? section : null})}"></th:block>
           </div>
         </details>
@@ -43,7 +41,7 @@
           <div th:replace="~{account/fragments/sidebar :: employee}"></div>
         </div>
       </nav>
-      <div class="restaurant-sidebar-actions">
+      <div class="restaurant-header-actions">
         <details th:replace="~{account/fragments/navigation :: dropdown}"></details>
         <a sec:authorize="isAnonymous()" class="restaurant-login-link" data-header-login aria-label="Đăng nhập"
            th:href="${loginReturnTo == null} ? @{/login} : @{/login(returnTo=${loginReturnTo})}"
@@ -105,6 +103,13 @@
           window.addEventListener('hashchange', updateHomeSelection);
         }
         const mobile = window.matchMedia('(max-width: 1100px)');
+        const groups = [...nav.querySelectorAll('.nav-group')];
+        const closeGroups = () => groups.forEach(group => { group.open = false; });
+        groups.forEach(group => group.addEventListener('toggle', () => {
+          if (!mobile.matches && group.open) {
+            groups.filter(other => other !== group).forEach(other => { other.open = false; });
+          }
+        }));
         const setMenu = (open) => {
           toggle.setAttribute('aria-expanded', String(open));
           toggle.querySelector('.nav-toggle-label').textContent = open ? 'Đóng menu' : 'Mở menu';
@@ -113,6 +118,9 @@
           if (open) {
             const account = header.querySelector('.customer-menu');
             if (account) account.open = false;
+            if (mobile.matches && nav.dataset.expandGroups === 'true') {
+              groups.forEach(group => { group.open = true; });
+            }
           }
         };
         toggle.hidden = false;
@@ -121,18 +129,31 @@
         toggle.addEventListener('click', () => setMenu(toggle.getAttribute('aria-expanded') !== 'true'));
         header.querySelector('.customer-menu > summary')?.addEventListener('click', () => setMenu(false));
         nav.addEventListener('click', (event) => {
-          if (event.target.closest('a')) setMenu(false);
+          if (event.target.closest('a')) {
+            setMenu(false);
+            if (!mobile.matches) closeGroups();
+          }
         });
         document.addEventListener('keydown', (event) => {
           if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') {
             setMenu(false);
             toggle.focus();
+          } else if (event.key === 'Escape' && !mobile.matches) {
+            const selectedGroup = groups.find(group => group.open);
+            if (selectedGroup) {
+              selectedGroup.open = false;
+              selectedGroup.querySelector('summary').focus();
+            }
           }
         });
         document.addEventListener('click', (event) => {
           if (!header.contains(event.target)) setMenu(false);
+          if (!mobile.matches && !nav.contains(event.target)) closeGroups();
         });
-        mobile.addEventListener('change', () => setMenu(false));
+        mobile.addEventListener('change', () => {
+          closeGroups();
+          setMenu(false);
+        });
         const updateHeader = () => header.classList.toggle('is-scrolled', window.scrollY > 32);
         updateHeader();
         window.addEventListener('scroll', updateHeader, { passive: true });

@@ -38,6 +38,10 @@ body.home {
   --home-line: var(--border);
 }
 body { accent-color: var(--accent); }
+.home :is(h1, h2, h3), .staff-page :is(h1, h2, h3), .customer-page :is(h1, h2, h3) {
+  font-family: var(--font-sans);
+  text-decoration: none;
+}
 .theme-toggle {
   display: inline-grid;
   place-items: center;
@@ -162,7 +166,7 @@ body.staff-page, body.customer-page {
   --aqua: var(--accent-wash);
   --soft: var(--surface-muted);
 }
-.staff-page :is(.admin-sidebar, .staff-header, .staff-field input, .staff-field select, .staff-field textarea, .plan-table-card),
+.staff-page :is(.admin-header, .staff-header, .staff-field input, .staff-field select, .staff-field textarea, .plan-table-card),
 .customer-page :is(.topbar, .faq-item) {
   background-color: var(--surface);
   border-color: var(--border);
@@ -170,9 +174,9 @@ body.staff-page, body.customer-page {
 }
 .staff-page :is(.staff-brand, .staff-brand-mark, .staff-signout, .admin-navigation a, .staff-nav a,
   .plan-table-card h2, .plan-table-card h3, .plan-table-customer strong) { color: var(--text); }
-.staff-page :is(.staff-brand small, .staff-user, .admin-nav-label, .plan-table-meta, .plan-table-customer) { color: var(--text-muted); }
+.staff-page :is(.staff-brand small, .staff-user, .plan-table-meta, .plan-table-customer) { color: var(--text-muted); }
 .staff-page :is(.admin-nav-actions, .staff-signout, .plan-table-customer) { border-color: var(--border); }
-.staff-page :is(.admin-navigation a:hover, .admin-navigation a[aria-current="page"], .admin-segments a[aria-current="page"],
+.staff-page :is(.admin-navigation a:hover, .admin-navigation a[aria-current="page"], .admin-segments a[aria-current="page"], .staff-nav a:hover,
   .staff-task-link, .staff-signout:hover, .staff-cancelled) { background: var(--accent-wash); color: var(--accent-text); }
 .staff-page .staff-button:not(.is-outline, .is-danger) { background: var(--action); border-color: var(--action); color: var(--on-action); }
 .staff-page .staff-button:not(.is-outline, .is-danger):hover { filter: brightness(1.08); }
@@ -207,7 +211,7 @@ body.staff-page, body.customer-page {
 .staff-page :is(.staff-button.is-outline, .staff-button.is-danger) { border-color: var(--border); }
 .staff-page :is(.admin-navigation a, .staff-nav a)[aria-current="page"] {
   background: var(--accent-wash); color: var(--accent-text);
-  box-shadow: inset 3px 0 var(--accent);
+  box-shadow: inset 0 -2px var(--accent);
 }
 .staff-page :is(.admin-segments a, .admin-navigation a)[aria-current="page"] { border-color: var(--accent); }
 .staff-page .staff-request-review .button { background: var(--action); color: var(--on-action); }
