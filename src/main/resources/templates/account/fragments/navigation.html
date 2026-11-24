@@ -19,8 +19,8 @@
       <span th:text="${label}"></span>
     </a>
     <th:block th:fragment="links(active)">
-      <a th:replace="~{account/fragments/navigation :: link('profile','/account','Tài khoản',${active})}"></a>
-      <a th:replace="~{account/fragments/navigation :: link('reservations','/account/reservations','Thông tin đặt bàn',${active})}"></a>
+      <a th:replace="~{account/fragments/navigation :: link('profile','/account','Thông tin cá nhân',${active})}"></a>
+      <a th:replace="~{account/fragments/navigation :: link('reservations','/account/reservations','Lịch sử đặt bàn',${active})}"></a>
       <a th:replace="~{account/fragments/navigation :: link('orders','/account/orders','Đơn hàng',${active})}"></a>
       <a th:replace="~{account/fragments/navigation :: link('vouchers','/account/vouchers','Ví voucher',${active})}"></a>
       <a th:replace="~{account/fragments/navigation :: link('addresses','/account/addresses','Địa chỉ',${active})}"></a>

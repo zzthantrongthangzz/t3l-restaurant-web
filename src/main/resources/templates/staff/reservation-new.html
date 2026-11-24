@@ -13,14 +13,14 @@
         <div class="staff-form-grid">
           <label class="staff-field">Hình thức
             <select name="walkIn" data-booking-mode>
-              <option value="false" th:selected="${!walkIn}">Đặt trước qua điện thoại</option>
               <option value="true" th:selected="${walkIn}">Khách đến trực tiếp</option>
+              <option value="false" th:selected="${!walkIn}">Đặt trước</option>
             </select>
           </label>
           <label class="staff-field">Số khách <input type="number" th:field="*{guests}" min="1" max="20" required /></label>
           <label class="staff-field">Họ và tên khách <input th:field="*{guestName}" maxlength="120" required /></label>
           <label class="staff-field">Số điện thoại <input type="tel" th:field="*{guestPhone}" maxlength="30" autocomplete="tel" data-booking-phone aria-describedby="staff-phone-hint" />
-            <small id="staff-phone-hint">Bắt buộc khi đặt qua điện thoại.</small>
+            <small id="staff-phone-hint">Bắt buộc khi đặt trước.</small>
           </label>
           <label class="staff-field">Email (tùy chọn) <input type="email" th:field="*{guestEmail}" maxlength="254" autocomplete="email" /></label>
           <label class="staff-field">Bàn

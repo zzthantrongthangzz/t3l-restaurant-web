@@ -9,15 +9,33 @@
       <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="home-nav" hidden>
         <span class="nav-toggle-lines" aria-hidden="true"></span><span class="nav-toggle-label">Mở menu</span>
       </button>
-      <nav class="home-nav" id="home-nav" aria-label="Điều hướng chính">
-        <a th:href="@{/}" th:attr="aria-current=${activePage == 'home' ? 'page' : null}"><svg th:replace="~{web/fragments/restaurant-shell :: icon('home')}"></svg>Trang chủ</a>
+      <nav class="home-nav" id="home-nav" aria-label="Điều hướng chính"
+           th:with="systemPage=${activePage == 'home' or activePage == 'about' or activePage == 'contact' or activePage == 'faq'},
+                    bookingPage=${activePage == 'reservation' or activePage == 'lookup'}">
+        <details class="restaurant-nav-group" th:open="${systemPage}" th:classappend="${systemPage ? 'is-current' : ''}">
+          <summary><svg th:replace="~{web/fragments/restaurant-shell :: icon('home')}"></svg>Hệ thống</summary>
+          <div class="restaurant-nav-children">
+            <a th:href="@{/}" th:attr="aria-current=${activePage == 'home' or activePage == 'about' ? 'page' : null}">Giới thiệu</a>
+            <a th:href="@{/#space}">Không gian</a>
+            <a th:href="@{/contact}" th:attr="aria-current=${activePage == 'contact' ? 'page' : null}">Liên hệ</a>
+            <a th:href="@{/faq}" th:attr="aria-current=${activePage == 'faq' ? 'page' : null}">Câu hỏi thường gặp</a>
+          </div>
+        </details>
+        <details class="restaurant-nav-group" th:open="${bookingPage}" th:classappend="${bookingPage ? 'is-current' : ''}">
+          <summary><svg th:replace="~{web/fragments/restaurant-shell :: icon('calendar')}"></svg>Đặt bàn</summary>
+          <div class="restaurant-nav-children">
+            <a th:href="@{/reservations/new}" th:attr="aria-current=${activePage == 'reservation' ? 'page' : null}">Chọn bàn và đặt lịch</a>
+            <a th:href="@{/reservations/lookup}" th:attr="aria-current=${activePage == 'lookup' ? 'page' : null}">Tra cứu đặt bàn</a>
+          </div>
+        </details>
         <a th:href="@{/menu}" th:attr="aria-current=${activePage == 'menu' ? 'page' : null}"><svg th:replace="~{web/fragments/restaurant-shell :: icon('menu')}"></svg>Thực đơn</a>
-        <a th:href="@{/reservations/new}" th:attr="aria-current=${activePage == 'reservation' ? 'page' : null}"><svg th:replace="~{web/fragments/restaurant-shell :: icon('calendar')}"></svg>Đặt bàn</a>
-        <a th:href="@{/reservations/lookup}" th:attr="aria-current=${activePage == 'lookup' ? 'page' : null}"><svg th:replace="~{web/fragments/restaurant-shell :: icon('search')}"></svg>Tra cứu đặt bàn</a>
-        <a th:href="@{/about}" th:attr="aria-current=${activePage == 'about' ? 'page' : null}"><svg th:replace="~{web/fragments/restaurant-shell :: icon('info')}"></svg>Giới thiệu</a>
-        <a th:href="@{/about#gallery}"><svg th:replace="~{web/fragments/restaurant-shell :: icon('image')}"></svg>Không gian</a>
-        <a th:href="@{/contact}" th:attr="aria-current=${activePage == 'contact' ? 'page' : null}"><svg th:replace="~{web/fragments/restaurant-shell :: icon('mail')}"></svg>Liên hệ</a>
-        <a th:href="@{/faq}" th:attr="aria-current=${activePage == 'faq' ? 'page' : null}"><svg th:replace="~{web/fragments/restaurant-shell :: icon('help')}"></svg>Câu hỏi thường gặp</a>
+        <details sec:authorize="hasRole('BUYER')" class="restaurant-nav-group" th:open="${activePage == 'account'}"
+                 th:classappend="${activePage == 'account' ? 'is-current' : ''}">
+          <summary><svg th:replace="~{web/fragments/restaurant-shell :: icon('account')}"></svg>Tài khoản</summary>
+          <div class="restaurant-nav-children">
+            <th:block th:replace="~{account/fragments/navigation :: links(${activePage == 'account' ? section : null})}"></th:block>
+          </div>
+        </details>
         <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/dashboard}"><svg th:replace="~{web/fragments/restaurant-shell :: icon('work')}"></svg>Quản trị</a>
         <a sec:authorize="hasRole('STAFF')" th:href="@{/staff/dashboard}"><svg th:replace="~{web/fragments/restaurant-shell :: icon('work')}"></svg>Vận hành</a>
         <div class="restaurant-mobile-account" th:if="${sidebarEmployee != null}">

@@ -35,7 +35,21 @@
     </div>
 
     <div th:fragment="orders">
-      <div th:replace="~{account/fragments/activity :: empty('orders','Chưa có đơn hàng','Đơn hàng gắn với tài khoản của bạn sẽ xuất hiện tại đây.')}"></div>
+      <th:block th:if="${diningOrders.isEmpty()}">
+        <div th:replace="~{account/fragments/activity :: empty('orders','Chưa có đơn hàng','Các món đặt kèm bàn sẽ xuất hiện tại đây.')}"></div>
+      </th:block>
+      <ul class="account-list" th:unless="${diningOrders.isEmpty()}">
+        <li class="account-record" th:each="order : ${diningOrders}">
+          <div>
+            <p class="account-record-title" th:text="${order.reservation.code}"></p>
+            <p class="account-muted" th:text="${#numbers.formatInteger(order.currentTotal, 1, 'POINT') + ' đ'}"></p>
+          </div>
+          <div class="account-record-actions">
+            <span class="account-status" th:text="${order.statusLabel}"></span>
+            <a class="account-text-action" th:href="@{/reservations/confirmation(code=${order.reservation.code})}">Xem món</a>
+          </div>
+        </li>
+      </ul>
     </div>
 
     <div th:fragment="vouchers">

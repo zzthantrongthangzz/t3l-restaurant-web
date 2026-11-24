@@ -51,11 +51,20 @@
               <path d="m15 5 4 4M4 20l4.5-1 11-11a2.8 2.8 0 0 0-4-4l-11 11L4 20z"/>
             </svg>
           </a>
+          <form class="table-board-confirm" th:if="${state == 'PENDING' and item.actions.confirm}"
+                th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
+            <input type="hidden" name="from" value="table" />
+            <input type="hidden" name="returnDate" th:value="${selectedDate}" />
+            <button class="staff-button" type="submit" name="status" value="CONFIRMED"
+                    th:aria-label="${'Xác nhận ' + table.code}">Xác nhận</button>
+          </form>
           <template data-table-options>
             <p class="table-board-dialog-meta" th:text="${table.kind.label + ' · ' + table.capacity + ' chỗ · ' + item.state.label}"></p>
             <div class="table-board-guest" th:if="${booking != null}" data-table-guest th:attr="data-phone=${booking.guestPhone}">
               <strong th:text="${booking.guestName}"></strong>
               <span th:text="${#temporals.format(booking.startsAt, 'dd/MM/yyyy · HH:mm')}"></span>
+              <span th:if="${item.actions.confirm and !#strings.isEmpty(booking.guestPhone)}"
+                    th:text="${'Liên hệ khách trước khi xác nhận: ' + booking.guestPhone}"></span>
               <span th:if="${booking.status == 'CHECKED_IN'}">Khách đã check-in</span>
             </div>
             <div class="staff-actions">
@@ -68,7 +77,7 @@
                       th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post" class="staff-actions">
                   <input type="hidden" name="from" value="table" />
                   <input type="hidden" name="returnDate" th:value="${selectedDate}" />
-                  <button class="staff-button" type="submit" th:if="${actions.confirm}" name="status" value="CONFIRMED">Duyệt đặt bàn</button>
+                  <button class="staff-button" type="submit" th:if="${actions.confirm}" name="status" value="CONFIRMED">Xác nhận</button>
                   <button class="staff-button" type="submit" data-table-action="receive" th:if="${actions.checkIn or actions.seat}"
                           name="status" value="RECEIVE">Nhận bàn chờ</button>
                   <button class="staff-button is-danger" type="submit" data-table-action="cancel" th:if="${actions.cancel}" name="status"

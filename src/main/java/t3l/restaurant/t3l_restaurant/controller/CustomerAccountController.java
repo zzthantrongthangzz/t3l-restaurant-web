@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.io.IOException;
+import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -14,7 +15,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import t3l.restaurant.t3l_restaurant.dto.CustomerAddressForm;
 import t3l.restaurant.t3l_restaurant.dto.CustomerProfileForm;
 import t3l.restaurant.t3l_restaurant.dto.InvoiceCompanyForm;
+import t3l.restaurant.t3l_restaurant.entity.DiningOrder;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
+import t3l.restaurant.t3l_restaurant.repository.DiningOrderRepository;
 import t3l.restaurant.t3l_restaurant.security.GoogleOAuthFlow;
 import t3l.restaurant.t3l_restaurant.service.CustomerAccountService;
 import t3l.restaurant.t3l_restaurant.service.CustomerAccountService.DuplicateEmailException;
@@ -28,12 +31,14 @@ public class CustomerAccountController {
   private static final String ADDRESSES = "redirect:/account/addresses";
   private final CustomerAccountService customers;
   private final ReservationService reservations;
+  private final DiningOrderRepository diningOrders;
   private final GoogleOAuthFlow google;
 
-  public CustomerAccountController(CustomerAccountService customers, ReservationService reservations,
+  public CustomerAccountController(CustomerAccountService customers, ReservationService reservations, DiningOrderRepository diningOrders,
       GoogleOAuthFlow google) {
     this.customers = customers;
     this.reservations = reservations;
+    this.diningOrders = diningOrders;
     this.google = google;
   }
 
@@ -81,11 +86,15 @@ public class CustomerAccountController {
     boolean past = "past".equals(tab);
     model.addAttribute("tab", past ? "past" : "upcoming");
     model.addAttribute("bookings", reservations.customerBookings(customers.signedInCustomer(authentication).getId(), past));
-    return page(model, "reservations", "Thông tin đặt bàn");
+    return page(model, "reservations", "Lịch sử đặt bàn");
   }
 
   @GetMapping("/orders")
-  String orders(Model model) {
+  String orders(Authentication authentication, Model model) {
+    var account = customers.signedInCustomer(authentication);
+    model.addAttribute("diningOrders", diningOrders.findByReservation_CustomerIdAndStatusInOrderByOpenedAtDescIdDesc(account.getId(),
+        List.of(DiningOrder.DRAFT, DiningOrder.FINALIZED, DiningOrder.PAID)).stream()
+        .filter(order -> !order.getReservation().isTerminal() || DiningOrder.PAID.equals(order.getStatus())).toList());
     return page(model, "orders", "Đơn hàng");
   }
 
@@ -148,7 +157,9 @@ public class CustomerAccountController {
   String invoices(@RequestParam(defaultValue = "list") String tab, Authentication authentication, Model model) {
     UserAccount account = customers.signedInCustomer(authentication);
     boolean company = "company".equals(tab);
-    model.addAttribute("companyForm", customers.companyForm(customers.profile(account)));
+    if (company) model.addAttribute("companyForm", customers.companyForm(customers.profile(account)));
+    else model.addAttribute("invoices", diningOrders.findByReservation_CustomerIdAndStatusInOrderByOpenedAtDescIdDesc(
+        account.getId(), List.of(DiningOrder.PAID)));
     return invoicePage(model, company);
   }
 

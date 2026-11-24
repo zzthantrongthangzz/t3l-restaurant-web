@@ -120,7 +120,32 @@ class CustomerAccountIntegrationTest {
     mvc.perform(post("/account/invoices/company").with(viewer).with(csrf()).param("companyName", "T3L test buyer")
         .param("taxCode", "1234567890").param("companyAddress", "12 Test Street")
         .param("invoiceEmail", customer.getEmail())).andExpect(redirectedUrl("/account/invoices?tab=company"));
-    mvc.perform(get("/account/invoices").with(viewer)).andExpect(content().string(containsString("Chưa có đơn hàng đủ điều kiện")));
+    mvc.perform(get("/account/invoices").with(viewer)).andExpect(content().string(containsString("Chưa có hóa đơn đã thanh toán")));
+  }
+
+  @Test
+  void showsPaidDiningInvoicesOnlyToTheirOwner() throws Exception {
+    var owner = account();
+    var other = account();
+    var booking = legacyBooking();
+    jdbc.update("update reservations set customer_id=?, status='COMPLETED' where id=?", owner.getId(), booking.getId());
+    jdbc.update("insert into dining_orders(reservation_id,status,opened_by,opened_at,total_amount) "
+        + "values (?,'PAID','staff',current_timestamp,90000)", booking.getId());
+    var orderId = jdbc.queryForObject("select id from dining_orders where reservation_id=?", Long.class, booking.getId());
+    jdbc.update("insert into dining_order_items(order_id,dish_id,dish_name,unit_price,quantity,cancelled) "
+        + "values (?,1,'Món kiểm tra hóa đơn',45000,2,false)", orderId);
+
+    var viewer = user(owner.getUsername()).roles("BUYER");
+    var intruder = user(other.getUsername()).roles("BUYER");
+    mvc.perform(get("/account/invoices").with(viewer)).andExpect(status().isOk())
+        .andExpect(content().string(containsString("2 × Món kiểm tra hóa đơn")))
+        .andExpect(content().string(containsString("90.000 đ")));
+    mvc.perform(get("/account/orders").with(viewer))
+        .andExpect(content().string(containsString(booking.getCode())));
+    for (String path : List.of("/account/invoices", "/account/orders")) {
+      mvc.perform(get(path).with(intruder)).andExpect(status().isOk())
+          .andExpect(content().string(not(containsString(booking.getCode()))));
+    }
   }
 
   @Test

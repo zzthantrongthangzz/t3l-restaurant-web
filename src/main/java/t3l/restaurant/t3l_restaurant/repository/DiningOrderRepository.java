@@ -14,6 +14,10 @@ public interface DiningOrderRepository extends JpaRepository<DiningOrder, Long> 
   Optional<DiningOrder> findByReservation_Id(Long reservationId);
 
   List<DiningOrder> findByReservation_IdIn(Collection<Long> reservationIds);
+
+  @EntityGraph(attributePaths = {"reservation", "items"})
+  List<DiningOrder> findByReservation_CustomerIdAndStatusInOrderByOpenedAtDescIdDesc(Long customerId, Collection<String> statuses);
+
   long countByStatus(String status);
 
   @Query("select o.reservation.id from DiningOrder o where o.id=:id")

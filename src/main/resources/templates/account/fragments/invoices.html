@@ -2,32 +2,32 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
   <body>
     <div th:fragment="content">
-      <nav class="account-tabs" aria-label="Hóa đơn VAT">
-        <a th:href="@{/account/invoices}" th:attr="aria-current=${tab == 'list' ? 'page' : null}">Hóa đơn điện tử (VAT)</a>
+      <nav class="account-tabs" aria-label="Hóa đơn">
+        <a th:href="@{/account/invoices}" th:attr="aria-current=${tab == 'list' ? 'page' : null}">Hóa đơn đã thanh toán</a>
         <a th:href="@{/account/invoices(tab='company')}" th:attr="aria-current=${tab == 'company' ? 'page' : null}">Thông tin công ty</a>
       </nav>
       <div th:if="${tab == 'list'}">
         <section aria-labelledby="invoice-list-title">
-          <h2 id="invoice-list-title">Hóa đơn điện tử của bạn</h2>
-          <div th:replace="~{account/fragments/activity :: empty('invoices','Chưa có hóa đơn điện tử (VAT)',null)}"></div>
-        </section>
-        <section class="account-subsection" aria-labelledby="invoice-request-title">
-          <h2 id="invoice-request-title">Yêu cầu xuất hóa đơn VAT</h2>
-          <div th:replace="~{account/fragments/activity :: empty('orders','Chưa có đơn hàng đủ điều kiện','Bạn có thể yêu cầu hóa đơn cho đơn hàng đã hoàn tất và chưa được xuất hóa đơn.')}"></div>
-          <form class="account-form account-invoice-form">
-            <fieldset disabled>
-              <div class="account-field">
-                <label for="invoice-order">Đơn hàng</label>
-                <select id="invoice-order"><option>Chưa có đơn hàng để chọn</option></select>
-              </div>
-              <div class="account-field">
-                <label for="invoice-recipient">Thông tin xuất hóa đơn</label>
-                <input id="invoice-recipient" th:value="${companyForm.companyName}" placeholder="Thông tin công ty đã lưu" />
-              </div>
-              <button class="account-button is-primary" type="submit">Gửi yêu cầu</button>
-            </fieldset>
-            <a class="account-text-action" th:href="@{/account/invoices(tab='company')}">Cập nhật thông tin công ty</a>
-          </form>
+          <h2 id="invoice-list-title">Lịch sử thanh toán</h2>
+          <th:block th:if="${invoices.isEmpty()}">
+            <div th:replace="~{account/fragments/activity :: empty('invoices','Chưa có hóa đơn đã thanh toán',null)}"></div>
+          </th:block>
+          <ul class="account-list" th:unless="${invoices.isEmpty()}">
+            <li th:each="invoice : ${invoices}">
+              <details class="account-invoice">
+                <summary>
+                  <strong th:text="${invoice.invoiceNumber + ' · ' + invoice.reservation.code}"></strong>
+                  <span th:text="${#numbers.formatInteger(invoice.totalAmount, 1, 'POINT') + ' đ'}"></span>
+                </summary>
+                <ul class="account-list">
+                  <li class="account-record" th:each="item : ${invoice.items}" th:unless="${item.cancelled}">
+                    <span th:text="${item.quantity + ' × ' + item.dishName}"></span>
+                    <span th:text="${#numbers.formatInteger(item.amount, 1, 'POINT') + ' đ'}"></span>
+                  </li>
+                </ul>
+              </details>
+            </li>
+          </ul>
         </section>
       </div>
       <form class="account-form" th:if="${tab == 'company'}" th:action="@{/account/invoices/company}"

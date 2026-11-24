@@ -137,7 +137,7 @@ body { accent-color: var(--accent); }
   --account-wash: var(--accent-wash);
 }
 .home .account-area { color-scheme: inherit; background: var(--page); }
-.home :is(.account-nav a[aria-current="page"], .account-tabs a[aria-current="page"], .account-field :is(input, textarea, select):disabled) {
+.home :is(.account-tabs a[aria-current="page"], .account-field :is(input, textarea, select):disabled) {
   color: var(--text); background: var(--surface-muted); border-color: var(--border);
 }
 .home .account-area .account-button.is-primary { background: var(--action); color: var(--on-action); border-color: var(--action); }
@@ -195,7 +195,7 @@ body.staff-page, body.customer-page {
   .lookup-disclosure, .account-empty, .account-record) {
   background: var(--surface); color: var(--text); border-color: var(--border);
 }
-.home :is(.account-nav .customer-option:hover, .account-tabs a:hover, .account-content .account-notice) {
+.home :is(.account-tabs a:hover, .account-content .account-notice) {
   background: var(--accent-wash); color: var(--accent-text); border-color: var(--border);
 }
 .home :is(.account-content .account-notice.is-error, .contact-form-error) { color: var(--error); }

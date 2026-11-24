@@ -251,7 +251,7 @@ class StaffOperationsIntegrationTest {
         jdbc.queryForList("select kind from reservation_emails where reservation_id=? order by id", String.class, missed));
     var rejected = publicBooking("Khách chờ xác nhận", "16:30");
     staff(get("/staff/tables")).andExpect(content().string(containsString("Đợi xác nhận")))
-        .andExpect(content().string(containsString("Duyệt đặt bàn")))
+        .andExpect(content().string(containsString("table-board-confirm")))
         .andExpect(content().string(not(containsString("Sửa thông tin bàn"))));
     mvc.perform(get("/admin/tables").with(user("admin").roles("ADMIN")))
         .andExpect(status().isOk()).andExpect(content().string(containsString("Sửa thông tin bàn")));

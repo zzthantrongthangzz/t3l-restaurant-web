@@ -19,29 +19,7 @@
 .account-layout {
   width: min(1100px, 100%);
   margin-inline: auto;
-  display: grid;
-  grid-template-columns: 225px minmax(0, 1fr);
-  gap: clamp(24px, 5vw, 72px);
-  align-items: start;
 }
-.account-nav { display: grid; gap: 5px; padding: 12px 0; border-block: 1px solid var(--account-line); }
-.account-nav .customer-option {
-  display: flex;
-  gap: 11px;
-  align-items: center;
-  min-height: 46px;
-  padding: 9px 13px;
-  font-size: var(--text-compact);
-  font-weight: 500;
-}
-.account-nav .customer-option[aria-current="page"] {
-  background: #ece0d0;
-  box-shadow: inset 2px 0 var(--account-accent);
-  color: #5b3a1c;
-  font-weight: 600;
-}
-.account-nav .customer-option:hover { background: var(--account-wash); color: var(--account-accent); }
-.account-nav .customer-option:focus-visible { outline-offset: -3px; }
 .account-content {
   min-width: 0;
   padding: clamp(24px, 4.2vw, 49px);
@@ -209,29 +187,16 @@
 .account-area .account-text-action:hover, .account-delete summary:hover { color: #432b15; }
 .account-delete { position: relative; }
 .account-delete form { margin-top: 4px; }
-.account-invoice-form { margin-top: 16px; justify-items: start; }
-.account-invoice-form fieldset {
-  width: 100%;
-  min-width: 0;
-  margin: 0;
-  border: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: end;
-  gap: 13px;
-}
-.account-invoice-form fieldset button { justify-self: start; }
+.account-invoice { border: 1px solid var(--account-line); border-radius: 8px; }
+.account-invoice summary { padding: 12px; cursor: pointer; }
+.account-invoice summary span { margin-inline-start: 8px; color: var(--account-accent); white-space: nowrap; }
+.account-invoice > ul { padding: 0 12px 12px; }
 @media (max-width: 760px) {
   .account-area { padding: 109px 16px 46px; }
-  .account-layout { grid-template-columns: minmax(0, 1fr); gap: 14px; }
-  .account-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); padding-block: 6px; }
-  .account-nav .customer-option { padding-inline: 9px; }
   .account-content { padding: 21px 17px; }
 }
 @media (max-width: 480px) {
-  .account-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .account-fields, .account-invoice-form fieldset { grid-template-columns: minmax(0, 1fr); }
+  .account-fields { grid-template-columns: minmax(0, 1fr); }
   .account-tabs { gap: 5px; }
   .account-tabs a { padding: 5px 6px; }
 }
