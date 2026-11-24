@@ -170,6 +170,8 @@ public class ReservationLookupController {
 
   private void addDetails(Model model, Reservation booking, UserAccount customer) {
     model.addAttribute("reservation", booking);
+    model.addAttribute("depositRefundTerms", bookings.depositRefundTerms());
+    model.addAttribute("depositOverdue", booking.hasExpiredDeposit(policy.now()));
     model.addAttribute("ownedBooking", bookings.owns(booking, customer));
     model.addAttribute("canClaimBooking", customer != null && booking.getCustomerId() == null);
     model.addAttribute("history", management.history(booking.getId()));

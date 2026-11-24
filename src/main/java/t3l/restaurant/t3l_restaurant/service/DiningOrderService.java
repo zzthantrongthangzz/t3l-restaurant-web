@@ -1,9 +1,9 @@
 package t3l.restaurant.t3l_restaurant.service;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -32,8 +32,19 @@ public class DiningOrderService {
   private final DishRepository dishes;
   private final StaffShiftService shifts;
   private final ReservationSchedule schedule;
+  private final PaymentReferences references;
+  private final ReservationEmailQueue emails;
 
-  public record OrderView(Reservation booking, DiningOrder order, DiningPayment payment) {}
+  public record OrderView(Reservation booking, DiningOrder order, DiningPayment payment) {
+    public BigDecimal getTotal() {
+      return order == null ? BigDecimal.ZERO : order.getTotalAmount() == null ? order.getCurrentTotal() : order.getTotalAmount();
+    }
+    public BigDecimal getDepositApplied() { return payment == null ? booking.getAvailableDeposit().min(getTotal()) : payment.getDepositApplied(); }
+    public BigDecimal getBalance() { return payment == null ? getTotal().subtract(getDepositApplied()) : BigDecimal.ZERO; }
+    public BigDecimal getExcess() {
+      return payment == null ? booking.getAvailableDeposit().subtract(getDepositApplied()) : booking.getRefundRemaining();
+    }
+  }
   public record ServingTable(Reservation booking, DiningOrder order) {}
 
   @Transactional(readOnly = true)
@@ -114,22 +125,29 @@ public class DiningOrderService {
     }
     requireSeated(booking);
     if (!DiningOrder.FINALIZED.equals(order.getStatus())) throw new BookingException(null, "Hãy chốt hóa đơn trước khi thu tiền.");
+    var applied = booking.getAvailableDeposit().min(order.getTotalAmount());
+    boolean covered = applied.compareTo(order.getTotalAmount()) == 0;
+    if (covered != "DEPOSIT".equals(method)) {
+      throw new BookingException(null, covered ? "Hóa đơn đã được cọc chi trả. Hãy chốt bằng tiền cọc."
+          : "Hóa đơn còn số tiền cần thu.");
+    }
     var shift = shifts.requireOpenShiftForUpdate(actor);
     if (transferReference != null && payments.existsByTransferReference(transferReference)) {
       throw new BookingException(null, "Mã giao dịch đã được dùng cho một hóa đơn khác.");
     }
-    payments.saveAndFlush(new DiningPayment(order, shift, method, transferReference, actor, now()));
+    if (transferReference != null) references.claim(transferReference, "INVOICE", order.getId());
+    payments.saveAndFlush(new DiningPayment(order, shift, method, transferReference, applied, actor, now()));
+    booking.settleDeposit(applied, now());
     order.markPaid();
+    if (applied.signum() > 0) emails.enqueue(booking,
+        t3l.restaurant.t3l_restaurant.entity.ReservationEmail.Kind.DEPOSIT_APPLIED, null,
+        "Đã khấu trừ " + applied.toPlainString() + " đ, thu thêm " + order.getTotalAmount().subtract(applied).toPlainString() + " đ.");
   }
 
   private String paymentReference(String method, String value) {
-    if ("CASH".equals(method)) return null;
+    if ("CASH".equals(method) || "DEPOSIT".equals(method)) return null;
     if (!"TRANSFER".equals(method)) throw new BookingException(null, "Phương thức thanh toán không hợp lệ.");
-    String reference = value == null ? "" : value.strip().replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
-    if (reference.isBlank() || reference.length() > 80) {
-      throw new BookingException(null, "Nhập mã giao dịch chuyển khoản đã đối chiếu, tối đa 80 ký tự.");
-    }
-    return reference;
+    return references.normalize(value, 1);
   }
 
   private DiningOrder draft(Long reservationId) {

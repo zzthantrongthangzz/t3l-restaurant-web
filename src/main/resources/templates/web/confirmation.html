@@ -51,21 +51,15 @@
               <div class="receipt-note"><dt>Ghi chú đặc biệt</dt><dd th:text="${reservation.note != null and !reservation.note.isBlank() ? reservation.note : 'Không có ghi chú đặc biệt.'}"></dd></div>
             </dl>
             <section class="receipt-deposit" th:if="${preorder != null and !preorder.items.isEmpty()}">
-              <h2>Món bạn đã đặt trước</h2>
+              <h2 th:text="${payment != null ? 'Chi tiết hóa đơn' : 'Món bạn đã đặt trước'}"></h2>
               <ul><li th:each="item : ${preorder.items}" th:text="${item.dishName + ' · ' + #numbers.formatInteger(item.unitPrice,1,'POINT') + ' đ'}"></li></ul>
               <p th:if="${reservation.depositAmount.signum() > 0}">Tiền cọc được tính bằng 70% tổng giá món đặt trước, tối thiểu theo chính sách của loại bàn.</p>
             </section>
-            <section class="receipt-deposit" th:if="${reservation.depositAmount.signum() > 0}">
-              <h2>Đặt cọc món đặt trước</h2>
-              <p>Số tiền cọc: <strong th:text="${#numbers.formatInteger(reservation.depositAmount,1,'POINT') + ' đ'}"></strong></p>
-              <p>Trạng thái: <strong th:text="${reservation.depositStatusLabel}"></strong></p>
-              <p th:if="${reservation.depositStatus == 'WAITING_PAYMENT'}">Chuyển khoản theo hướng dẫn của nhân viên nhà hàng, sau đó nhập mã giao dịch bên dưới. Cọc chỉ được ghi nhận sau khi nhân viên đối chiếu.</p>
-              <form class="receipt-deposit-form" th:if="${reservation.depositStatus == 'WAITING_PAYMENT'}"
-                  th:action="@{/reservations/{code}/deposit-reference(code=${reservation.code})}" method="post">
-                <label for="deposit-reference">Mã giao dịch chuyển khoản</label><input id="deposit-reference" name="reference" minlength="4" maxlength="80" required autocomplete="off" />
-                <button class="home-button" type="submit">Gửi mã giao dịch</button>
-              </form>
-              <p th:if="${reservation.depositStatus == 'TRANSFER_SUBMITTED'}" th:text="${'Mã giao dịch ' + reservation.depositReference + ' đang chờ nhân viên xác nhận.'}"></p>
+            <section th:replace="~{web/fragments/deposit :: details(${reservation})}"></section>
+            <section class="receipt-deposit" th:if="${payment != null}">
+              <p th:text="${'Tổng hóa đơn: ' + #numbers.formatInteger(preorder.totalAmount,1,'POINT') + ' đ'}"></p>
+              <p th:text="${'Cọc đã khấu trừ: ' + #numbers.formatInteger(payment.depositApplied,1,'POINT') + ' đ'}"></p>
+              <p th:text="${'Đã thu thêm: ' + #numbers.formatInteger(payment.amount,1,'POINT') + ' đ'}"></p>
             </section>
             <p class="receipt-area-note" th:if="${reservation.preferredArea != null and !reservation.preferredArea.isBlank()}">Khu vực ưu tiên được sắp xếp theo tình trạng chỗ ngồi thực tế.</p>
             <div class="receipt-actions">

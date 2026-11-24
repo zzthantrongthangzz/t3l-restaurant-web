@@ -160,10 +160,37 @@ class ReservationIntegrationTest {
     }
   }
 
+  @Test
+  void simultaneousRequestsForTheSameExplicitTableGetOnlyOneBooking() throws Exception {
+    var table = tables.findByActiveTrueOrderByCodeAsc().stream()
+        .filter(candidate -> candidate.getCapacity() >= 2).findFirst().orElseThrow();
+    var ready = new CountDownLatch(2);
+    var start = new CountDownLatch(1);
+    try (var executor = Executors.newFixedThreadPool(2)) {
+      var attempts = java.util.stream.IntStream.range(0, 2).mapToObj(index -> executor.submit(() -> {
+        var form = form(LocalTime.of(18, 0), 2, "");
+        form.setTableId(table.getId());
+        ready.countDown();
+        assertTrue(start.await(10, TimeUnit.SECONDS));
+        try {
+          var saved = service.create(form);
+          createdIds.add(saved.getId());
+          return true;
+        } catch (BookingException exception) {
+          assertEquals("tableId", exception.getField());
+          return false;
+        }
+      })).toList();
+      assertTrue(ready.await(10, TimeUnit.SECONDS));
+      start.countDown();
+      assertNotEquals(attempts.getFirst().get(20, TimeUnit.SECONDS), attempts.getLast().get(20, TimeUnit.SECONDS));
+    }
+  }
+
   private String csrf(MockHttpSession session) throws Exception {
     Long tableId = tables.findByActiveTrueOrderByCodeAsc().getFirst().getId();
     String html = mvc.perform(get("/reservations/new").session(session)
-            .param("date", date.toString()).param("tableId", tableId.toString()))
+            .param("date", date.toString()).param("time", "10:00").param("guests", "1").param("tableId", tableId.toString()))
         .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
     var match = Pattern.compile("name=\"_csrf\"[^>]*value=\"([^\"]+)\"").matcher(html);
     assertTrue(match.find());

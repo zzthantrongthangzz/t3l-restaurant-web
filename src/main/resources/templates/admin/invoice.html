@@ -24,7 +24,8 @@
     </section>
     <section class="staff-panel" th:if="${payment != null}">
       <h2>Giao dịch đã ghi nhận</h2>
-      <dl class="staff-details staff-details-wide"><div><dt>Số tiền</dt><dd><span th:replace="~{admin/fragments/shell :: money(${payment.amount})}"></span></dd></div>
+      <dl th:replace="~{staff/fragments/settlement :: totals(${view})}"></dl>
+      <dl class="staff-details staff-details-wide"><div><dt>Đã thu thêm</dt><dd><span th:replace="~{admin/fragments/shell :: money(${payment.amount})}"></span></dd></div>
         <div><dt>Phương thức</dt><dd th:text="${payment.methodLabel}"></dd></div>
         <div><dt>Nhân viên xác nhận</dt><dd th:text="${payment.receivedBy}"></dd></div>
         <div><dt>Thời gian thu</dt><dd th:text="${#temporals.format(payment.paidAt,'dd/MM/yyyy HH:mm')}"></dd></div>

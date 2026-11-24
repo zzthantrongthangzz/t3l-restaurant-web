@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -20,6 +21,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -27,6 +29,8 @@ import t3l.restaurant.t3l_restaurant.dto.ReservationCancellationForm;
 import t3l.restaurant.t3l_restaurant.dto.ReservationForm;
 import t3l.restaurant.t3l_restaurant.dto.ReservationUpdateForm;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
+import t3l.restaurant.t3l_restaurant.entity.Reservation;
+import t3l.restaurant.t3l_restaurant.entity.ReservationEmail;
 import t3l.restaurant.t3l_restaurant.repository.ReservationRepository;
 import t3l.restaurant.t3l_restaurant.repository.UserAccountRepository;
 
@@ -85,7 +89,7 @@ class StaffOperationsIntegrationTest {
     clock.at(TODAY.atTime(11, 0));
     for (String table : List.of("dining_payments", "dining_order_items", "dining_orders",
         "reservation_events", "reservation_emails", "reservation_change_requests", "reservations",
-        "cash_sales", "staff_shifts", "restaurant_tables", "dishes")) {
+        "cash_sales", "staff_shifts", "restaurant_tables", "dishes", "payment_reference_claims")) {
       jdbc.update("delete from " + table);
     }
     jdbc.update("insert into restaurant_tables(code,table_type,capacity,active) values "
@@ -97,6 +101,246 @@ class StaffOperationsIntegrationTest {
     smallTable = id("select id from restaurant_tables where code='V01'");
     dishId = id("select id from dishes");
     accounts.findByUsername("staff-two").orElseGet(() -> accounts.save(new UserAccount("staff-two", "unused", "STAFF")));
+  }
+
+  @Test
+  void guestBuyerStaffAndAdminShareAvailabilityForTheSameWindow() throws Exception {
+    var guest = new MockHttpSession();
+    String draft = (String) mvc.perform(get("/reservations/new").session(guest)
+        .param("date", TODAY.toString()).param("time", "14:00").param("guests", "3").param("tableId", tableOne.toString()))
+        .andExpect(view().name("web/table-plan")).andExpect(content().string(containsString("Yêu cầu đặt S01")))
+        .andReturn().getModelAndView().getModel().get("bookingDraft");
+    mvc.perform(post("/reservations").session(guest).with(csrf()).param("draft", draft)
+        .param("guestName", "Khách kiểm thử sơ đồ").param("guestPhone", "0901234567").param("date", TODAY.toString())
+        .param("time", "14:00").param("guests", "3").param("tableId", tableOne.toString()).param("consentAccepted", "true"))
+        .andExpect(redirectedUrlPattern("/reservations/confirmation?code=*"));
+    mvc.perform(post("/reservations").session(guest).with(csrf()).param("draft", draft)
+        .param("guestName", "Khách kiểm thử sơ đồ").param("guestPhone", "0901234567").param("date", TODAY.toString())
+        .param("time", "16:00").param("guests", "3").param("tableId", tableOne.toString()).param("consentAccepted", "true"))
+        .andExpect(redirectedUrl("/reservations/new")).andExpect(flash().attributeExists("bookingNotice"));
+
+    assertBoardState("15:30", "PENDING");
+    assertBoardState("16:00", "FREE");
+    var id = id("select id from reservations");
+    step(id, "CONFIRMED").andExpect(flash().attributeExists("notice"));
+    assertBoardState("15:30", "RESERVED");
+    step(id, "CANCELLED").andExpect(flash().attributeExists("notice"));
+    assertBoardState("15:30", "FREE");
+  }
+
+  private void assertBoardState(String time, String state) throws Exception {
+    var customer = accounts.findByUsername("booking-board-buyer").orElseGet(() -> accounts.save(
+        UserAccount.customer("Booking QA", null, "0911111111", "booking-board-buyer", "unused")));
+    for (boolean signedIn : List.of(false, true)) {
+      var request = get("/reservations/new").param("date", TODAY.toString()).param("time", time).param("guests", "3");
+      if (signedIn) request.with(user(customer.getUsername()).roles("BUYER"));
+      mvc.perform(request).andExpect(status().isOk()).andExpect(view().name("web/table-plan"))
+          .andExpect(content().string(not(containsString("Khách kiểm thử sơ đồ"))))
+          .andExpect(result -> {
+            var board = (List<?>) result.getModelAndView().getModel().get("tables");
+            var cards = board.stream().map(PublicTableBoardService.TableView.class::cast).toList();
+            assertEquals(state, cards.stream().filter(card -> card.table().getId().equals(tableOne)).findFirst().orElseThrow().state());
+            assertEquals("TOO_SMALL", cards.stream().filter(card -> card.table().getId().equals(smallTable)).findFirst().orElseThrow().state());
+          });
+    }
+    for (String role : List.of("staff", "admin")) {
+      mvc.perform(get("/" + role + "/tables").with(user(role).roles(role.toUpperCase(java.util.Locale.ROOT)))
+          .param("date", TODAY.toString()).param("time", time).param("guests", "3"))
+          .andExpect(status().isOk()).andExpect(result -> {
+            var areas = (Map<?, ?>) result.getModelAndView().getModel().get("areas");
+            var cards = areas.values().stream().flatMap(group -> ((List<?>) group).stream())
+                .map(StaffWorkspaceService.TableView.class::cast).toList();
+            assertEquals(state, cards.stream().filter(card -> card.table().getId().equals(tableOne)).findFirst().orElseThrow().state().name());
+          });
+    }
+  }
+
+  @Test
+  void seatedTableStaysBlockedDuringAnOverrunUntilServiceEnds() throws Exception {
+    long booking = walkIn("Khách ở lại lâu", tableOne);
+    staff(post("/staff/shift/open").param("openingCash", "0")).andExpect(flash().attributeExists("notice"));
+    step(booking, "SEATED").andExpect(flash().attributeExists("notice"));
+    clock.at(TODAY.atTime(13, 5));
+    assertBoardState("13:30", "OCCUPIED");
+    assertBoardState("14:00", "FREE");
+    step(booking, "COMPLETED").andExpect(flash().attributeExists("notice"));
+    assertBoardState("13:30", "FREE");
+  }
+
+  @Test
+  void approvingBuyerRescheduleStartsDepositCollectionAndKeepsPreorder() throws Exception {
+    jdbc.update("update restaurant_tables set table_type='Phòng VIP' where id=?", tableOne);
+    var customer = accounts.findByUsername("deposit-buyer").orElseGet(() -> accounts.save(
+        UserAccount.customer("Khách VIP QA", "vip@example.test", "0922222222", "deposit-buyer", "unused")));
+    var form = new ReservationForm();
+    form.setDate(TODAY);
+    form.setTime(LocalTime.of(14, 0));
+    form.setGuests(3);
+    form.setTableId(tableOne);
+    form.setGuestName(customer.getFullName());
+    form.setGuestPhone(customer.getPhone());
+    form.setGuestEmail(customer.getEmail());
+    form.setPreorderDishIds(List.of(dishId));
+    form.setConsentAccepted(true);
+    var booking = bookings.create(form, customer);
+    assertEquals(new BigDecimal("500000"), booking.getDepositAmount());
+    var change = new ReservationUpdateForm();
+    change.setDate(TODAY);
+    change.setTime(LocalTime.of(15, 0));
+    change.setGuests(3);
+    var requested = changes.requestChange(booking.getCode(), change, customer.getId());
+    staff(post("/staff/reservations/requests/" + requested.getId() + "/review").param("decision", "APPROVE"))
+        .andExpect(flash().attributeExists("notice"));
+    var moved = reservations.findOneById(booking.getId()).orElseThrow();
+    assertEquals(Reservation.CONFIRMED, moved.getStatus());
+    assertEquals("WAITING_PAYMENT", moved.getDepositStatus());
+    assertEquals(new BigDecimal("500000"), moved.getDepositAmount());
+    assertEquals(ReservationEmail.AWAITING_DEPOSIT, jdbc.queryForObject(
+        "select booking_status from reservation_emails where reservation_id=? and kind='RESCHEDULED'",
+        String.class, booking.getId()));
+    assertEquals(1L, id("select count(*) from dining_order_items"));
+    step(booking.getId(), "CHECKED_IN").andExpect(flash().attributeExists("error"));
+    mvc.perform(post("/reservations/" + booking.getCode() + "/deposit-reference")
+        .with(user(customer.getUsername()).roles("BUYER")).with(csrf()).param("reference", "QA-TRANSFER"))
+        .andExpect(flash().attributeExists("notice"));
+    verifyDeposit(booking.getId(), "QA-TRANSFER", "500000", true)
+        .andExpect(flash().attributeExists("notice"));
+    clock.at(TODAY.atTime(14, 40));
+    step(booking.getId(), "CHECKED_IN").andExpect(flash().attributeExists("notice"));
+  }
+
+  @Test
+  void guestCannotBypassVipDepositAndLateTransferReleasesTableThenQueuesRefund() throws Exception {
+    jdbc.update("update restaurant_tables set table_type='Phòng VIP' where id=?", tableOne);
+    var session = new MockHttpSession();
+    String receipt = mvc.perform(post("/reservations").session(session).with(csrf())
+        .param("guestName", "Khách thử cọc").param("guestPhone", "0911111111")
+        .param("tableId", tableOne.toString()).param("date", TODAY.toString()).param("time", "14:00")
+        .param("guests", "3").param("consentAccepted", "true").param("depositAmount", "0"))
+        .andExpect(redirectedUrlPattern("/reservations/confirmation?code=*")).andReturn().getResponse().getRedirectedUrl();
+    long booking = id("select id from reservations");
+    var saved = reservations.findOneById(booking).orElseThrow();
+    assertEquals(new BigDecimal("500000"), saved.getDepositAmount());
+    step(booking, "CONFIRMED").andExpect(flash().attributeExists("notice"));
+    mvc.perform(get(receipt).session(session)).andExpect(status().isOk())
+        .andExpect(content().string(containsString("500.000 đ"))).andExpect(content().string(containsString("Gửi mã giao dịch")));
+    var transfer = "/reservations/" + saved.getCode() + "/deposit-reference";
+    mvc.perform(post(transfer).with(csrf()).param("reference", "QA-LATE-CREDIT")).andExpect(status().isNotFound());
+    mvc.perform(post(transfer).session(session).with(csrf()).param("reference", " qa-late-credit "))
+        .andExpect(flash().attributeExists("notice"));
+    verifyDeposit(booking, "QA-LATE-CREDIT", "1", true).andExpect(flash().attributeExists("error"));
+    clock.at(TODAY.atTime(13, 0));
+    assertBoardState("14:00", "FREE");
+    bookings.releaseExpiredDeposit(booking);
+    saved = reservations.findOneById(booking).orElseThrow();
+    assertEquals(Reservation.CANCELLED, saved.getStatus());
+    assertEquals("CLOSED_TRANSFER_PENDING", saved.getDepositStatus());
+    verifyDeposit(booking, "QA-LATE-CREDIT", "500000", true).andExpect(flash().attributeExists("notice"));
+    assertEquals(new BigDecimal("500000"), reservations.findOneById(booking).orElseThrow().getRefundRemaining());
+    staff(post("/staff/reservations/" + booking + "/deposit/refund").param("amount", "500000").param("reference", "QA-LATE-REFUND"))
+        .andExpect(flash().attributeExists("notice"));
+    assertEquals("REFUNDED", reservations.findOneById(booking).orElseThrow().getDepositStatus());
+    assertBoardState("14:00", "FREE");
+  }
+
+  @Test
+  void confirmedDepositIsAppliedOnceAndOnlyBalanceEntersTheCashShift() throws Exception {
+    jdbc.update("update restaurant_tables set table_type='Phòng VIP' where id=?", tableOne);
+    long booking = depositGuest(tableOne, "14:00", "QA-CASH-SPLIT");
+    clock.at(TODAY.atTime(13, 45));
+    staff(post("/staff/shift/open").param("openingCash", "0")).andExpect(flash().attributeExists("notice"));
+    step(booking, "CHECKED_IN").andExpect(flash().attributeExists("notice"));
+    step(booking, "SEATED").andExpect(flash().attributeExists("notice"));
+    String order = "/staff/orders/" + booking;
+    staff(post(order + "/open")).andExpect(flash().attributeExists("notice"));
+    staff(post(order + "/items").param("dishId", dishId.toString()).param("quantity", "3"))
+        .andExpect(flash().attributeExists("notice"));
+    staff(post(order + "/finalize")).andExpect(flash().attributeExists("notice"));
+    staff(get(order)).andExpect(status().isOk()).andExpect(content().string(containsString("250.000 đ")));
+    staff(post(order + "/pay").param("method", "TRANSFER").param("received", "true").param("reference", "qa-cash-split"))
+        .andExpect(flash().attributeExists("error"));
+    payCash(order).andExpect(flash().attributeExists("notice"));
+    payCash(order).andExpect(flash().attributeExists("notice"));
+    assertEquals(1L, id("select count(*) from dining_payments"));
+    assertEquals(250000L, id("select amount from dining_payments"));
+    assertEquals(500000L, id("select deposit_applied from dining_payments"));
+    mvc.perform(get("/admin/revenue").with(user("admin").roles("ADMIN")).param("from", TODAY.toString()).param("to", TODAY.toString()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("750.000 đ")));
+    staff(post("/staff/shift/close").param("countedCash", "250000")).andExpect(flash().attributeExists("notice"));
+    assertEquals(250000L, id("select cash_sales from staff_shifts"));
+  }
+
+  @Test
+  void depositCanCoverEntireBillAndExcessIsRefunded() throws Exception {
+    jdbc.update("update restaurant_tables set table_type='Phòng VIP' where id=?", tableOne);
+    long booking = depositGuest(tableOne, "14:00", "QA-EXCESS-CREDIT");
+    clock.at(TODAY.atTime(13, 45));
+    staff(post("/staff/shift/open").param("openingCash", "0")).andExpect(flash().attributeExists("notice"));
+    step(booking, "CHECKED_IN").andExpect(flash().attributeExists("notice"));
+    step(booking, "SEATED").andExpect(flash().attributeExists("notice"));
+    String order = "/staff/orders/" + booking;
+    staff(post(order + "/open")).andExpect(flash().attributeExists("notice"));
+    staff(post(order + "/items").param("dishId", dishId.toString()).param("quantity", "1")).andExpect(flash().attributeExists("notice"));
+    staff(post(order + "/finalize")).andExpect(flash().attributeExists("notice"));
+    payCash(order).andExpect(flash().attributeExists("error"));
+    staff(post(order + "/pay").param("method", "DEPOSIT").param("received", "true")).andExpect(flash().attributeExists("notice"));
+    assertEquals(0L, id("select amount from dining_payments"));
+    assertEquals(250000L, id("select deposit_applied from dining_payments"));
+    assertEquals(new BigDecimal("250000"), reservations.findOneById(booking).orElseThrow().getRefundRemaining());
+    staff(post("/staff/reservations/" + booking + "/deposit/refund").param("amount", "250000").param("reference", "QA-EXCESS-REFUND"))
+        .andExpect(flash().attributeExists("notice"));
+    assertEquals("REFUNDED", reservations.findOneById(booking).orElseThrow().getDepositStatus());
+  }
+
+  @Test
+  void customerCancellationRetainsOnlyTheConfiguredShare() throws Exception {
+    jdbc.update("update restaurant_tables set table_type='Phòng VIP' where id=?", tableOne);
+    long booking = depositGuest(tableOne, "14:00", "QA-CANCEL-CREDIT");
+    var cancel = new ReservationCancellationForm();
+    cancel.setReason("Đổi kế hoạch");
+    var requested = changes.requestCancellation(reservations.findOneById(booking).orElseThrow().getCode(), cancel);
+    staff(post("/staff/reservations/requests/" + requested.getId() + "/review").param("decision", "APPROVE"))
+        .andExpect(flash().attributeExists("notice"));
+    var saved = reservations.findOneById(booking).orElseThrow();
+    assertEquals("REFUND_PENDING", saved.getDepositStatus());
+    assertEquals(new BigDecimal("250000"), saved.getRefundRemaining());
+    assertEquals(new BigDecimal("250000"), saved.getDepositRetained());
+  }
+
+  @Test
+  void movingToVipUsesExistingCreditAndNoShowClosesDepositOnlyOnce() throws Exception {
+    jdbc.update("update restaurant_tables set table_type='Bàn lớn' where id=?", tableOne);
+    jdbc.update("update restaurant_tables set table_type='Phòng VIP' where id=?", tableTwo);
+    long booking = createPhone("Khách đổi bàn QA", "14:00", tableOne, 3);
+    bookings.submitDepositReference(booking, null, "QA-INITIAL-CREDIT");
+    verifyDeposit(booking, "QA-INITIAL-CREDIT", "300000", true).andExpect(flash().attributeExists("notice"));
+    staff(post("/staff/reservations/" + booking + "/table").param("tableId", tableTwo.toString()))
+        .andExpect(flash().attributeExists("notice"));
+    var moved = reservations.findOneById(booking).orElseThrow();
+    assertEquals(new BigDecimal("200000"), moved.getDepositRemaining());
+    assertThrows(BookingException.class, () -> bookings.submitDepositReference(booking, null, "qa-initial-credit"));
+    bookings.submitDepositReference(booking, null, "QA-TOPUP-CREDIT");
+    verifyDeposit(booking, "QA-INITIAL-CREDIT", "200000", true).andExpect(flash().attributeExists("error"));
+    verifyDeposit(booking, "QA-TOPUP-CREDIT", "200000", true).andExpect(flash().attributeExists("notice"));
+    clock.at(TODAY.atTime(14, 20));
+    step(booking, "NO_SHOW").andExpect(flash().attributeExists("notice"));
+    step(booking, "NO_SHOW").andExpect(flash().attributeExists("notice"));
+    var closed = reservations.findOneById(booking).orElseThrow();
+    assertEquals("FORFEITED", closed.getDepositStatus());
+    assertEquals(new BigDecimal("500000"), closed.getDepositRetained());
+    assertEquals(BigDecimal.ZERO, closed.getRefundRemaining());
+  }
+
+  private long depositGuest(Long table, String time, String reference) throws Exception {
+    long booking = createPhone("Khách trả cọc QA", time, table, 3);
+    bookings.submitDepositReference(booking, null, reference);
+    verifyDeposit(booking, reference, "500000", true).andExpect(flash().attributeExists("notice"));
+    return booking;
+  }
+
+  private ResultActions verifyDeposit(long booking, String reference, String amount, boolean received) throws Exception {
+    return staff(post("/staff/reservations/" + booking + "/deposit").param("received", Boolean.toString(received))
+        .param("amount", amount).param("reference", reference));
   }
 
   @Test

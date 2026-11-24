@@ -25,15 +25,34 @@
               <div th:if="${booking.completedAt != null}"><dt>Kết thúc</dt><dd th:text="${#temporals.format(booking.completedAt, 'dd/MM · HH:mm')}"></dd></div>
               <div class="staff-full" th:if="${!#strings.isEmpty(booking.note)}"><dt>Ghi chú</dt><dd class="staff-note" th:text="${booking.note}"></dd></div>
             </dl>
-            <section class="staff-deposit-panel" th:if="${booking.depositAmount.signum() > 0}">
+            <section class="staff-deposit-panel" th:if="${booking.depositAmount.signum() > 0 or booking.depositPaid.signum() > 0}">
               <h3>Tiền cọc</h3>
               <p><strong th:text="${#numbers.formatInteger(booking.depositAmount,1,'POINT') + ' đ'}"></strong>
                 <span class="staff-badge" th:text="${booking.depositStatusLabel}"></span></p>
               <p th:if="${booking.depositReference != null}" th:text="${'Mã giao dịch: ' + booking.depositReference}"></p>
-              <form class="staff-actions" th:if="${booking.depositStatus == 'TRANSFER_SUBMITTED'}"
+              <p th:text="${'Đã nhận: ' + #numbers.formatInteger(booking.depositPaid,1,'POINT') + ' đ'}"></p>
+              <p th:if="${booking.depositDueAt != null}" th:text="${'Hạn thanh toán: ' + #temporals.format(booking.depositDueAt,'dd/MM/yyyy HH:mm')}"></p>
+              <p th:if="${booking.depositReviewDueAt != null}" th:text="${'Hạn đối soát: ' + #temporals.format(booking.depositReviewDueAt,'dd/MM/yyyy HH:mm')}"></p>
+              <p th:if="${booking.depositRetained.signum() > 0}" th:text="${'Giữ cọc: ' + #numbers.formatInteger(booking.depositRetained,1,'POINT') + ' đ'}"></p>
+              <p th:if="${booking.depositRefunded.signum() > 0}" th:text="${'Đã hoàn: ' + #numbers.formatInteger(booking.depositRefunded,1,'POINT') + ' đ'}"></p>
+              <form class="staff-actions" th:if="${booking.depositStatus == 'TRANSFER_SUBMITTED' or booking.depositStatus == 'CLOSED_TRANSFER_PENDING'}"
                   th:action="@{${opsBase + '/reservations/{id}/deposit'}(id=${booking.id})}" method="post">
+                <input type="hidden" name="reference" th:value="${booking.depositReference}" />
+                <label class="staff-field">Số tiền đã nhận
+                  <input type="number" name="amount" min="1" step="1" required />
+                  <small th:text="${'Cần đối soát ' + #numbers.formatInteger(booking.depositSubmittedAmount,1,'POINT') + ' đ'}"></small>
+                </label>
                 <button class="staff-button" name="received" value="true">Đã nhận tiền cọc</button>
-                <button class="staff-button is-danger" name="received" value="false">Từ chối mã giao dịch</button>
+                <button class="staff-button is-danger" name="received" value="false" formnovalidate>Từ chối mã giao dịch</button>
+              </form>
+              <form class="staff-actions" th:if="${booking.depositStatus == 'REFUND_PENDING'}"
+                  th:action="@{${opsBase + '/reservations/{id}/deposit/refund'}(id=${booking.id})}" method="post">
+                <label class="staff-field">Số tiền đã chuyển hoàn
+                  <input type="number" name="amount" min="1" step="1" required />
+                  <small th:text="${'Chờ hoàn ' + #numbers.formatInteger(booking.refundRemaining,1,'POINT') + ' đ'}"></small>
+                </label>
+                <label class="staff-field">Mã giao dịch hoàn tiền <input name="reference" minlength="4" maxlength="80" required /></label>
+                <button class="staff-button" type="submit">Ghi nhận đã hoàn tiền</button>
               </form>
             </section>
             <div class="staff-actions" th:if="${actions.complete or order != null}"><a class="staff-button" th:href="@{${opsBase + '/orders/{id}'}(id=${booking.id})}" th:text="${order != null ? 'Xem đơn &amp; hóa đơn' : 'Gọi món'}"></a></div>

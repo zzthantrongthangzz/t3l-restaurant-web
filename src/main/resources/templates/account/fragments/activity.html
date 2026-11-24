@@ -23,6 +23,8 @@
           </div>
           <div class="account-record-actions">
             <span class="account-status" th:text="${booking.statusLabel}"></span>
+            <span class="account-status" th:if="${booking.depositAmount.signum() > 0 or booking.depositPaid.signum() > 0}"
+                th:text="${booking.depositStatusLabel}"></span>
             <a class="account-text-action" th:href="@{/reservations/lookup(code=${booking.code})}">Xem chi tiết</a>
           </div>
         </li>

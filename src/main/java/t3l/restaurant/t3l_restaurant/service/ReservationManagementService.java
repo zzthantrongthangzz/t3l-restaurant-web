@@ -24,10 +24,11 @@ public class ReservationManagementService {
   private final Validator validator;
   private final ReservationEmailQueue emails;
   private final AdminAudit audit;
+  private final DepositPolicy deposits;
 
   public ReservationManagementService(ReservationRepository reservations, ReservationChangeRequestRepository requests,
       RestaurantTableRepository tables, ReservationService bookings, ReservationSchedule schedule,
-      ReservationChangePolicy policy, Validator validator, ReservationEmailQueue emails, AdminAudit audit) {
+      ReservationChangePolicy policy, Validator validator, ReservationEmailQueue emails, AdminAudit audit, DepositPolicy deposits) {
     this.reservations = reservations;
     this.requests = requests;
     this.tables = tables;
@@ -37,6 +38,7 @@ public class ReservationManagementService {
     this.validator = validator;
     this.emails = emails;
     this.audit = audit;
+    this.deposits = deposits;
   }
 
   static String canonicalPhone(String value) {
@@ -61,6 +63,7 @@ public class ReservationManagementService {
 
   @Transactional(readOnly = true)
   public String requestBlockedReason(Reservation booking) {
+    if (booking.hasExpiredDeposit(policy.now())) return "Lượt đặt đã quá hạn cọc.";
     String reason = policy.blockedReason(booking);
     return reason != null ? reason : requests.existsByReservation_IdAndStatus(booking.getId(), "PENDING")
         ? "Bạn đã có một yêu cầu đang chờ nhân viên duyệt. Lịch hiện tại được giữ nguyên đến khi có kết quả." : null;
@@ -79,6 +82,7 @@ public class ReservationManagementService {
   }
 
   private void requireNewRequest(Reservation booking) {
+    if (booking.hasExpiredDeposit(policy.now())) throw new BookingException(null, "Lượt đặt đã quá hạn cọc.");
     policy.requireEligible(booking);
     if (requests.existsByReservation_IdAndStatus(booking.getId(), "PENDING")) {
       throw new BookingException(null, "Đã có yêu cầu đang chờ duyệt cho đặt bàn này.");
@@ -168,6 +172,7 @@ public class ReservationManagementService {
     boolean approve = "APPROVE".equals(decision);
     boolean cancellation = "CANCEL".equals(request.getRequestType());
     if (approve) {
+      if (booking.hasExpiredDeposit(policy.now())) throw new BookingException(null, "Lượt đặt đã quá hạn cọc.");
       policy.requireEligible(booking);
       if (!booking.getReservationDate().equals(request.getOriginalDate())
           || !booking.getReservationTime().equals(request.getOriginalTime())
@@ -177,7 +182,9 @@ public class ReservationManagementService {
       }
       if (cancellation) {
         booking.updateStatus("CANCELLED");
+        booking.closeDeposit(deposits.cancellationPercent(booking, request.getCreatedAt()), false, policy.now());
       } else {
+        bookings.requireDepositChangeAllowed(booking);
         var form = request.updateForm();
         validate(form);
         var end = schedule.validateAndGetEnd(form.scheduleForm());
@@ -185,6 +192,7 @@ public class ReservationManagementService {
         policy.requireProposedNotice(start);
         var table = bookings.selectTable(active, start, end, form.getGuests(), normalizeArea(form.getPreferredArea()), bookingId);
         booking.reschedule(table, form.getDate(), form.getTime(), end, form.getGuests(), form.getPreferredArea());
+        bookings.repriceDeposit(booking);
       }
     }
     request.review(approve, reviewer, note, policy.now());

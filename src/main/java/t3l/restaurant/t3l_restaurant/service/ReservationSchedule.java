@@ -60,7 +60,7 @@ public class ReservationSchedule {
   public record Rules(LocalTime opening, LocalTime closing, int duration, int slot,
                       int changeNotice, int checkIn, int noShow) {
     LocalTime lastArrival() { return closing.minusMinutes(duration); }
-    List<LocalTime> slots() {
+    public List<LocalTime> slots() {
       long count = ChronoUnit.MINUTES.between(opening, lastArrival()) / slot + 1;
       return java.util.stream.LongStream.range(0, count).mapToObj(index -> opening.plusMinutes(index * slot)).toList();
     }
@@ -87,6 +87,11 @@ public class ReservationSchedule {
 
   public List<LocalTime> getTimeSlots() {
     return rules().slots();
+  }
+
+  public List<LocalTime> futureSlots(LocalDate date, Rules rules) {
+    var now = LocalDateTime.now(clock);
+    return rules.slots().stream().filter(slot -> date.atTime(slot).isAfter(now)).toList();
   }
 
   public LocalDateTime validateAndGetEnd(ReservationForm form) {

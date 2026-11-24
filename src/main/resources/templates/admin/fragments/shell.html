@@ -52,5 +52,5 @@
   <ul><li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li></ul>
 </div>
 <span th:fragment="money(value)" th:text="${value == null ? '—' : #numbers.formatInteger(value,1,'POINT') + ' đ'}"></span>
-<span th:fragment="method(value)" th:text="${value == 'CASH' ? 'Tiền mặt' : (value == 'TRANSFER' ? 'Chuyển khoản' : (value == 'CARD' ? 'Thẻ' : '—'))}"></span>
+<span th:fragment="method(value)" th:text="${value == 'CASH' ? 'Tiền mặt' : (value == 'TRANSFER' ? 'Chuyển khoản' : (value == 'CARD' ? 'Thẻ' : (value == 'DEPOSIT' ? 'Tiền cọc' : '—')))}"></span>
 </body></html>

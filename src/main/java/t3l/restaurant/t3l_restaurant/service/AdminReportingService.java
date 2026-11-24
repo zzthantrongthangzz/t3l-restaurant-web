@@ -34,11 +34,20 @@ public class AdminReportingService {
   private static final String RECEIPTS = """
       WITH receipts AS (
         SELECT p.paid_at AS recorded_at, p.received_by AS employee, p.payment_method AS method, p.amount,
-          CONCAT('T3L-HD-', o.id) AS reference_code, 'DINING' AS source_type
+          CONCAT('T3L-HD-', o.id) AS reference_code, 'DINING' AS source_type, o.id AS invoice_id
         FROM dining_payments p JOIN dining_orders o ON o.id=p.order_id AND o.status='PAID'
-        WHERE p.paid_at >= :start AND p.paid_at < :end
+        WHERE p.paid_at >= :start AND p.paid_at < :end AND (p.amount > 0 OR p.deposit_applied=0)
         UNION ALL
-        SELECT s.created_at, a.username, s.payment_method, s.total_amount, CONCAT('BL-',s.id), 'DIRECT'
+        SELECT p.paid_at, p.received_by, 'TRANSFER', p.deposit_applied,
+          CONCAT('T3L-HD-',o.id, '-COC'), 'DEPOSIT', o.id
+        FROM dining_payments p JOIN dining_orders o ON o.id=p.order_id AND o.status='PAID'
+        WHERE p.paid_at >= :start AND p.paid_at < :end AND p.deposit_applied>0
+        UNION ALL
+        SELECT r.deposit_closed_at, '', 'TRANSFER', r.deposit_retained, CONCAT(r.code,'-COC'), 'DEPOSIT_RETAINED', NULL
+        FROM reservations r
+        WHERE r.deposit_closed_at >= :start AND r.deposit_closed_at < :end AND r.deposit_retained>0
+        UNION ALL
+        SELECT s.created_at, a.username, s.payment_method, s.total_amount, CONCAT('BL-',s.id), 'DIRECT', NULL
         FROM cash_sales s JOIN staff_shifts sh ON sh.id=s.shift_id JOIN app_users a ON a.id=sh.employee_id
         WHERE s.created_at >= :start AND s.created_at < :end
       )
@@ -203,7 +212,7 @@ public class AdminReportingService {
   public RevenueSummary revenueSummary(Filter filter) {
     return db.queryForObject(RECEIPTS + """
         SELECT COALESCE(SUM(amount),0) AS total,
-          COALESCE(SUM(CASE WHEN source_type='DINING' THEN 1 ELSE 0 END),0) AS dining,
+          COUNT(DISTINCT invoice_id) AS dining,
           COALESCE(SUM(CASE WHEN source_type='DIRECT' THEN 1 ELSE 0 END),0) AS direct_sales
         FROM receipts WHERE (:employee='' OR employee=:employee) AND (:method='' OR method=:method)
         """, parameters(filter), (row, index) -> new RevenueSummary(row.getBigDecimal("total"), row.getLong("dining"), row.getLong("direct_sales")));
@@ -245,13 +254,14 @@ public class AdminReportingService {
          FROM dining_orders o JOIN reservations r ON r.id=o.reservation_id
          LEFT JOIN restaurant_tables t ON t.id=r.table_id LEFT JOIN dining_payments p ON p.order_id=o.id
          WHERE COALESCE(p.paid_at,o.opened_at) >= :start AND COALESCE(p.paid_at,o.opened_at) < :end
-         AND (:employee='' OR COALESCE(p.received_by,o.opened_by)=:employee) AND (:method='' OR p.payment_method=:method)
+         AND (:employee='' OR COALESCE(p.received_by,o.opened_by)=:employee)
+         AND (:method='' OR p.payment_method=:method OR (:method='TRANSFER' AND p.deposit_applied>0))
          AND (:status='' OR o.status=:status)
          AND (LOWER(r.code) LIKE :code ESCAPE '!' OR LOWER(CONCAT('T3L-HD-',o.id)) LIKE :code ESCAPE '!')
         """;
     return page("", criteria, """
         SELECT o.id, COALESCE(p.paid_at,o.opened_at) AS recorded_at, r.code, t.code AS table_code, o.status,
-          COALESCE(p.received_by,o.opened_by) AS employee, p.payment_method, COALESCE(p.amount,o.total_amount) AS amount
+          COALESCE(p.received_by,o.opened_by) AS employee, p.payment_method, COALESCE(o.total_amount,p.amount) AS amount
         """, " ORDER BY recorded_at DESC, o.id DESC", args, page,
         (row, index) -> new InvoiceRow(row.getLong("id"), row.getObject("recorded_at", LocalDateTime.class), row.getString("code"),
             row.getString("table_code"), row.getString("status"), row.getString("employee"), row.getString("payment_method"), row.getBigDecimal("amount")));

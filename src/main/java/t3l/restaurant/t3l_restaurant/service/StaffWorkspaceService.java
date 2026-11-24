@@ -3,13 +3,14 @@ package t3l.restaurant.t3l_restaurant.service;
 import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -28,6 +29,7 @@ import t3l.restaurant.t3l_restaurant.repository.DiningOrderRepository;
 import t3l.restaurant.t3l_restaurant.repository.ReservationEventRepository;
 import t3l.restaurant.t3l_restaurant.repository.ReservationRepository;
 import t3l.restaurant.t3l_restaurant.repository.RestaurantTableRepository;
+import t3l.restaurant.t3l_restaurant.service.PublicTableBoardService.TableState;
 
 import static t3l.restaurant.t3l_restaurant.entity.Reservation.*;
 
@@ -43,16 +45,9 @@ public class StaffWorkspaceService {
   private final ReservationChangeRequestRepository requests;
   private final DiningOrderRepository orders;
   private final ReservationSchedule schedule;
+  private final ReservationService bookings;
 
-  public enum TableState {
-    FREE("Trống"), PENDING("Chờ nhân viên xác nhận"), RESERVED("Đã đặt"), OCCUPIED("Đang phục vụ"), INACTIVE("Tạm ngưng");
-
-    private final String label;
-    TableState(String label) { this.label = label; }
-    public String getLabel() { return label; }
-  }
-
-  public record TableView(RestaurantTable table, TableState state, Reservation current, Reservation next) {}
+  public record TableView(RestaurantTable table, TableState state, Reservation current) {}
   public record Dashboard(LocalDate date, long bookingsToday, long pending, long guestsArrived, long serving,
                           long free, long changeRequests, long awaitingPayment, List<Reservation> upcoming, List<Reservation> toConfirm,
                           List<Reservation> checkedIn) {}
@@ -64,7 +59,7 @@ public class StaffWorkspaceService {
     LocalDateTime now = LocalDateTime.now(schedule.getClock());
     LocalDate today = now.toLocalDate();
     var bookings = reservations.findByReservationDateOrderByReservationTimeAscIdAsc(today);
-    var board = boardAt(today, now).values().stream().flatMap(List::stream).toList();
+    var board = boardAt(now, now.plusMinutes(1), 1).values().stream().flatMap(List::stream).toList();
     var upcoming = Stream.concat(bookings.stream()
         .filter(booking -> SCHEDULED.contains(booking.getStatus()) && !booking.getStartsAt().isBefore(now)),
         reservations.findTop10ByStatusInAndReservationDateGreaterThanOrderByReservationDateAscReservationTimeAscIdAsc(SCHEDULED, today).stream())
@@ -80,38 +75,19 @@ public class StaffWorkspaceService {
   }
 
   @Transactional(readOnly = true)
-  public Map<String, List<TableView>> board() {
-    return boardAt(schedule.today(), LocalDateTime.now(schedule.getClock()));
+  public Map<String, List<TableView>> board(LocalDate date, LocalTime time, int guests, int duration) {
+    var start = time == null ? LocalDateTime.now(schedule.getClock()) : date.atTime(time);
+    return boardAt(start, start.plusMinutes(duration), guests);
   }
 
-  @Transactional(readOnly = true)
-  public Map<String, List<TableView>> board(LocalDate date) {
-    return boardAt(date, LocalDateTime.now(schedule.getClock()));
-  }
-
-  private Map<String, List<TableView>> boardAt(LocalDate date, LocalDateTime now) {
-    var scheduledByTable = reservations.findByReservationDateBetweenAndStatusNot(date, date, CANCELLED)
-        .stream().filter(booking -> booking.getTable() != null
-            && List.of(PENDING, CONFIRMED, CHECKED_IN, SEATED, COMPLETED).contains(booking.getStatus()))
-        .sorted(Comparator.comparing(Reservation::getStartsAt))
-        .collect(Collectors.groupingBy(booking -> booking.getTable().getId()));
-    var arrivedByTable = reservations.findByStatusInAndTableIsNotNull(List.of(SEATED, CHECKED_IN)).stream()
-        .sorted(Comparator.comparing(Reservation::getStartsAt))
-        .collect(Collectors.groupingBy(booking -> booking.getTable().getId()));
-
+  private Map<String, List<TableView>> boardAt(LocalDateTime start, LocalDateTime end, int guests) {
+    var blocked = bookings.blockingByTable(start, end);
     Map<String, List<TableView>> board = new LinkedHashMap<>();
-    var activeIds = new java.util.HashSet<>(tables.activeIds());
+    var activeIds = new HashSet<>(tables.activeIds());
     for (RestaurantTable table : tables.findAllByOrderByTableTypeAscCodeAsc()) {
-      var arrived = arrivedByTable.getOrDefault(table.getId(), List.of());
-      var scheduled = scheduledByTable.getOrDefault(table.getId(), List.of());
-      var serving = date.equals(now.toLocalDate())
-          ? arrived.stream().filter(booking -> SEATED.equals(booking.getStatus())).findFirst()
-          : java.util.Optional.<Reservation>empty();
-      Reservation current = serving.orElseGet(() -> scheduled.stream().findFirst().orElse(null));
-      var next = scheduled.stream().skip(current == null ? 0 : 1).findFirst().orElse(null);
-      TableState state = !activeIds.contains(table.getId()) ? TableState.INACTIVE : serving.isPresent() ? TableState.OCCUPIED
-          : current == null ? TableState.FREE : PENDING.equals(current.getStatus()) ? TableState.PENDING : TableState.RESERVED;
-      board.computeIfAbsent(table.getTableType(), key -> new ArrayList<>()).add(new TableView(table, state, current, next));
+      var current = blocked.get(table.getId());
+      var state = activeIds.contains(table.getId()) ? PublicTableBoardService.stateOf(table, current, guests) : TableState.INACTIVE;
+      board.computeIfAbsent(table.getTableType(), key -> new ArrayList<>()).add(new TableView(table, state, current));
     }
     return board;
   }
@@ -156,9 +132,8 @@ public class StaffWorkspaceService {
     boolean serving = SEATED.equals(booking.getStatus());
     boolean future = booking.getStartsAt().isAfter(now);
     boolean serviceHours = !now.toLocalTime().isBefore(schedule.getOpeningTime()) && now.toLocalTime().isBefore(schedule.getClosingTime());
-    boolean depositCleared = booking.getDepositAmount().signum() == 0 || "PAID".equals(booking.getDepositStatus());
     return new BookingActions(pending && future, pending || confirmed || checkedIn,
-        confirmed && depositCleared && serviceHours && booking.getReservationDate().equals(now.toLocalDate()) && !now.isBefore(booking.getStartsAt().minusMinutes(schedule.getCheckInMinutes())),
+        confirmed && !booking.isDepositOutstanding() && serviceHours && booking.getReservationDate().equals(now.toLocalDate()) && !now.isBefore(booking.getStartsAt().minusMinutes(schedule.getCheckInMinutes())),
         checkedIn && serviceHours, serving, confirmed && !now.isBefore(booking.getStartsAt().plusMinutes(schedule.getNoShowMinutes())),
         ((pending || confirmed) && future) || checkedIn || serving, pending || confirmed);
   }

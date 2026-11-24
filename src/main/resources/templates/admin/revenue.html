@@ -3,7 +3,7 @@
 <head th:replace="~{admin/fragments/shell :: head('Báo cáo doanh thu')}"></head>
 <body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('revenue')}"></header>
 <main class="staff-main">
-  <div class="staff-page-heading"><div><h1>Báo cáo doanh thu</h1><p>Tiền đã thu theo ngày thanh toán, gồm hóa đơn bàn và các khoản bán lẻ.</p></div>
+  <div class="staff-page-heading"><div><h1>Báo cáo doanh thu</h1><p>Ghi nhận tiền cọc khi khấu trừ vào hóa đơn hoặc khi giữ cọc theo chính sách.</p></div>
     <a class="staff-button" th:href="@{/admin/revenue.csv(from=${filter.from},to=${filter.to},employee=${filter.employee},method=${filter.method})}">Xuất CSV</a></div>
   <section class="staff-metrics" aria-label="Tổng hợp doanh thu">
     <div class="staff-metric"><span>Doanh thu đã thu</span><strong><span th:replace="~{admin/fragments/shell :: money(${summary.total})}"></span></strong></div>
@@ -14,7 +14,9 @@
     <form th:replace="~{admin/fragments/report :: filters('/admin/revenue','revenue')}"></form>
     <p class="staff-empty" th:if="${rows.content.isEmpty()}">Chưa có doanh thu trong kỳ đã chọn.</p>
     <div class="staff-table-wrap" th:unless="${rows.content.isEmpty()}"><table class="staff-table"><thead><tr><th>Chứng từ</th><th>Thời gian</th><th>Nhân viên</th><th>Phương thức</th><th>Đã thu</th></tr></thead><tbody>
-      <tr th:each="row : ${rows.content}"><td data-label="Chứng từ" th:text="${row.code}"></td>
+      <tr th:each="row : ${rows.content}"><td data-label="Chứng từ"><span th:text="${row.code}"></span>
+        <small th:if="${row.source == 'DEPOSIT'}">Cọc khấu trừ</small>
+        <small th:if="${row.source == 'DEPOSIT_RETAINED'}">Cọc giữ theo chính sách</small></td>
         <td data-label="Thời gian" th:text="${#temporals.format(row.time,'dd/MM/yyyy HH:mm')}"></td>
         <td data-label="Nhân viên" th:text="${row.actor}"></td>
         <td data-label="Phương thức"><span th:replace="~{admin/fragments/shell :: method(${row.method})}"></span></td>

@@ -23,7 +23,7 @@
       <div class="staff-stack" th:if="${order != null}">
         <section class="staff-panel">
           <div class="staff-panel-heading"><h2>Chi tiết món</h2>
-            <strong class="staff-total" th:text="${#numbers.formatInteger(order.currentTotal, 1, 'POINT') + ' đ'}"></strong>
+            <strong class="staff-total" th:text="${#numbers.formatInteger(view.total, 1, 'POINT') + ' đ'}"></strong>
           </div>
           <p class="staff-empty" th:if="${order.openedBy == 'CUSTOMER' and booking.status != 'SEATED'}">Danh sách này do khách đặt trước. Có thể xem tại đây; thao tác gọi món bổ sung mở khi khách đã nhận bàn.</p>
           <p class="staff-empty" th:if="${order.items.isEmpty()}">Chưa có món trong đơn.</p>
@@ -60,18 +60,25 @@
         </section>
         <section class="staff-panel staff-form-narrow" th:if="${order.status == 'FINALIZED'}">
           <h2>Xác nhận thu tiền</h2>
-          <form class="staff-form" th:action="@{${opsBase + '/orders/{id}/pay'}(id=${booking.id})}" method="post" data-payment-form>
+          <dl th:replace="~{staff/fragments/settlement :: totals(${view})}"></dl>
+          <form class="staff-form" th:if="${view.balance.signum() > 0}" th:action="@{${opsBase + '/orders/{id}/pay'}(id=${booking.id})}" method="post" data-payment-form>
             <label class="staff-field">Phương thức <select name="method" data-payment-method>
               <option value="CASH">Tiền mặt</option><option value="TRANSFER">Chuyển khoản</option></select></label>
             <label class="staff-field" data-payment-reference>Mã giao dịch (khi chuyển khoản) <input name="reference" maxlength="80" autocomplete="off" />
-              <small>Đối chiếu khoản tiền đến với tổng hóa đơn trước khi nhập mã.</small>
+              <small>Đối chiếu khoản tiền đến với số tiền còn phải thu.</small>
             </label>
-            <label class="staff-checkbox"><input type="checkbox" name="received" value="true" required /> Tôi đã thực nhận đủ số tiền của hóa đơn.</label>
+            <label class="staff-checkbox"><input type="checkbox" name="received" value="true" required /> Tôi đã nhận đủ số tiền còn phải thu.</label>
             <div class="staff-actions"><button class="staff-button" type="submit">Xác nhận đã thanh toán</button></div>
+          </form>
+          <form class="staff-actions" th:if="${view.balance.signum() == 0}"
+              th:action="@{${opsBase + '/orders/{id}/pay'}(id=${booking.id})}" method="post">
+            <input type="hidden" name="method" value="DEPOSIT" /><input type="hidden" name="received" value="true" />
+            <button class="staff-button" type="submit">Chốt hóa đơn bằng tiền cọc</button>
           </form>
         </section>
         <section class="staff-panel" th:if="${payment != null}">
           <h2>Thông tin thanh toán</h2>
+          <dl th:replace="~{staff/fragments/settlement :: totals(${view})}"></dl>
           <dl class="staff-details">
             <div><dt>Đã thu</dt><dd th:text="${#numbers.formatInteger(payment.amount, 1, 'POINT') + ' đ'}"></dd></div>
             <div><dt>Phương thức</dt><dd th:text="${payment.methodLabel}"></dd></div>

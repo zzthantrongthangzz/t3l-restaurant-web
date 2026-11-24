@@ -5,11 +5,13 @@
 .table-plan-heading p:not(.home-eyebrow) { margin:8px 0 0; color:#526875; }
 .table-plan-date { display:flex; flex-wrap:wrap; align-items:end; gap:9px; }
 .table-plan-date label { display:grid; gap:5px; color:#314b5c; font-size:var(--text-label); font-weight:600; }
-.table-plan-date input { min-height:44px; padding:8px 10px; border:1px solid #cbd8dc; border-radius:7px; background:white; color:#193c50; font:inherit; }
+.table-plan-date :is(input,select) { min-height:44px; padding:8px 10px; border:1px solid #cbd8dc; border-radius:7px; background:white; color:#193c50; font:inherit; }
+.table-plan-date input[type=number] { width:84px; }
 .table-plan-legend { display:flex; flex-wrap:wrap; gap:18px; margin:0 0 18px; padding:0; list-style:none; color:#405968; font-size:var(--text-compact); }
 .table-plan-legend li { display:flex; align-items:center; gap:8px; }
 .plan-dot { width:13px; height:13px; border-radius:50%; background:#aaa; }
 .plan-dot.is-free { background:#a7a3a3; }.plan-dot.is-pending,.plan-dot.is-booked { background:#dfce35; }.plan-dot.is-serving { background:#ed4141; }
+.plan-dot.is-too-small { background:#dbe2e4; }.plan-table-card.is-too-small .plan-table-image { opacity:.65; }
 .table-plan-grid { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:14px; }
 .plan-table-card { position:relative; min-width:0; min-height:224px; display:flex; flex-direction:column; align-items:center; padding:13px 12px 15px; overflow:hidden; border:1px solid #e0e8e8; border-radius:10px; background:#fff; box-shadow:0 3px 12px #15394b0b; text-align:center; transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease; }
 .plan-table-card.is-free { border-top:4px solid #aaa6a6; }.plan-table-card.is-pending,.plan-table-card.is-booked { border-top:4px solid #dfce35; }.plan-table-card.is-serving { border-top:4px solid #ed4141; }
@@ -30,6 +32,9 @@
 .plan-booking-dialog { width:min(600px,calc(100% - 28px)); max-height:min(90dvh,820px); padding:22px; border:1px solid #d3e0e1; border-radius:14px; color:#19394a; background:#fff; box-shadow:0 24px 80px #102e3b40; }
 .plan-booking-dialog::backdrop { background:#17303b78; backdrop-filter:blur(2px); }.plan-dialog-heading { display:flex; align-items:start; justify-content:space-between; gap:12px; }
 .plan-dialog-heading h2 { margin:0; font:600 1.6rem/1.2 var(--font-serif); }.plan-dialog-close { display:grid; place-items:center; width:38px; height:38px; border-radius:50%; background:#eef4f3; color:#294b5c; font-size:1.5rem; }
+.plan-dialog-close,.plan-booking-actions button { border:0; cursor:pointer; }
+.plan-booking-actions { display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px; margin-top:12px; }
+.plan-booking-actions button { padding:2px 0; background:transparent; }
 .plan-dialog-note { margin:13px 0; padding:11px 13px; border-radius:8px; color:#604f12; background:#fff8d9; font-size:.93rem; }
 .plan-booking-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }.plan-booking-fields label { display:grid; gap:5px; color:#365363; font-size:.91rem; font-weight:600; }
 .plan-booking-fields :is(input,select,textarea) { width:100%; min-height:43px; padding:9px 10px; border:1px solid #cbd9dd; border-radius:7px; background:#fff; color:#18394a; font:400 1rem/1.4 var(--font-sans); }

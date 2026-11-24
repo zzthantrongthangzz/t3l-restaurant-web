@@ -1,0 +1,8 @@
+<dl xmlns:th="http://www.thymeleaf.org" th:fragment="totals(view)" class="staff-details">
+  <div><dt>Tổng hóa đơn</dt><dd th:text="${#numbers.formatInteger(view.total,1,'POINT') + ' đ'}"></dd></div>
+  <div><dt>Cọc đã nhận</dt><dd th:text="${#numbers.formatInteger(view.booking.depositPaid,1,'POINT') + ' đ'}"></dd></div>
+  <div><dt>Cọc khấu trừ</dt><dd th:text="${#numbers.formatInteger(view.depositApplied,1,'POINT') + ' đ'}"></dd></div>
+  <div><dt>Còn phải thu</dt><dd th:text="${#numbers.formatInteger(view.balance,1,'POINT') + ' đ'}"></dd></div>
+  <div th:if="${view.excess.signum() > 0}"><dt>Cần hoàn lại</dt><dd th:text="${#numbers.formatInteger(view.excess,1,'POINT') + ' đ'}"></dd></div>
+  <div th:if="${view.booking.depositRefunded.signum() > 0}"><dt>Đã hoàn lại</dt><dd th:text="${#numbers.formatInteger(view.booking.depositRefunded,1,'POINT') + ' đ'}"></dd></div>
+</dl>

@@ -8,6 +8,7 @@
     <meta name="theme-color" content="#171411" />
     <title>Tra cứu đặt bàn | T3L Restaurant</title>
     <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
+    <link rel="stylesheet" th:href="@{/css/confirmation.css(v=20261124-deposit)}" />
     <link rel="stylesheet" th:href="@{/css/reservation.css(v=20261120-typography)}" />
     <link rel="stylesheet" th:href="@{/css/lookup.css(v=20261120-typography)}" />
   </head>
@@ -52,6 +53,7 @@
                 <div class="lookup-full"><dt>Khu vực ưu tiên</dt><dd th:text="${reservation.preferredArea != null and !reservation.preferredArea.isBlank() ? reservation.preferredArea : 'Để T3L sắp xếp'}"></dd></div>
                 <div class="lookup-full lookup-note"><dt>Ghi chú đặc biệt</dt><dd th:text="${reservation.note != null and !reservation.note.isBlank() ? reservation.note : 'Không có ghi chú đặc biệt.'}"></dd></div>
               </dl>
+              <section th:replace="~{web/fragments/deposit :: details(${reservation})}"></section>
               <a class="home-text-link" th:href="@{/reservations/confirmation(code=${reservation.code})}">Xem trang xác nhận <span aria-hidden="true">↗</span></a>
             </section>
             <aside class="lookup-policy"><p class="home-eyebrow">LINH HOẠT CHO BUỔI HẸN</p><h2>Thay đổi kế hoạch?<br /><em>Để T3L hỗ trợ.</em></h2><div class="lookup-policy-time"><span>THỜI HẠN GỬI YÊU CẦU</span><strong th:text="${#temporals.format(deadline, 'HH:mm · dd/MM/yyyy')}"></strong></div><p>Yêu cầu hủy hoặc thay đổi cần được gửi và duyệt trước giờ đặt tối thiểu <strong th:text="${changeNoticeMinutes + ' phút'}"></strong>.</p><p>Lịch hiện tại vẫn được giữ chỗ trong thời gian chờ. Thay đổi chỉ có hiệu lực sau khi nhân viên duyệt và kiểm tra lại bàn trống.</p><a class="home-text-link" th:href="@{/faq}">Thông tin hỗ trợ <span aria-hidden="true">↗</span></a></aside>

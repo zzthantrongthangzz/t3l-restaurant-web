@@ -1,0 +1,24 @@
+<section xmlns:th="http://www.thymeleaf.org" th:fragment="details(booking)" class="receipt-deposit"
+    th:if="${booking.depositAmount.signum() > 0 or booking.depositPaid.signum() > 0}">
+  <h3>Tiền đặt cọc</h3>
+  <p>Cọc yêu cầu <strong th:text="${#numbers.formatInteger(booking.depositAmount,1,'POINT') + ' đ'}"></strong></p>
+  <p>Đã nhận <strong th:text="${#numbers.formatInteger(booking.depositPaid,1,'POINT') + ' đ'}"></strong></p>
+  <p>Trạng thái <strong th:text="${depositOverdue ? 'Quá hạn cọc, bàn đã được giải phóng' : booking.depositStatusLabel}"></strong></p>
+  <p th:if="${booking.depositStatus == 'WAITING_PAYMENT'}">
+    Còn phải cọc <strong th:text="${#numbers.formatInteger(booking.depositRemaining,1,'POINT') + ' đ'}"></strong>
+    <span th:if="${booking.depositDueAt != null}" th:text="${'trước ' + #temporals.format(booking.depositDueAt,'HH:mm · dd/MM/yyyy')}"></span>.
+  </p>
+  <p th:if="${booking.depositStatus == 'TRANSFER_SUBMITTED' and booking.depositReviewDueAt != null}"
+      th:text="${'Đang đối soát · hạn ' + #temporals.format(booking.depositReviewDueAt,'HH:mm · dd/MM/yyyy')}"></p>
+  <p th:if="${booking.depositRetained.signum() > 0}" th:text="${'Giữ cọc ' + #numbers.formatInteger(booking.depositRetained,1,'POINT') + ' đ'}"></p>
+  <p th:if="${booking.refundRemaining.signum() > 0}" th:text="${'Chờ hoàn ' + #numbers.formatInteger(booking.refundRemaining,1,'POINT') + ' đ'}"></p>
+  <p th:if="${booking.depositRefunded.signum() > 0}" th:text="${'Đã hoàn ' + #numbers.formatInteger(booking.depositRefunded,1,'POINT') + ' đ'}"></p>
+  <form class="receipt-deposit-form" th:if="${!depositOverdue and booking.status == 'CONFIRMED' and booking.depositStatus == 'WAITING_PAYMENT'}"
+      th:action="@{/reservations/{code}/deposit-reference(code=${booking.code})}" method="post">
+    <p>Chuyển khoản theo hướng dẫn của nhà hàng, rồi gửi mã để nhân viên đối soát.</p>
+    <label for="deposit-reference">Mã giao dịch chuyển khoản</label>
+    <input id="deposit-reference" name="reference" minlength="4" maxlength="80" required autocomplete="off" />
+    <button class="home-button" type="submit">Gửi mã giao dịch</button>
+  </form>
+  <p th:text="${depositRefundTerms}"></p>
+</section>

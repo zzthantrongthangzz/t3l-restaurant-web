@@ -4,19 +4,29 @@
   <body class="staff-page table-plan-page-staff" th:classappend="${opsBase == '/admin' ? 'admin-page' : ''}">
     <header th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: header('tables')}"></header>
     <main class="staff-main">
-      <div class="staff-page-heading"><div><h1>Quản lý đặt bàn</h1><p>Sơ đồ bàn, thông tin khách và thao tác vận hành theo ngày đã chọn.</p></div>
+      <div class="staff-page-heading"><div><h1>Quản lý đặt bàn</h1><p>Sơ đồ bàn theo khung giờ và số lượng khách.</p></div>
         <a class="staff-button" th:href="@{${opsBase + '/reservations/new'}(walkIn=true)}">Đặt bàn ngay</a></div>
       <div th:replace="~{staff/fragments/shell :: messages}"></div>
       <form class="table-plan-toolbar" method="get" th:action="@{${opsBase + '/tables'}}">
         <label class="staff-field">Ngày xem<input type="date" name="date" th:value="${selectedDate}" /></label>
+        <label class="staff-field">Giờ đến
+          <select name="time">
+            <option value="" th:if="${selectedDate == today}" th:selected="${selectedTime == null}">Hiện tại</option>
+            <option th:each="slot : ${timeSlots}" th:value="${slot}" th:text="${#temporals.format(slot,'HH:mm')}" th:selected="${slot == selectedTime}"></option>
+          </select>
+        </label>
+        <label class="staff-field">Số khách <input type="number" name="guests" min="1" max="20" th:value="${selectedGuests}" required /></label>
         <button class="staff-button" type="submit">Lọc sơ đồ</button>
-        <a class="staff-button is-outline" th:href="@{${opsBase + '/reservations/new'}}">Đặt bàn chờ</a>
+        <a class="staff-button is-outline" th:href="@{${opsBase + '/reservations/new'}(date=${selectedDate},time=${selectedTime},guests=${selectedGuests})}">Đặt bàn chờ</a>
         <a class="staff-button is-outline" th:href="@{${opsBase + '/reservations'}(date=${selectedDate},status='PENDING_CONFIRMATION')}">Nhận / duyệt bàn chờ</a>
         <a class="staff-button is-outline" th:href="@{${opsBase + '/reservations'}(date=${selectedDate},status='CONFIRMED')}">Huỷ bàn chờ</a>
       </form>
+      <p class="staff-muted" th:if="${selectedTime != null}"
+          th:text="${'Khung giờ ' + #temporals.format(selectedTime, 'HH:mm') + ' – ' + #temporals.format(selectedTime.plusMinutes(duration), 'HH:mm') + ' · ' + duration + ' phút'}"></p>
       <ul class="table-plan-legend table-plan-staff-legend" aria-label="Trạng thái bàn">
         <li><span class="plan-dot is-free"></span>Bàn trống</li><li><span class="plan-dot is-pending"></span>Chờ xác nhận</li>
         <li><span class="plan-dot is-booked"></span>Đã đặt / khách đã đến</li><li><span class="plan-dot is-serving"></span>Đang phục vụ</li>
+        <li><span class="plan-dot is-too-small"></span>Không đủ chỗ</li>
       </ul>
       <p class="staff-empty" th:if="${areas.isEmpty()}">Chưa có bàn trong hệ thống.</p>
       <section class="staff-table-plan-group" th:each="group : ${areas}">
@@ -26,9 +36,11 @@
               th:with="table=${item.table},booking=${item.current},state=${item.state.name()},
                 imagePrefix=${state == 'OCCUPIED' ? 'banDo' : (state == 'PENDING' or state == 'RESERVED' ? 'banVang' : 'banXam')},
                 tableImage=${imagePrefix + (table.tableType.toLowerCase().contains('vip') ? '_vip.png' : '_thuong.png')}"
-              th:classappend="${state == 'OCCUPIED' ? 'is-serving' : (state == 'RESERVED' ? 'is-booked' : 'is-' + #strings.toLowerCase(state))}">
+              th:classappend="${state == 'OCCUPIED' ? 'is-serving' : (state == 'RESERVED' ? 'is-booked' : (state == 'TOO_SMALL' ? 'is-too-small' : 'is-' + #strings.toLowerCase(state)))}">
             <a class="plan-table-hit" th:if="${booking != null}" th:href="@{${opsBase + '/reservations/{id}'}(id=${booking.id})}" th:aria-label="${'Chi tiết ' + table.code}"></a>
-            <a class="plan-table-hit" th:if="${booking == null and table.active}" th:href="@{${opsBase + '/reservations/new'}(tableId=${table.id},date=${selectedDate})}" th:aria-label="${'Đặt ' + table.code}"></a>
+            <a class="plan-table-hit" th:if="${state == 'FREE' and !selectedDate.isBefore(today)}"
+                th:href="@{${opsBase + '/reservations/new'}(tableId=${table.id},date=${selectedDate},time=${selectedTime},guests=${selectedGuests},walkIn=${selectedTime == null})}"
+                th:aria-label="${'Đặt ' + table.code}"></a>
             <img class="plan-table-image" th:src="@{/images/tables/{image}(image=${tableImage})}" alt="" width="120" height="84" />
             <h3 th:text="${table.code}"></h3><p class="plan-table-meta" th:text="${table.capacity + ' chỗ · ' + table.tableType}"></p>
             <span class="plan-table-state" th:text="${state == 'FREE' ? 'Bàn trống' : (state == 'RESERVED' ? 'Đã xác nhận đặt' : item.state.label)}"></span>
@@ -39,12 +51,19 @@
             <div class="plan-table-actions" th:if="${booking != null}">
               <a class="staff-button is-outline" th:href="@{${opsBase + '/reservations/{id}'}(id=${booking.id})}">Chi tiết / chuyển bàn</a>
               <a class="staff-button is-outline" th:if="${state == 'OCCUPIED'}" th:href="@{${opsBase + '/orders/{id}'}(id=${booking.id})}">Đặt món / tính tiền</a>
-              <form th:if="${booking.status == 'CHECKED_IN'}" th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
-                <input type="hidden" name="from" value="table" /><input type="hidden" name="returnDate" th:value="${selectedDate}" /><button class="staff-button" name="status" value="SEATED">Nhận bàn</button>
+              <form th:if="${booking.status == 'CHECKED_IN' and selectedDate == today}" th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
+                <input type="hidden" name="from" value="table" />
+                <input type="hidden" name="returnDate" th:value="${selectedDate}" />
+                <input type="hidden" name="returnTime" th:value="${selectedTime}" />
+                <input type="hidden" name="returnGuests" th:value="${selectedGuests}" />
+                <button class="staff-button" name="status" value="SEATED">Nhận bàn</button>
               </form>
             </div>
             <form class="plan-table-actions" th:if="${state == 'FREE' or state == 'INACTIVE'}"
                 th:action="@{${opsBase + '/tables/{id}/availability'}(id=${table.id})}" method="post">
+              <input type="hidden" name="returnDate" th:value="${selectedDate}" />
+              <input type="hidden" name="returnTime" th:value="${selectedTime}" />
+              <input type="hidden" name="returnGuests" th:value="${selectedGuests}" />
               <button class="staff-link staff-link-button" name="active" th:value="${!table.active}"
                   th:text="${table.active ? 'Tạm ngưng' : 'Mở lại bàn'}"></button>
             </form>

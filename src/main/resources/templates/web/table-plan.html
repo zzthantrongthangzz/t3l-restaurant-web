@@ -5,25 +5,50 @@
     <meta name="theme-color" content="#f4f7f6" /><title>Chọn bàn | T3L Restaurant</title>
     <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
     <link rel="stylesheet" th:href="@{/css/reservation.css(v=20261120-typography)}" />
-    <link rel="stylesheet" th:href="@{/css/table-plan.css(v=20261124)}" />
+    <link rel="stylesheet" th:href="@{/css/account.css(v=20261120-typography)}" />
+    <link rel="stylesheet" th:href="@{/css/table-plan.css(v=20261124-slots)}" />
   </head>
   <body class="home table-plan-page">
     <header th:replace="~{web/fragments/restaurant-shell :: header('reservation')}"></header>
     <main class="home-container table-plan-main">
       <div class="table-plan-heading">
         <div><p class="home-eyebrow">T3L RESTAURANT / RESERVATIONS</p><h1>Chọn bàn cho buổi hẹn</h1>
-          <p>Chọn ngày để xem bàn. Nhấn vào bàn trống để gửi yêu cầu giữ chỗ.</p></div>
+          <p>Chọn ngày, giờ đến và số khách để xem bàn phù hợp.</p>
+          <p th:if="${bookingCustomer and !bookingProfileMissing}" th:text="${'Đặt bàn cho ' + bookingName}"></p></div>
         <form class="table-plan-date" method="get" th:action="@{/reservations/new}">
-          <label for="table-plan-date">Ngày xem bàn</label><input id="table-plan-date" type="date" name="date" th:value="${selectedDate}" th:min="${schedule.today}" />
+          <input type="hidden" name="draft" th:if="${bookingDraft != null}" th:value="${bookingDraft}" />
+          <input type="hidden" name="choose" value="true" />
+          <label>Ngày đến <input type="date" name="date" th:value="${selectedDate}" th:min="${today}" required /></label>
+          <label>Giờ đến
+            <select name="time">
+              <option value="" th:if="${timeSlots.isEmpty()}">Hết khung giờ</option>
+              <option th:each="slot : ${timeSlots}" th:value="${slot}" th:text="${#temporals.format(slot,'HH:mm')}" th:selected="${slot == selectedTime}"></option>
+            </select>
+          </label>
+          <label>Số khách <input type="number" name="guests" min="1" max="20" th:value="${selectedGuests}" required /></label>
           <button class="home-button" type="submit">Xem sơ đồ</button>
         </form>
       </div>
+      <p th:if="${bookingNotice != null}" class="plan-dialog-note" role="status" th:text="${bookingNotice}"></p>
+      <div th:if="${selectedTable == null}" th:object="${form}">
+        <p class="plan-form-error" th:each="error : ${#fields.allErrors()}" th:text="${error}"></p>
+      </div>
+      <p class="table-plan-privacy" th:if="${selectedTime != null}"
+          th:text="${'Khung giờ ' + #temporals.format(selectedTime, 'HH:mm') + ' – ' + #temporals.format(selectedTime.plusMinutes(duration), 'HH:mm') + ' · ' + duration + ' phút'}"></p>
+      <p class="plan-dialog-note" th:if="${selectedTime == null}" role="status">Ngày đã chọn không còn khung giờ đặt bàn. Vui lòng chọn ngày khác.</p>
+      <p class="plan-dialog-note" th:if="${selectedTime != null and tables.isEmpty()}" role="status">Hiện chưa có bàn đang phục vụ.</p>
       <ul class="table-plan-legend" aria-label="Trạng thái bàn">
         <li><span class="plan-dot is-free"></span>Trống</li><li><span class="plan-dot is-pending"></span>Đang chờ xác nhận</li><li><span class="plan-dot is-booked"></span>Đã đặt</li>
+        <li><span class="plan-dot is-serving"></span>Đang phục vụ</li><li><span class="plan-dot is-too-small"></span>Không đủ chỗ</li>
       </ul>
       <div class="table-plan-grid">
-        <article class="plan-table-card" th:each="item : ${tables}" th:with="tableImage=${item.state == 'FREE' ? (item.vip ? 'banXam_vip.png' : 'banXam_thuong.png') : (item.vip ? 'banVang_vip.png' : 'banVang_thuong.png')}" th:classappend="${' is-' + #strings.toLowerCase(item.state)}">
-          <a th:if="${item.state == 'FREE'}" class="plan-table-hit" th:href="@{/reservations/new(date=${selectedDate},tableId=${item.table.id})}" th:aria-label="${'Chọn bàn ' + item.table.code + ', ' + item.label}"></a>
+        <article class="plan-table-card" th:each="item : ${tables}"
+            th:with="prefix=${item.state == 'OCCUPIED' ? 'banDo' : (item.state == 'PENDING' or item.state == 'RESERVED' ? 'banVang' : 'banXam')},
+              tableImage=${prefix + (item.vip ? '_vip.png' : '_thuong.png')}"
+            th:classappend="${item.state == 'OCCUPIED' ? 'is-serving' : (item.state == 'RESERVED' ? 'is-booked' : (item.state == 'TOO_SMALL' ? 'is-too-small' : 'is-' + #strings.toLowerCase(item.state)))}">
+          <a th:if="${item.state == 'FREE'}" class="plan-table-hit"
+              th:href="@{/reservations/new(date=${selectedDate},time=${selectedTime},guests=${selectedGuests},tableId=${item.table.id},draft=${bookingDraft})}"
+              th:aria-label="${'Chọn bàn ' + item.table.code + ', ' + item.label}"></a>
           <img class="plan-table-image" th:src="@{/images/tables/{image}(image=${tableImage})}" alt="" width="120" height="84" />
           <h2 th:text="${item.table.code}"></h2><p class="plan-table-meta" th:text="${item.table.capacity + ' chỗ · ' + item.table.tableType}"></p>
           <span class="plan-table-state" th:text="${item.label}"></span>
@@ -33,25 +58,27 @@
     </main>
     <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
 
-    <dialog class="plan-booking-dialog" id="booking-dialog" th:if="${openBookingDialog and selectedTable != null}" open aria-labelledby="plan-booking-title">
-      <div class="plan-dialog-heading"><div><p class="home-eyebrow">GIỮ CHỖ TẠI T3L</p><h2 id="plan-booking-title" th:text="${'Yêu cầu đặt ' + selectedTable.code}"></h2></div><a class="plan-dialog-close" th:href="@{/reservations/new(date=${selectedDate})}" aria-label="Đóng">×</a></div>
-      <p class="plan-dialog-note">Yêu cầu đang chờ nhân viên xác nhận. Đây là giữ chỗ, chưa phải đặt món.</p>
-      <form class="plan-booking-form" th:action="@{/reservations}" th:object="${form}" method="post">
+    <th:block th:if="${showBookingProfile}"><dialog th:replace="~{web/reservation-form :: profileDialog(true)}"></dialog></th:block>
+    <dialog class="plan-booking-dialog" id="booking-dialog" th:if="${selectedTable != null and !showBookingProfile}" open aria-labelledby="plan-booking-title">
+      <div class="plan-dialog-heading"><div><p class="home-eyebrow">GIỮ CHỖ TẠI T3L</p><h2 id="plan-booking-title" th:text="${'Yêu cầu đặt ' + selectedTable.code}"></h2></div>
+        <button id="plan-booking-close" class="plan-dialog-close" form="plan-booking-form" type="submit" name="choose" value="true" formnovalidate aria-label="Quay lại sơ đồ">×</button></div>
+      <p class="plan-dialog-note">Nhân viên sẽ xác nhận yêu cầu giữ chỗ của bạn.</p>
+      <form class="plan-booking-form" id="plan-booking-form" th:action="@{/reservations}" th:object="${form}" method="post">
         <input type="hidden" th:field="*{tableId}" /><input type="hidden" name="draft" th:if="${bookingDraft != null}" th:value="${bookingDraft}" />
         <div class="plan-booking-fields">
-          <label>Họ và tên <input th:if="${!bookingCustomer or bookingProfileMissing}" th:field="*{guestName}" required maxlength="120" autocomplete="name" />
-            <input th:if="${bookingCustomer and !bookingProfileMissing}" th:field="*{guestName}" required readonly /></label>
-          <label>Số điện thoại <input th:if="${!bookingCustomer or bookingProfileMissing}" th:field="*{guestPhone}" required maxlength="30" inputmode="tel" autocomplete="tel" />
-            <input th:if="${bookingCustomer and !bookingProfileMissing}" th:field="*{guestPhone}" required readonly /></label>
-          <label class="plan-field-full">Email <input th:field="*{guestEmail}" type="email" maxlength="254" autocomplete="email" /></label>
-          <label>Ngày đến <input type="date" th:field="*{date}" th:min="${today}" required /></label>
-          <label>Giờ đến <select th:field="*{time}" required><option value="">Chọn giờ</option><option th:each="slot : ${timeSlots}" th:value="${slot}" th:text="${#temporals.format(slot,'HH:mm')}"></option></select></label>
-          <label>Số khách <input type="number" th:field="*{guests}" min="1" th:max="${selectedTable.capacity}" required /></label>
+          <label>Họ và tên <input th:field="*{guestName}" th:required="${!bookingCustomer}" th:readonly="${bookingCustomer}" maxlength="120" autocomplete="name" /></label>
+          <label>Số điện thoại <input th:field="*{guestPhone}" th:required="${!bookingCustomer}" th:readonly="${bookingCustomer}" maxlength="30" inputmode="tel" autocomplete="tel" /></label>
+          <label class="plan-field-full">Email <input th:field="*{guestEmail}" th:readonly="${bookingCustomer}" type="email" maxlength="254" autocomplete="email" /></label>
+          <label>Ngày đến <input type="date" th:field="*{date}" readonly /></label>
+          <label>Giờ đến <input type="time" th:field="*{time}" readonly /></label>
+          <label>Số khách <input type="number" th:field="*{guests}" readonly /></label>
           <label class="plan-field-full">Ghi chú <textarea th:field="*{note}" rows="3" maxlength="500" placeholder="Yêu cầu đặc biệt (nếu có)"></textarea></label>
         </div>
         <fieldset class="plan-preorder" th:if="${bookingCustomer}">
           <legend>Đặt trước món ăn <small>(tùy chọn)</small></legend>
-          <p th:text="${depositPolicy}"></p>
+          <p th:if="${minimumDeposit.signum() > 0}"
+              th:text="${'Cọc tối thiểu ' + #numbers.formatInteger(minimumDeposit,1,'POINT') + ' đ hoặc 70% tiền món đặt trước, lấy mức cao hơn. Gửi mã giao dịch sau khi nhân viên duyệt.'}"></p>
+          <p th:unless="${minimumDeposit.signum() > 0}">Cọc bằng 70% giá trị món đặt trước. Nếu chỉ đặt bàn này thì không cần cọc.</p>
           <label class="plan-preorder-item" th:each="dish : ${preorderDishes}">
             <input type="checkbox" th:field="*{preorderDishIds}" th:value="${dish.id}" />
             <span><strong th:text="${dish.name}"></strong><small th:text="${dish.categoryName}"></small></span>
@@ -59,15 +86,30 @@
           </label>
           <small class="plan-form-hint">Mỗi món được đặt một phần; nhân viên sẽ chuẩn bị theo yêu cầu.</small>
         </fieldset>
-        <p class="plan-dialog-note" th:if="${!bookingCustomer}">Khách chưa có tài khoản được giữ chỗ bằng số điện thoại. Không cần đặt món hoặc thanh toán cọc.</p>
-        <label class="plan-consent"><input th:field="*{consentAccepted}" type="checkbox" required /><span>Tôi đồng ý với chính sách đặt bàn và quyền riêng tư của T3L.</span></label>
-        <p class="plan-form-error" th:if="${#fields.hasAnyErrors()}" th:each="error : ${#fields.allErrors()}" th:text="${error}"></p>
-        <button class="home-button" type="submit">Gửi yêu cầu giữ chỗ</button>
+        <p class="plan-dialog-note" th:if="${!bookingCustomer and minimumDeposit.signum() > 0}"
+            th:text="${'Bàn này yêu cầu cọc ' + #numbers.formatInteger(minimumDeposit,1,'POINT') + ' đ. Gửi mã giao dịch qua trang xác nhận sau khi nhân viên duyệt.'}"></p>
+        <p class="plan-form-hint" th:text="${depositRefundTerms}"></p>
+        <label class="plan-consent"><input th:field="*{consentAccepted}" type="checkbox" th:required="${!bookingProfileMissing}" /><span>Tôi đồng ý với chính sách đặt bàn và quyền riêng tư của T3L.</span></label>
+        <p class="plan-form-error" role="alert" th:each="error : ${#fields.allErrors()}" th:text="${error}"></p>
+        <button class="home-button" type="submit" th:text="${bookingProfileMissing ? 'Hoàn thiện hồ sơ' : 'Gửi yêu cầu giữ chỗ'}"></button>
+        <div class="plan-booking-actions">
+          <button class="home-text-link" name="choose" value="true" type="submit" formnovalidate>Đổi khung giờ hoặc bàn</button>
+          <button th:unless="${bookingCustomer}" class="home-text-link" name="loginOnly" value="true" type="submit" formnovalidate>Đăng nhập để tiếp tục</button>
+        </div>
       </form>
     </dialog>
+    <script th:replace="~{web/fragments/restaurant-shell :: navigation}"></script>
     <script>
-      const bookingDialog = document.getElementById('booking-dialog');
-      if (bookingDialog && bookingDialog.showModal) { bookingDialog.removeAttribute('open'); bookingDialog.showModal(); }
+      const dialog = document.querySelector('#booking-profile, #booking-dialog');
+      if (dialog?.showModal) {
+        dialog.removeAttribute('open');
+        dialog.showModal();
+        const close = document.getElementById('plan-booking-close');
+        if (close) dialog.addEventListener('cancel', (event) => {
+          event.preventDefault();
+          close.form.requestSubmit(close);
+        });
+      }
     </script>
   </body>
 </html>

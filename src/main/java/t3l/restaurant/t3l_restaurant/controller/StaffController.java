@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.LinkedHashMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -77,10 +78,14 @@ public class StaffController {
 
   @GetMapping("/reservations/new")
   public String newBooking(@RequestParam(required = false) Long tableId,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time,
+      @RequestParam(defaultValue = "2") int guests,
       @RequestParam(defaultValue = "false") boolean walkIn, Model model) {
     var form = new ReservationForm();
-    form.setDate(schedule.today());
-    form.setGuests(2);
+    form.setDate(date == null ? schedule.today() : date);
+    form.setTime(time);
+    form.setGuests(Math.clamp(guests, 1, 20));
     model.addAttribute("bookingForm", form);
     return newBookingPage(tableId, walkIn, model);
   }
@@ -127,22 +132,34 @@ public class StaffController {
 
   @PostMapping("/reservations/{id}/status")
   public String status(@PathVariable Long id, @RequestParam String status,
-      @RequestParam(defaultValue = "") String from, Authentication actor, RedirectAttributes redirect) {
+      @RequestParam(defaultValue = "") String from,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate returnDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime returnTime,
+      @RequestParam(required = false) Integer returnGuests, Authentication actor, RedirectAttributes redirect) {
     String target = switch (from) {
       case "detail" -> RESERVATIONS + "/" + id;
       case "table" -> TABLES;
       case "order" -> ORDERS + "/" + id;
       default -> RESERVATIONS;
     };
+    if (TABLES.equals(target)) keepBoardFilters(redirect, returnDate, returnTime, returnGuests);
     return action(redirect, target, "Đã cập nhật lượt đặt bàn.", () -> bookings.staffStatus(id, status, actor.getName()));
   }
 
   @PostMapping("/reservations/{id}/deposit")
   public String verifyDeposit(@PathVariable Long id, @RequestParam boolean received,
+      @RequestParam(required = false) BigDecimal amount, @RequestParam String reference,
       Authentication actor, RedirectAttributes redirect) {
     return action(redirect, RESERVATIONS + "/" + id,
         received ? "Đã xác nhận nhận tiền cọc." : "Đã từ chối mã giao dịch cọc.",
-        () -> bookings.verifyDeposit(id, received, actor.getName()));
+        () -> bookings.verifyDeposit(id, received, amount, reference, actor.getName()));
+  }
+
+  @PostMapping("/reservations/{id}/deposit/refund")
+  public String refundDeposit(@PathVariable Long id, @RequestParam BigDecimal amount, @RequestParam String reference,
+      Authentication actor, RedirectAttributes redirect) {
+    return action(redirect, RESERVATIONS + "/" + id, "Đã ghi nhận hoàn tiền cọc.",
+        () -> bookings.refundDeposit(id, amount, reference, actor.getName()));
   }
 
   @PostMapping("/reservations/{id}/table")
@@ -163,18 +180,39 @@ public class StaffController {
 
   @GetMapping("/tables")
   public String tables(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-      Model model) {
-    LocalDate selectedDate = date == null ? schedule.today() : date;
-    model.addAttribute("areas", workspace.board(selectedDate));
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time,
+      @RequestParam(defaultValue = "1") int guests, Model model) {
+    var today = schedule.today();
+    var rules = schedule.rules();
+    var slots = rules.slots();
+    LocalDate selectedDate = date == null ? today : date;
+    LocalTime selectedTime = time != null && slots.contains(time) ? time
+        : selectedDate.equals(today) ? null : slots.getFirst();
+    int selectedGuests = Math.clamp(guests, 1, 20);
+    model.addAttribute("areas", workspace.board(selectedDate, selectedTime, selectedGuests, rules.duration()));
     model.addAttribute("selectedDate", selectedDate);
-    model.addAttribute("today", schedule.today());
+    model.addAttribute("selectedTime", selectedTime);
+    model.addAttribute("selectedGuests", selectedGuests);
+    model.addAttribute("timeSlots", slots);
+    model.addAttribute("duration", rules.duration());
+    model.addAttribute("today", today);
     return "staff/tables";
   }
 
   @PostMapping("/tables/{id}/availability")
-  public String tableAvailability(@PathVariable Long id, @RequestParam boolean active, RedirectAttributes redirect) {
+  public String tableAvailability(@PathVariable Long id, @RequestParam boolean active,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate returnDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime returnTime,
+      @RequestParam(required = false) Integer returnGuests, RedirectAttributes redirect) {
+    keepBoardFilters(redirect, returnDate, returnTime, returnGuests);
     return action(redirect, TABLES, active ? "Đã mở lại bàn." : "Đã tạm ngưng sử dụng bàn.",
         () -> bookings.setTableActive(id, active));
+  }
+
+  private void keepBoardFilters(RedirectAttributes redirect, LocalDate date, LocalTime time, Integer guests) {
+    if (date != null) redirect.addAttribute("date", date);
+    if (time != null) redirect.addAttribute("time", time.toString());
+    if (guests != null) redirect.addAttribute("guests", guests);
   }
 
   @GetMapping("/orders")

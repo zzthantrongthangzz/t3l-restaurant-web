@@ -33,8 +33,8 @@ Frontend Thymeleaf nằm trong `src/main/resources/templates`; backend nằm tro
 
 ## Nghiệp vụ và phân quyền
 
-- Guest và BUYER xem menu, FAQ, danh sách bàn theo ngày và gửi yêu cầu đặt bàn.
-- Mọi ngày chỉ có một lượt giữ bàn. Guest/BUYER chỉ thấy trống/đã đặt; STAFF/ADMIN thấy thêm tên khách đã đặt.
+- Guest và BUYER chọn ngày, giờ đến và số khách trên sơ đồ rồi gửi yêu cầu cho bàn còn trống. Một bàn có thể nhận nhiều lượt trong ngày nếu các khung giờ không giao nhau.
+- STAFF/ADMIN xem cùng trạng thái bàn theo khung giờ và thấy thêm thông tin khách. Thời lượng mỗi lượt lấy từ cấu hình nhà hàng.
 - STAFF/ADMIN duyệt hoặc hủy yêu cầu, mở ca, ghi nhận món bán theo tiền mặt/chuyển khoản/thẻ, nhập tiền thực đếm và kết ca. Báo cáo lưu doanh thu từng phương thức cùng chênh lệch tiền mặt.
 - ADMIN quản lý thực đơn và có các thao tác của khách/nhân viên.
 - Demo accounts được khởi tạo/cập nhật khi ứng dụng chạy: `admin / Admin@123`, `staff / Staff@123`, `buyer / Buyer@123`. Đổi mật khẩu trong `.env` trước khi chia sẻ project.
@@ -76,6 +76,13 @@ Gemini dùng mặc định `gemini-3.1-flash-lite` và `gemini-embedding-001` v�
 
 Để chạy cả hai test MongoDB thật, đặt `T3L_CHAT_MONGO_TEST_URI` và `T3L_CHAT_VECTOR_TEST_URI` trỏ vào dịch vụ QA trước khi chạy `.\mvnw.cmd verify`. URI của Atlas phải chứa tên database. Các test này tạo rồi dọn dữ liệu QA riêng.
 
+## Chính sách tiền cọc
+
+- Bàn thường chỉ cần cọc khi đặt món trước. Bàn lớn cọc tối thiểu 300.000 đ, bàn VIP tối thiểu 500.000 đ. Cọc phải trả là mức cao hơn giữa mức tối thiểu của bàn và 70% tổng tiền món đặt trước, làm tròn lên đến đồng. Chính sách áp dụng cả cho khách vãng lai; khách đến trực tiếp do nhân viên tiếp nhận được miễn.
+- Sau khi duyệt, khách có tối đa 120 phút để gửi mã giao dịch. Nhân viên có tối đa 120 phút để đối soát kể từ khi nhận mã. Cả hai hạn kết thúc muộn nhất vào giờ đến. Khi quá hạn, bàn được giải phóng. Giao dịch đã gửi mà chưa xác nhận được tiếp tục đối soát để hoàn tiền nếu nhà hàng thực nhận.
+- Yêu cầu hủy đủ 24 giờ được hoàn 100%, hủy muộn được hoàn 50%, không đến được hoàn 0% theo mặc định. Quy định thời gian gửi yêu cầu đổi/hủy vẫn áp dụng. Nhà hàng hủy hoặc hết hạn giữ bàn hoàn đủ tiền đã nhận. Đổi lịch và chuyển bàn trước check-in tính lại mức cọc, giữ tiền đã nhận để khấu trừ và yêu cầu nộp thêm nếu thiếu. Chuyển bàn lúc đang phục vụ giữ nguyên chính sách đã chốt.
+- Điều chỉnh thời hạn và tỷ lệ hoàn trong các biến `DEPOSIT_*` của `.env.example`. Khi hoàn tiền, nhân viên chuyển hoàn bên ngoài hệ thống rồi ghi lại số tiền và mã giao dịch. Doanh thu ghi nhận phần cọc đã khấu trừ tại lúc chốt thanh toán hoặc phần cọc giữ theo chính sách.
+
 ## Script database
 
 - `database/mysql/01_schema_seed.sql`: cấu trúc cho cài mới, 18 bàn và 3 yêu cầu đặt bàn mẫu; Docker chạy tiếp `04` để đồng bộ danh mục 54 món.
@@ -83,6 +90,8 @@ Gemini dùng mặc định `gemini-3.1-flash-lite` và `gemini-embedding-001` v�
 - `database/mysql/03_sample_data.sql`: nạp bàn, món và reservation mẫu cho database đã migrate.
 - `database/mysql/04_menu_catalog_seed.sql`: đồng bộ 54 món ăn/nước theo danh mục ảnh; dọn món cũ ngoài danh mục và an toàn khi chạy lại. Nếu món cũ đã có giao dịch bán hàng, khóa ngoại sẽ giữ dữ liệu để bảo toàn lịch sử.
 - `database/mysql/05_clear_menu_images.sql`: gỡ URL/ID ảnh khỏi các món để hiển thị ảnh minh họa trong lúc chuẩn bị ảnh mới.
+- `database/mysql/15_reservation_deposits.sql`: bổ sung số tiền, trạng thái và mã giao dịch cọc vào đặt bàn.
+- `database/mysql/16_deposit_settlement.sql`: bổ sung hạn cọc, ghi nhận hoàn tiền, khấu trừ hóa đơn và mã giao dịch duy nhất. Chạy sau `15` khi nâng cấp một database đã tồn tại.
 - `database/menu-image-catalog.tsv`: ánh xạ tên file ảnh sang tên món, danh mục, mô tả và giá.
 - `database/mongodb/01_faq_seed.js`: dữ liệu FAQ mẫu.
 
