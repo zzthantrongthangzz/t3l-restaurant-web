@@ -51,6 +51,11 @@
     for (const [id, card] of picked) {
       subtotal += Number(card.dataset.price);
       const row = document.createElement('li');
+      const picture = card.querySelector('img');
+      const thumbnail = document.createElement('img');
+      thumbnail.alt = '';
+      thumbnail.src = picture.currentSrc || picture.src;
+      thumbnail.addEventListener('error', () => { thumbnail.src = picture.dataset.fallback; }, { once: true });
       const name = document.createElement('span');
       name.textContent = card.dataset.name;
       const input = document.createElement('input');
@@ -67,7 +72,7 @@
         toggleDish(card);
         (selection.querySelector('button') || document.querySelector('#menu-preorder button[type="submit"]')).focus();
       });
-      row.append(name, input, price, remove);
+      row.append(thumbnail, name, input, price, remove);
       selection.append(row);
     }
     emptySelection.hidden = picked.size > 0;

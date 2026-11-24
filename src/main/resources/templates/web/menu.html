@@ -6,9 +6,9 @@
   <meta name="description" content="Xem thực đơn T3L Restaurant, tìm món và chọn món ăn cho lịch đặt bàn." />
   <title>Thực đơn | T3L Restaurant</title>
   <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
-  <link rel="stylesheet" th:href="@{/css/menu.css(v=versionb)}" />
+  <link rel="stylesheet" th:href="@{/css/menu.css(v=left-nav)}" />
   <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
-  <script defer th:src="@{/js/menu.js(v=versionb)}"></script>
+  <script defer th:src="@{/js/menu.js(v=left-nav)}"></script>
 </head>
 <body class="home menu-page">
   <a class="skip-link" href="#main">Chuyển đến thực đơn</a>
@@ -17,13 +17,12 @@
     <section class="menu-catalog" aria-labelledby="menu-title">
       <div class="menu-heading">
         <div>
-          <p class="menu-kicker">Bếp T3L Restaurant</p>
           <h1 id="menu-title">Thực đơn</h1>
           <p class="menu-count" role="status"><span id="menu-result-count" th:text="${dishCount}"></span> món</p>
         </div>
         <div class="menu-search" role="search" hidden>
-          <label for="menu-search">Tìm món</label>
-          <input id="menu-search" type="search" placeholder="Nhập tên món…" maxlength="140" />
+          <svg th:replace="~{web/fragments/restaurant-shell :: icon('search')}"></svg>
+          <input id="menu-search" type="search" aria-label="Tìm món" placeholder="Nhập tên món…" maxlength="140" />
         </div>
       </div>
       <div sec:authorize="hasRole('ADMIN')" class="menu-admin-tools">
@@ -47,11 +46,11 @@
             <div class="menu-card-media">
               <img th:src="${#strings.isEmpty(dish.imageUrl)} ? @{/images/menu/dish-placeholder.svg} : ${dish.imageUrl}"
                    th:attr="data-fallback=@{/images/menu/dish-placeholder.svg}" alt="" loading="lazy" decoding="async" width="540" height="375" />
+            </div>
               <a sec:authorize="hasRole('ADMIN')" class="menu-edit" th:href="@{/admin/dishes/{id}/edit(id=${dish.id})}"
                  th:aria-label="${'Sửa ' + dish.name}" title="Sửa món">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6 4 4M5 19l4-.8L20 7l-4-4L5 14z"/></svg>
               </a>
-            </div>
             <div class="menu-card-body">
               <h3 th:text="${dish.name}"></h3>
               <p class="menu-description" th:text="${dish.description}"></p>
@@ -76,10 +75,13 @@
     </section>
 
     <aside class="menu-booking" id="menu-booking" tabindex="-1" aria-labelledby="menu-booking-title">
-      <h2 id="menu-booking-title">Đặt bàn tại T3L</h2>
+      <h2 sec:authorize="hasRole('BUYER')" id="menu-booking-title">Món đặt trước</h2>
+      <h2 sec:authorize="!hasRole('BUYER')" id="menu-booking-title">Đặt bàn tại T3L</h2>
       <form sec:authorize="hasRole('BUYER')" id="menu-preorder" th:action="@{/reservations/preorder}" method="post">
-        <p id="menu-selection-empty">Chọn món để nhà hàng chuẩn bị trước cho buổi hẹn.</p>
-        <ul id="menu-selection" aria-label="Món đã chọn"></ul>
+        <div class="menu-selection-items" aria-live="polite">
+          <p id="menu-selection-empty">Chọn món để nhà hàng chuẩn bị trước cho buổi hẹn.</p>
+          <ul id="menu-selection" aria-label="Món đã chọn"></ul>
+        </div>
         <div class="menu-total"><span>Tạm tính</span><output id="menu-total" aria-live="polite">0 ₫</output></div>
         <button class="menu-primary" type="submit">Chọn bàn</button>
         <a class="menu-secondary" th:href="@{/reservations/new}">Đặt bàn không kèm món</a>
