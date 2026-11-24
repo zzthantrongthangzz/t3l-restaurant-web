@@ -6,7 +6,7 @@
   <meta name="description" content="Xem thực đơn T3L Restaurant, tìm món và chọn món ăn cho lịch đặt bàn." />
   <title>Thực đơn | T3L Restaurant</title>
   <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
-  <link rel="stylesheet" th:href="@{/css/menu.css(v=quantity-controls)}" />
+  <link rel="stylesheet" th:href="@{/css/menu.css(v=shared-dish-cards)}" />
   <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
   <script defer th:src="@{/js/menu.js(v=quantity-controls)}"></script>
 </head>
@@ -41,34 +41,11 @@
                th:attr="data-group=${state.index},aria-labelledby=${'menu-group-' + state.index}">
         <h2 th:id="${'menu-group-' + state.index}" th:text="${group.key}"></h2>
         <div class="menu-grid">
-          <article class="menu-card" th:each="dish : ${group.value}"
-                   th:attr="data-name=${dish.name},data-id=${dish.id},data-price=${dish.price}">
-            <div class="menu-card-media">
-              <img th:src="${#strings.isEmpty(dish.imageUrl)} ? @{/images/menu/dish-placeholder.svg} : ${dish.imageUrl}"
-                   th:attr="data-fallback=@{/images/menu/dish-placeholder.svg}" alt="" loading="lazy" decoding="async" width="540" height="375" />
-            </div>
-              <a sec:authorize="hasRole('ADMIN')" class="menu-edit" th:if="${menuBooking == null}" th:href="@{/admin/dishes/{id}/edit(id=${dish.id})}"
-                 th:aria-label="${'Sửa ' + dish.name}" title="Sửa món">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6 4 4M5 19l4-.8L20 7l-4-4L5 14z"/></svg>
-              </a>
-            <div class="menu-card-body">
-              <h3 th:text="${dish.name}"></h3>
-              <p class="menu-description" th:text="${dish.description}"></p>
-              <p class="menu-dietary" th:unless="${#strings.isEmpty(dish.dietaryLabel)}" th:text="${dish.dietaryLabel}"></p>
-              <div sec:authorize="hasRole('ADMIN')" class="menu-availability" th:if="${menuBooking == null}">
-                <span th:if="${!dish.published}">Đang ẩn</span>
-                <span th:if="${!dish.available}">Hết món</span>
-                <span th:if="${hiddenCategories.contains(dish.categoryName)}">Danh mục ẩn</span>
-              </div>
-              <div class="menu-card-actions">
-                <strong th:text="${#numbers.formatInteger(dish.price,1,'POINT') + ' ₫'}"></strong>
-                <button type="button" class="menu-detail" data-detail th:aria-label="${'Xem chi tiết ' + dish.name}" hidden>Chi tiết</button>
-                <span class="menu-ordered" th:if="${menuBooking != null and menuOrderedDishIds.contains(dish.id)}">Đã đặt</span>
-                <button th:if="${menuBooking != null and !menuOrderedDishIds.contains(dish.id)}" type="button" class="menu-add" data-add
-                        th:aria-label="${'Chọn ' + dish.name}" aria-pressed="false" hidden>+</button>
-              </div>
-            </div>
-          </article>
+          <th:block th:each="dish : ${group.value}">
+            <article th:replace="~{web/fragments/dish-cards :: card(${dish}, ${menuBooking != null},
+                       ${menuBooking != null and menuOrderedDishIds.contains(dish.id)},
+                       ${hiddenCategories != null and hiddenCategories.contains(dish.categoryName)})}"></article>
+          </th:block>
         </div>
       </section>
       <p id="menu-no-results" class="menu-message" th:hidden="${dishCount != 0}"
@@ -108,14 +85,7 @@
   </main>
   <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
 
-  <dialog class="menu-dialog" id="dish-dialog" aria-labelledby="dish-detail-title">
-    <form method="dialog"><button class="menu-detail" aria-label="Đóng chi tiết" autofocus>Đóng</button></form>
-    <img id="dish-detail-image" alt="" width="540" height="375" />
-    <h2 id="dish-detail-title"></h2>
-    <p id="dish-detail-description"></p>
-    <p id="dish-detail-dietary" hidden></p>
-    <strong id="dish-detail-price"></strong>
-  </dialog>
+  <dialog th:replace="~{web/fragments/dish-cards :: detailDialog}"></dialog>
   <script th:replace="~{web/fragments/restaurant-shell :: navigation}"></script>
 </body>
 </html>

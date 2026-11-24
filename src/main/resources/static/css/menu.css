@@ -127,7 +127,7 @@
 .menu-booking .menu-saved-items li { grid-template-columns: minmax(0, 1fr) auto; }
 .menu-booking .menu-primary:disabled { opacity: .58; cursor: default; }
 @media (min-width: 1330px) {
-  .menu-grid { grid-template-columns: repeat(4, minmax(0,1fr)); }
+  .menu-grid:not(.home-featured-dishes) { grid-template-columns: repeat(4, minmax(0,1fr)); }
 }
 @media (min-width: 1101px) {
   .menu-booking form { min-height: min(60dvh, 570px); }

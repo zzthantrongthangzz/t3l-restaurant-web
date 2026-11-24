@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+  <article class="menu-card" th:fragment="card(dish, orderMode, ordered, hiddenCategory)"
+           th:attr="data-name=${dish.name},data-id=${dish.id},data-price=${dish.price}">
+    <div class="menu-card-media">
+      <img th:src="${#strings.isEmpty(dish.imageUrl)} ? @{/images/menu/dish-placeholder.svg} : ${dish.imageUrl}"
+           th:attr="data-fallback=@{/images/menu/dish-placeholder.svg}" alt="" loading="lazy" decoding="async" width="540" height="375" />
+    </div>
+    <a sec:authorize="hasRole('ADMIN')" class="menu-edit" th:if="${!orderMode}" th:href="@{/admin/dishes/{id}/edit(id=${dish.id})}"
+       th:aria-label="${'Sửa ' + dish.name}" title="Sửa món">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6 4 4M5 19l4-.8L20 7l-4-4L5 14z"/></svg>
+    </a>
+    <div class="menu-card-body">
+      <h3 th:text="${dish.name}"></h3>
+      <p class="menu-description" th:text="${dish.description}"></p>
+      <p class="menu-dietary" th:unless="${#strings.isEmpty(dish.dietaryLabel)}" th:text="${dish.dietaryLabel}"></p>
+      <div sec:authorize="hasRole('ADMIN')" class="menu-availability" th:if="${!orderMode}">
+        <span th:if="${!dish.published}">Đang ẩn</span>
+        <span th:if="${!dish.available}">Hết món</span>
+        <span th:if="${hiddenCategory}">Danh mục ẩn</span>
+      </div>
+      <div class="menu-card-actions">
+        <strong th:text="${#numbers.formatInteger(dish.price,1,'POINT') + ' ₫'}"></strong>
+        <button type="button" class="menu-detail" data-detail th:aria-label="${'Xem chi tiết ' + dish.name}" hidden>Chi tiết</button>
+        <span class="menu-ordered" th:if="${orderMode and ordered}">Đã đặt</span>
+        <button th:if="${orderMode and !ordered}" type="button" class="menu-add" data-add
+                th:aria-label="${'Chọn ' + dish.name}" aria-pressed="false" hidden>+</button>
+      </div>
+    </div>
+  </article>
+  <dialog th:fragment="detailDialog" class="menu-dialog" id="dish-dialog" aria-labelledby="dish-detail-title">
+    <form method="dialog"><button class="menu-detail" aria-label="Đóng chi tiết" autofocus>Đóng</button></form>
+    <img id="dish-detail-image" alt="" width="540" height="375" />
+    <h2 id="dish-detail-title"></h2>
+    <p id="dish-detail-description"></p>
+    <p id="dish-detail-dietary" hidden></p>
+    <strong id="dish-detail-price"></strong>
+  </dialog>
+</body>
+</html>

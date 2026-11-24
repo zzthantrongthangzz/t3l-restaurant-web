@@ -2,37 +2,19 @@ const adminMenu = document.querySelector('.admin-toggle');
 if (adminMenu) {
   const navigation = document.getElementById(adminMenu.getAttribute('aria-controls'));
   const small = matchMedia('(max-width: 900px)');
-  const groups = [...navigation.querySelectorAll('.nav-group')];
-  const closeGroups = () => groups.forEach(group => { group.open = false; });
-  groups.forEach(group => group.addEventListener('toggle', () => {
-    if (!small.matches && group.open) groups.filter(other => other !== group).forEach(other => { other.open = false; });
-  }));
   const update = (open) => {
     adminMenu.hidden = !small.matches;
     adminMenu.setAttribute('aria-expanded', String(small.matches && open));
     navigation.toggleAttribute('data-collapsed', small.matches && !open);
   };
   update(false);
-  small.addEventListener('change', () => {
-    closeGroups();
-    update(false);
-  });
+  small.addEventListener('change', () => update(false));
   adminMenu.addEventListener('click', () => update(adminMenu.getAttribute('aria-expanded') !== 'true'));
   document.addEventListener('keydown', event => {
-    if (event.key !== 'Escape') return;
-    if (adminMenu.getAttribute('aria-expanded') === 'true') {
+    if (event.key === 'Escape' && adminMenu.getAttribute('aria-expanded') === 'true') {
       update(false);
       adminMenu.focus();
-    } else {
-      const open = groups.find(group => group.open);
-      if (open) {
-        closeGroups();
-        open.querySelector('summary').focus();
-      }
     }
-  });
-  document.addEventListener('click', event => {
-    if (!navigation.contains(event.target) && !small.matches) closeGroups();
   });
 }
 

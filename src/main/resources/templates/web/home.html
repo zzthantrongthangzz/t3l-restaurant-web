@@ -6,8 +6,10 @@
     <meta name="description" th:content="${'T3L Restaurant — Hương vị cho những dịp đáng nhớ. Khám phá thực đơn và đặt bàn tại ' + @restaurantInfo.address + '.'}" />
     <meta name="theme-color" content="#171411" />
     <title>T3L Restaurant | Hương vị cho những dịp đáng nhớ</title>
-    <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
+    <link rel="stylesheet" th:href="@{/css/home.css(v=shared-dish-cards)}" />
+    <link rel="stylesheet" th:href="@{/css/menu.css(v=shared-dish-cards)}" />
     <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
+    <script defer th:src="@{/js/menu.js(v=quantity-controls)}"></script>
   </head>
   <body class="home">
     <a class="skip-link" href="#main">Chuyển đến nội dung</a>
@@ -57,26 +59,10 @@
             <div><p class="home-eyebrow">02 / TỪ THỰC ĐƠN T3L</p><h2 id="menu-title">Một chút <em>gợi ý cho bạn.</em></h2></div>
             <a class="home-text-link" th:href="@{/menu}">Xem toàn bộ thực đơn <span aria-hidden="true">↗</span></a>
           </div>
-          <div class="home-dishes">
-            <article class="home-dish" th:each="dish, state : ${dishes}" data-reveal>
-              <div class="home-dish-image">
-                <img th:if="${dish.imageUrl != null and !dish.imageUrl.isBlank()}" th:src="${dish.imageUrl}" th:alt="${dish.name}" width="600" height="450" loading="lazy" decoding="async" data-dish-image />
-                <div class="dish-image-fallback" th:hidden="${dish.imageUrl != null and !dish.imageUrl.isBlank()}">
-                  <span class="fallback-monogram" aria-hidden="true">T3L</span><span>Ảnh món đang được cập nhật</span>
-                </div>
-                <span class="dish-number" th:text="${'0' + state.count}" aria-hidden="true"></span>
-              </div>
-              <div class="home-dish-meta">
-                <span th:text="${dish.categoryName}"></span>
-                <span class="home-dietary" th:if="${dish.dietaryLabel != null and !dish.dietaryLabel.isBlank()}" th:text="${dish.dietaryLabel}"></span>
-              </div>
-              <h3 th:text="${dish.name}"></h3>
-              <p th:text="${dish.description}"></p>
-              <div class="home-dish-bottom">
-                <span class="dish-price" th:text="${#numbers.formatDecimal(dish.price,0,'COMMA',0,'POINT') + ' ₫'}"></span>
-                <a th:href="@{/menu}" th:aria-label="${'Xem thực đơn — ' + dish.name}"><span aria-hidden="true">↗</span></a>
-              </div>
-            </article>
+          <div class="menu-grid home-featured-dishes" th:unless="${dishes.isEmpty()}">
+            <th:block th:each="dish : ${dishes}">
+              <article th:replace="~{web/fragments/dish-cards :: card(${dish}, ${false}, ${false}, ${false})}"></article>
+            </th:block>
           </div>
           <div class="home-empty" th:if="${#lists.isEmpty(dishes)}">
             <p>Thực đơn đang được cập nhật.</p><a class="home-text-link" th:href="@{/reservations/new}">Hẹn bạn tại T3L <span aria-hidden="true">→</span></a>
@@ -109,17 +95,10 @@
       </section>
     </main>
     <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
+    <dialog th:replace="~{web/fragments/dish-cards :: detailDialog}"></dialog>
     <script th:replace="~{web/fragments/restaurant-shell :: navigation}"></script>
     <script>
       (() => {
-        document.querySelectorAll('[data-dish-image]').forEach((img) => {
-          const showFallback = () => {
-            img.hidden = true;
-            img.parentElement.querySelector('.dish-image-fallback').hidden = false;
-          };
-          img.addEventListener('error', showFallback, { once: true });
-          if (img.complete && img.naturalWidth === 0) showFallback();
-        });
         if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
           const observer = new IntersectionObserver((entries) => {
             entries.forEach((entry) => {

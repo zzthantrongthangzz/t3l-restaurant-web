@@ -76,12 +76,11 @@ body { accent-color: var(--accent); }
 .home :is(.home-hero, .booking-banner, .about-hero, .contact-hero) { color: #fff7f2; }
 .home .hero-content .home-eyebrow { color: var(--action); }
 .home .home-menu, .home .home-reserve { background: var(--surface); color: var(--text); color-scheme: inherit; }
-.home :is(.home-menu .home-eyebrow, .home-menu h2 em, .home-dish-meta, .dish-price) { color: var(--accent-text); }
-.home :is(.home-dish > p, .reserve-content > p:not(.home-eyebrow), .reserve-content small, .space-credit, .footer-bottom, .footer-intro > p) {
+.home :is(.home-menu .home-eyebrow, .home-menu h2 em) { color: var(--accent-text); }
+.home :is(.reserve-content > p:not(.home-eyebrow), .reserve-content small, .space-credit, .footer-bottom, .footer-intro > p) {
   color: var(--text-muted);
 }
 .home :is(.story-image, .space-gallery) figcaption { color: #fff7f2; }
-.home .home-dish-bottom > a:hover { background: var(--accent-wash); color: var(--accent-text); }
 .home .hero-content { padding-top: max(110px, 10vh); }
 .home :is(.booking-form, .booking-profile-dialog, .plan-booking-dialog) { color-scheme: inherit; background: var(--surface); color: var(--text); border-color: var(--border); }
 .home :is(.booking-form .home-eyebrow, .booking-form legend, .table-plan-heading h1, .plan-dialog-heading h2, .plan-table-card h2) { color: var(--text); }
@@ -166,7 +165,7 @@ body.staff-page, body.customer-page {
   --aqua: var(--accent-wash);
   --soft: var(--surface-muted);
 }
-.staff-page :is(.admin-header, .staff-header, .staff-field input, .staff-field select, .staff-field textarea, .plan-table-card),
+.staff-page :is(.admin-sidebar, .staff-header, .staff-field input, .staff-field select, .staff-field textarea, .plan-table-card),
 .customer-page :is(.topbar, .faq-item) {
   background-color: var(--surface);
   border-color: var(--border);
@@ -174,7 +173,7 @@ body.staff-page, body.customer-page {
 }
 .staff-page :is(.staff-brand, .staff-brand-mark, .staff-signout, .admin-navigation a, .staff-nav a,
   .plan-table-card h2, .plan-table-card h3, .plan-table-customer strong) { color: var(--text); }
-.staff-page :is(.staff-brand small, .staff-user, .plan-table-meta, .plan-table-customer) { color: var(--text-muted); }
+.staff-page :is(.staff-brand small, .staff-user, .admin-nav-label, .plan-table-meta, .plan-table-customer) { color: var(--text-muted); }
 .staff-page :is(.admin-nav-actions, .staff-signout, .plan-table-customer) { border-color: var(--border); }
 .staff-page :is(.admin-navigation a:hover, .admin-navigation a[aria-current="page"], .admin-segments a[aria-current="page"], .staff-nav a:hover,
   .staff-task-link, .staff-signout:hover, .staff-cancelled) { background: var(--accent-wash); color: var(--accent-text); }
@@ -203,7 +202,7 @@ body.staff-page, body.customer-page {
   background: var(--accent-wash); color: var(--accent-text); border-color: var(--border);
 }
 .home :is(.account-content .account-notice.is-error, .contact-form-error) { color: var(--error); }
-.home :is(.contact-map, .home-dish-image) { background: var(--surface-muted); }
+.home .contact-map { background: var(--surface-muted); }
 .home.confirmation-page { background: var(--page); }
 .staff-page :is(a.staff-metric:hover, .staff-button.is-outline:hover, .staff-button.is-danger:hover,
   .staff-request-blocked, .staff-deposit-panel) { background: var(--accent-wash); border-color: var(--border); }
@@ -213,5 +212,6 @@ body.staff-page, body.customer-page {
   background: var(--accent-wash); color: var(--accent-text);
   box-shadow: inset 0 -2px var(--accent);
 }
+.staff-page .admin-navigation a[aria-current="page"] { box-shadow: inset 3px 0 var(--accent); }
 .staff-page :is(.admin-segments a, .admin-navigation a)[aria-current="page"] { border-color: var(--accent); }
 .staff-page .staff-request-review .button { background: var(--action); color: var(--on-action); }
