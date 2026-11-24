@@ -17,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
+import t3l.restaurant.t3l_restaurant.dto.MenuOrderForm;
 import t3l.restaurant.t3l_restaurant.dto.ReservationForm;
 import t3l.restaurant.t3l_restaurant.dto.ReservationUpdateForm;
 import t3l.restaurant.t3l_restaurant.entity.DiningOrder;
@@ -140,7 +141,7 @@ public class ReservationService {
   @PreAuthorize("#actor == authentication.name and ((#employee and hasAnyRole('STAFF', 'ADMIN')) or "
       + "(!#employee and hasRole('BUYER') and #customer != null and #customer.username == authentication.name))")
   @Transactional(isolation = Isolation.READ_COMMITTED)
-  public void addMenuItems(Long reservationId, List<Long> dishIds, UserAccount customer, String actor, boolean employee) {
+  public void addMenuItems(Long reservationId, MenuOrderForm form, UserAccount customer, String actor, boolean employee) {
     Reservation booking = lockBooking(reservationId);
     if (!employee && !owns(booking, customer)) {
       throw new BookingException(null, "Không tìm thấy lượt đặt bàn của bạn.");
@@ -149,17 +150,19 @@ public class ReservationService {
     if (!canAddMenuItems(booking, order, employee)) {
       throw new BookingException(null, "Lượt đặt bàn này hiện không thể thêm món.");
     }
-    if (dishIds == null || dishIds.isEmpty() || dishIds.size() > 30 || dishIds.stream().anyMatch(Objects::isNull)) {
-      throw new BookingException(null, "Vui lòng chọn từ 1 đến 30 món.");
-    }
+    validator.validate(form).stream().findFirst().ifPresent(error -> {
+      throw new BookingException(null, error.getMessage());
+    });
     if (order == null) order = new DiningOrder(booking, actor, now());
     var currentDishIds = order.getItems().stream().filter(item -> !item.isCancelled())
         .map(item -> item.getDishId()).collect(java.util.stream.Collectors.toSet());
-    var additions = dishIds.stream().distinct().filter(id -> !currentDishIds.contains(id))
-        .map(id -> dishes.findSellable(id).orElseThrow(() ->
-            new BookingException(null, "Một món đã ngừng phục vụ. Vui lòng chọn lại.")))
-        .toList();
-    for (var dish : additions) order.addItem(dish, 1);
+    for (var item : form.getItems()) {
+      Long dishId = item.getDishId();
+      if (!currentDishIds.add(dishId)) continue;
+      var dish = dishes.findSellable(dishId).orElseThrow(() ->
+          new BookingException(null, "Một món đã ngừng phục vụ. Vui lòng chọn lại."));
+      order.addItem(dish, item.getQuantity(), item.getNote());
+    }
     orders.save(order);
     if (booking.getDepositAmount().signum() > 0) {
       BigDecimal amount = order.getCurrentTotal().multiply(new BigDecimal("0.70")).setScale(0, RoundingMode.CEILING);

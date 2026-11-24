@@ -52,7 +52,11 @@ public class DiningOrder {
   }
 
   public void addItem(Dish dish, int quantity) {
-    items.add(new DiningOrderItem(this, dish, quantity));
+    addItem(dish, quantity, null);
+  }
+
+  public void addItem(Dish dish, int quantity, String note) {
+    items.add(new DiningOrderItem(this, dish, quantity, note));
   }
 
   public BigDecimal getCurrentTotal() {

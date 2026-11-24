@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = lombok.AccessLevel.PROTECTED)
 public class DiningOrderItem {
+  public static final int MAX_NOTE_LENGTH = 120;
   @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
@@ -31,15 +32,24 @@ public class DiningOrderItem {
   @Column(nullable = false)
   private int quantity;
 
+  @Column(length = MAX_NOTE_LENGTH)
+  private String note;
+
+
   @Column(nullable = false)
   private boolean cancelled;
 
-  public DiningOrderItem(DiningOrder order, Dish dish, int quantity) {
+  public DiningOrderItem(DiningOrder order, Dish dish, int quantity, String note) {
     this.order = order;
     this.dishId = dish.getId();
     this.dishName = dish.getName();
     this.unitPrice = dish.getPrice();
     this.quantity = quantity;
+    String normalized = note == null ? "" : note.strip();
+    if (normalized.length() > MAX_NOTE_LENGTH || normalized.contains("\r") || normalized.contains("\n")) {
+      throw new IllegalArgumentException("Ghi chú món chỉ gồm một dòng, tối đa 120 ký tự.");
+    }
+    this.note = normalized.isEmpty() ? null : normalized;
   }
 
   public BigDecimal getAmount() { return unitPrice.multiply(BigDecimal.valueOf(quantity)); }

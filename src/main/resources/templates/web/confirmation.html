@@ -8,7 +8,7 @@
     <meta name="theme-color" content="#171411" />
     <title>Xác nhận đặt bàn | T3L Restaurant</title>
     <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
-    <link rel="stylesheet" th:href="@{/css/confirmation.css(v=20261124-deposit)}" />
+    <link rel="stylesheet" th:href="@{/css/confirmation.css(v=item-notes)}" />
     <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
   </head>
   <body class="home confirmation-page">
@@ -63,7 +63,12 @@
             </dl>
             <section class="receipt-deposit" th:if="${preorder != null and preorder.hasItems()}">
               <h2>Món bạn đã đặt trước</h2>
-              <ul><li th:each="item : ${preorder.items}" th:unless="${item.cancelled}" th:text="${item.dishName + ' × ' + item.quantity + ' · ' + #numbers.formatInteger(item.amount,1,'POINT') + ' đ'}"></li></ul>
+              <ul>
+                <li th:each="item : ${preorder.items}" th:unless="${item.cancelled}">
+                  <span th:text="${item.dishName + ' × ' + item.quantity + ' · ' + #numbers.formatInteger(item.amount,1,'POINT') + ' đ'}"></span>
+                  <small th:if="${item.note != null}" th:text="${'Ghi chú: ' + item.note}"></small>
+                </li>
+              </ul>
               <p th:if="${reservation.depositAmount.signum() > 0}">Tiền cọc được tính bằng 70% tổng giá món đặt trước, tối thiểu theo chính sách của loại bàn.</p>
             </section>
             <section class="receipt-deposit" th:if="${reservation.depositAmount.signum() > 0}">

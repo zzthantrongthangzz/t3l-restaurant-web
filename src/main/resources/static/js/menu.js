@@ -46,47 +46,103 @@
     }));
   }
 
+  function validQuantity(value) {
+    const quantity = Number(value);
+    return Number.isInteger(quantity) && quantity >= 1 && quantity <= 100 ? quantity : null;
+  }
+
+  function updateTotal() {
+    let subtotal = 0;
+    let valid = picked.size > 0;
+    for (const { card, quantity } of picked.values()) {
+      const count = validQuantity(quantity);
+      if (count === null) valid = false;
+      else subtotal += Number(card.dataset.price) * count;
+    }
+    total.textContent = formatPrice.format(subtotal);
+    submit.disabled = !valid;
+  }
+
   function updateSelection() {
     selection.replaceChildren();
-    let subtotal = 0;
-    for (const [id, card] of picked) {
-      subtotal += Number(card.dataset.price);
+    for (const [id, item] of picked) {
+      const { card } = item;
+      const field = 'items[' + selection.childElementCount + ']';
       const row = document.createElement('li');
       const picture = card.querySelector('img');
       const thumbnail = document.createElement('img');
       thumbnail.alt = '';
       thumbnail.src = picture.currentSrc || picture.src;
       thumbnail.addEventListener('error', () => { thumbnail.src = picture.dataset.fallback; }, { once: true });
+
       const name = document.createElement('span');
       name.textContent = card.dataset.name;
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = 'dishIds';
-      input.value = id;
+      const dishId = document.createElement('input');
+      dishId.type = 'hidden';
+      dishId.name = field + '.dishId';
+      dishId.value = id;
+
+      const quantity = document.createElement('input');
+      quantity.className = 'menu-item-quantity';
+      quantity.type = 'number';
+      quantity.name = field + '.quantity';
+      quantity.min = '1';
+      quantity.max = '100';
+      quantity.step = '1';
+      quantity.required = true;
+      quantity.value = item.quantity;
+      quantity.setAttribute('aria-label', 'Số lượng ' + card.dataset.name);
+      quantity.title = 'Số lượng';
+
       const price = document.createElement('strong');
-      price.textContent = formatPrice.format(Number(card.dataset.price));
+      price.className = 'menu-item-price';
+      const updatePrice = () => {
+        const count = validQuantity(item.quantity);
+        price.textContent = count === null ? '—' : formatPrice.format(Number(card.dataset.price) * count);
+      };
+      updatePrice();
+      quantity.addEventListener('input', () => {
+        item.quantity = quantity.value;
+        updatePrice();
+        updateTotal();
+      });
+
+      const note = document.createElement('input');
+      note.className = 'menu-item-note-input';
+      note.type = 'text';
+      note.name = field + '.note';
+      note.maxLength = 120;
+      note.value = item.note;
+      note.placeholder = 'Ghi chú, ví dụ: Không bỏ hành';
+      note.setAttribute('aria-label', 'Ghi chú ' + card.dataset.name);
+      note.addEventListener('input', () => { item.note = note.value; });
+
       const remove = document.createElement('button');
+      remove.className = 'menu-item-remove';
       remove.type = 'button';
       remove.textContent = '×';
       remove.setAttribute('aria-label', 'Bỏ ' + card.dataset.name);
       remove.addEventListener('click', () => {
         toggleDish(card);
-        (selection.querySelector('button') || document.querySelector('#menu-preorder a')).focus();
+        (selection.querySelector('.menu-item-quantity') || document.querySelector('#menu-preorder a')).focus();
       });
-      row.append(thumbnail, name, input, price, remove);
+      row.append(thumbnail, name, dishId, quantity, price, note, remove);
       selection.append(row);
     }
     emptySelection.hidden = picked.size > 0;
-    total.textContent = formatPrice.format(subtotal);
-    submit.disabled = picked.size === 0;
     shortcut.hidden = picked.size === 0;
     document.getElementById('menu-selection-count').textContent = picked.size;
+    updateTotal();
   }
+
+  selection?.closest('form').addEventListener('submit', () => {
+    selection.querySelectorAll('.menu-item-quantity').forEach(input => { input.value = input.valueAsNumber; });
+  });
 
   function toggleDish(card) {
     const id = card.dataset.id;
     const selected = !picked.has(id);
-    if (selected) picked.set(id, card);
+    if (selected) picked.set(id, { card, quantity: '1', note: '' });
     else picked.delete(id);
     const button = card.querySelector('[data-add]');
     button.setAttribute('aria-pressed', String(selected));

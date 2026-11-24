@@ -220,7 +220,10 @@ class StaffOperationsIntegrationTest {
       String preorder = "/reservations/" + code + "/preorder";
       staff(get(details)).andExpect(content().string(containsString("/menu?booking=" + code)));
       staff(get("/menu").param("booking", code)).andExpect(content().string(containsString(preorder)));
-      staff(post(preorder).param("dishIds", dishId.toString())).andExpect(redirectedUrl(details));
+      staff(post(preorder).param("items[0].dishId", dishId.toString()).param("items[0].quantity", "2")
+          .param("items[0].note", "Ít cay")).andExpect(redirectedUrl(details));
+      staff(get("/staff/orders/" + id)).andExpect(status().isOk())
+          .andExpect(content().string(containsString("Ghi chú: Ít cay")));
     }
     assertEquals(2L, id("select count(distinct reservation_id) from dining_orders where status='DRAFT'"));
     assertEquals(2L, id("select count(*) from dining_order_items"));

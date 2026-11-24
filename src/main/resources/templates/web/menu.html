@@ -6,9 +6,9 @@
   <meta name="description" content="Xem thực đơn T3L Restaurant, tìm món và chọn món ăn cho lịch đặt bàn." />
   <title>Thực đơn | T3L Restaurant</title>
   <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
-  <link rel="stylesheet" th:href="@{/css/menu.css(v=coral-palette)}" />
+  <link rel="stylesheet" th:href="@{/css/menu.css(v=item-notes)}" />
   <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
-  <script defer th:src="@{/js/menu.js(v=booking-order)}"></script>
+  <script defer th:src="@{/js/menu.js(v=item-notes)}"></script>
 </head>
 <body class="home menu-page">
   <a class="skip-link" href="#main">Chuyển đến thực đơn</a>
@@ -85,6 +85,7 @@
         <li th:each="item : ${menuOrder.items}" th:unless="${item.cancelled}">
           <span th:text="${item.dishName + ' × ' + item.quantity}"></span>
           <strong th:text="${#numbers.formatInteger(item.amount,1,'POINT') + ' ₫'}"></strong>
+          <small class="menu-item-note" th:if="${item.note != null}" th:text="${item.note}"></small>
         </li>
       </ul>
       <form th:if="${menuBooking != null}" id="menu-preorder"

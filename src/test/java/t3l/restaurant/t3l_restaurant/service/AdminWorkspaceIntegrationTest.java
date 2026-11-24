@@ -141,16 +141,28 @@ class AdminWorkspaceIntegrationTest {
     mvc.perform(get("/menu").param("booking", code)).andExpect(status().isNotFound());
     var another = accounts.save(UserAccount.customer("Khách khác", null, "0907654000", "qa-other-preorder", "unused"));
     mvc.perform(post(orderPath).with(user(another.getUsername()).roles("BUYER")).with(csrf())
-        .param("dishIds", String.valueOf(dish))).andExpect(status().isNotFound());
+        .param("items[0].dishId", String.valueOf(dish)).param("items[0].quantity", "3")).andExpect(status().isNotFound());
+    mvc.perform(post(orderPath).session(session).with(buyer).with(csrf())
+            .param("items[0].dishId", String.valueOf(dish)).param("items[0].quantity", "0"))
+        .andExpect(redirectedUrl("/menu?booking=" + code)).andExpect(flash().attributeExists("error"));
+    mvc.perform(post(orderPath).session(session).with(buyer).with(csrf())
+            .param("items[0].dishId", String.valueOf(dish)).param("items[0].quantity", "3")
+            .param("items[0].note", "x".repeat(121)))
+        .andExpect(redirectedUrl("/menu?booking=" + code)).andExpect(flash().attributeExists("error"));
+    assertEquals(0, jdbc.queryForObject("select count(*) from dining_order_items", Integer.class));
     for (int attempt = 0; attempt < 2; attempt++) {
-      mvc.perform(post(orderPath).session(session).with(buyer).with(csrf()).param("dishIds", String.valueOf(dish)))
+      mvc.perform(post(orderPath).session(session).with(buyer).with(csrf()).param("items[0].dishId", String.valueOf(dish)).param("items[0].quantity", "3")
+              .param("items[0].note", "  Không bỏ hành  "))
           .andExpect(redirectedUrl(receipt));
     }
     assertEquals(code, jdbc.queryForObject(
         "select reservations.code from dining_orders join reservations on reservation_id = reservations.id", String.class));
     assertEquals(1, jdbc.queryForObject("select count(*) from dining_order_items", Integer.class));
+    assertEquals(3, jdbc.queryForObject("select quantity from dining_order_items", Integer.class));
+    assertEquals("Không bỏ hành", jdbc.queryForObject("select note from dining_order_items", String.class));
     mvc.perform(get(receipt).session(session).with(buyer))
-        .andExpect(content().string(containsString("Bít tết QA × 1")));
+        .andExpect(content().string(containsString("Bít tết QA × 3 · 600.000 đ")))
+        .andExpect(content().string(containsString("Không bỏ hành")));
     mvc.perform(get("/reservations/new").param("date", date.toString()).param("time", "18:00"))
         .andExpect(content().string(containsString("Đang chờ xác nhận")))
         .andExpect(content().string(not(containsString("Chọn bàn A01"))));

@@ -24,6 +24,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import t3l.restaurant.t3l_restaurant.dto.MenuOrderForm;
 import t3l.restaurant.t3l_restaurant.dto.ReservationForm;
 import t3l.restaurant.t3l_restaurant.dto.CustomerProfileForm;
 import t3l.restaurant.t3l_restaurant.entity.Dish;
@@ -136,11 +137,14 @@ public class WebController {
   }
 
   @PostMapping("/reservations/{code}/preorder")
-  public String addMenuItems(@PathVariable String code, @RequestParam(required = false) List<Long> dishIds,
+  public String addMenuItems(@PathVariable String code, @ModelAttribute MenuOrderForm form, BindingResult binding,
       Authentication authentication, RedirectAttributes redirect) {
     Reservation booking = requireMenuBooking(code, authentication);
     try {
-      reservationService.addMenuItems(booking.getId(), dishIds, customers.signedInCustomer(authentication),
+      if (binding.hasErrors()) {
+        throw new BookingException(null, "Thông tin món hoặc số lượng không hợp lệ.");
+      }
+      reservationService.addMenuItems(booking.getId(), form, customers.signedInCustomer(authentication),
           authentication.getName(), isEmployee(authentication));
       redirect.addFlashAttribute("notice", "Đã lưu món vào đơn của lượt đặt bàn.");
     } catch (BookingException exception) {

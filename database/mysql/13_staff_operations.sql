@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS dining_order_items (
   dish_name VARCHAR(140) NOT NULL,
   unit_price DECIMAL(12,0) NOT NULL,
   quantity INT NOT NULL,
+  note VARCHAR(120) NULL,
   cancelled BOOLEAN NOT NULL DEFAULT FALSE,
   INDEX ix_dining_items_order (order_id,id),
   CONSTRAINT fk_dining_item_order FOREIGN KEY (order_id) REFERENCES dining_orders(id)
