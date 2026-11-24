@@ -34,12 +34,15 @@
     <details th:fragment="dropdown" class="customer-menu" th:if="${customerBadge != null}">
       <summary aria-label="Menu tài khoản của bạn">
         <span th:replace="~{account/fragments/navigation :: avatar}"></span>
+        <span th:replace="~{account/fragments/sidebar :: label(${customerBadge.name}, 'Khách hàng')}"></span>
         <svg class="customer-chevron" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
           <path d="m3 5 4 4 4-4" />
         </svg>
       </summary>
       <nav class="customer-dropdown" aria-label="Menu tài khoản">
-        <p class="customer-menu-name" th:text="${customerBadge.name}"></p>
+        <p class="customer-menu-name">
+          <span th:replace="~{account/fragments/sidebar :: label(${customerBadge.name}, 'Khách hàng')}"></span>
+        </p>
         <th:block th:replace="~{account/fragments/navigation :: links(${section})}"></th:block>
         <form th:action="@{/logout}" method="post">
           <button class="customer-option" type="submit">

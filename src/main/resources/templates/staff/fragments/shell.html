@@ -20,13 +20,13 @@
           <span>T3L Restaurant<small>Vận hành nhà hàng</small></span>
         </a>
         <div class="staff-user">
-          <span sec:authentication="name"></span>
           <a th:href="@{/}">Trang chủ</a>
           <button th:replace="~{web/fragments/theme :: toggle}"></button>
-          <form th:action="@{/logout}" method="post"><button class="staff-signout" type="submit">Đăng xuất</button></form>
+          <div th:replace="~{account/fragments/sidebar :: employee}"></div>
         </div>
       </div>
       <nav class="staff-nav" aria-label="Điều hướng nhân viên">
+        <a th:href="@{/menu}">Thực đơn</a>
         <a th:href="@{/staff/dashboard}" th:attr="aria-current=${section == 'dashboard' ? 'page' : null}">Tổng quan</a>
         <a th:href="@{/staff/reservations}" th:attr="aria-current=${section == 'reservations' ? 'page' : null}">Đặt bàn</a>
         <a th:href="@{/staff/tables}" th:attr="aria-current=${section == 'tables' ? 'page' : null}">Quản lý đặt bàn</a>

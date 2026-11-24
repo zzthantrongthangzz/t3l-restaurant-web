@@ -88,12 +88,18 @@ class AdminWorkspaceIntegrationTest {
   @Test
   void editsDishesFromTheSharedMenuWithAdminPermissions() throws Exception {
     String editPath = "/admin/dishes/" + dish + "/edit";
+    mvc.perform(get("/js/menu.js")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("filterCards")));
+    mvc.perform(get("/js/theme.js")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("t3l-theme")));
     mvc.perform(get("/menu")).andExpect(status().isOk())
         .andExpect(content().string(not(containsString(editPath))));
     mvc.perform(get("/menu").with(user("staff").roles("STAFF"))).andExpect(status().isOk())
         .andExpect(content().string(not(containsString(editPath))));
     mvc.perform(get(editPath).with(user("staff").roles("STAFF"))).andExpect(status().isForbidden());
-    admin(get("/menu")).andExpect(content().string(containsString(editPath)));
+    admin(get("/admin/dashboard")).andExpect(content().string(containsString("href=\"/menu\">Thực đơn")));
+    admin(get("/menu")).andExpect(content().string(containsString(editPath)))
+        .andExpect(content().string(containsString("<small>Quản trị viên</small>")));
     admin(get(editPath)).andExpect(status().isOk())
         .andExpect(content().string(containsString("Tải ảnh lên Cloudinary")));
 
@@ -110,6 +116,9 @@ class AdminWorkspaceIntegrationTest {
     var customer = accounts.save(UserAccount.customer("Khách đặt món", null, "0901234567", "qa-preorder", "unused"));
     var session = new MockHttpSession();
     var buyer = user(customer.getUsername()).roles("BUYER");
+    mvc.perform(get("/menu").session(session).with(buyer)).andExpect(status().isOk())
+        .andExpect(content().string(containsString("<strong>Khách đặt món</strong>")))
+        .andExpect(content().string(containsString("<small>Khách hàng</small>")));
     String selectionUrl = mvc.perform(post("/reservations/preorder").session(session).with(buyer).with(csrf())
             .param("preorderDishIds", String.valueOf(dish)))
         .andExpect(redirectedUrlPattern("/reservations/new?draft=*&chooseTable=true"))
@@ -155,7 +164,10 @@ class AdminWorkspaceIntegrationTest {
         .andExpect(content().string(not(containsString(staff.getPassword()))));
     var session = (MockHttpSession) mvc.perform(post("/login").with(csrf()).param("username", "qa-staff").param("password", PASSWORD))
         .andExpect(redirectedUrl("/staff/dashboard")).andReturn().getRequest().getSession(false);
-    mvc.perform(get("/staff/dashboard").session(session)).andExpect(status().isOk());
+    mvc.perform(get("/staff/dashboard").session(session)).andExpect(status().isOk())
+        .andExpect(content().string(containsString("href=\"/menu\">Thực đơn")))
+        .andExpect(content().string(containsString("<strong>Nhân viên Kiểm thử</strong>")))
+        .andExpect(content().string(containsString("<small>Nhân viên</small>")));
     var tokenBody = mvc.perform(post("/api/auth/login").contentType("application/json")
         .content(json.writeValueAsString(java.util.Map.of("username", "qa-staff", "password", PASSWORD))))
         .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();

@@ -23,13 +23,14 @@
         <a sec:authorize="isAnonymous()" data-header-login
            th:href="${loginReturnTo == null} ? @{/login} : @{/login(returnTo=${loginReturnTo})}"
            th:attr="aria-current=${activePage == 'login' ? 'page' : null}"><svg th:replace="~{web/fragments/restaurant-shell :: icon('account')}"></svg>Đăng nhập</a>
-        <form sec:authorize="hasAnyRole('STAFF','ADMIN')" th:action="@{/logout}" method="post">
-          <button class="logout-link" type="submit"><svg th:replace="~{web/fragments/restaurant-shell :: icon('logout')}"></svg>Đăng xuất</button>
-        </form>
+        <div class="restaurant-mobile-account" th:if="${sidebarEmployee != null}">
+          <div th:replace="~{account/fragments/sidebar :: employee}"></div>
+        </div>
       </nav>
       <div class="restaurant-sidebar-actions">
         <button th:replace="~{web/fragments/theme :: toggle}"></button>
         <details th:replace="~{account/fragments/navigation :: dropdown}"></details>
+        <div th:replace="~{account/fragments/sidebar :: employee}"></div>
       </div>
     </header>
     <svg th:fragment="icon(name)" class="restaurant-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"

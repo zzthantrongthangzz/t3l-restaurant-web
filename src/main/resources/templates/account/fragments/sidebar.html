@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+  <span class="sidebar-account-label" th:fragment="label(name, role)">
+    <strong th:text="${name}"></strong>
+    <small th:text="${role}"></small>
+  </span>
+  <div class="sidebar-employee" th:fragment="employee" th:if="${sidebarEmployee != null}">
+    <span th:replace="~{account/fragments/sidebar :: label(${sidebarEmployee.name}, ${sidebarEmployee.role})}"></span>
+    <form th:action="@{/logout}" method="post">
+      <button class="sidebar-signout" type="submit" title="Đăng xuất" aria-label="Đăng xuất">
+        <svg th:replace="~{account/fragments/navigation :: icon('logout')}"></svg>
+      </button>
+    </form>
+  </div>
+</body>
+</html>
