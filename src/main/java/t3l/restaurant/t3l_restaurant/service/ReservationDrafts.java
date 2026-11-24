@@ -23,7 +23,6 @@ public class ReservationDrafts {
       String id = previous != null && previous.belongsTo(customerId) ? existingId : UUID.randomUUID().toString();
       entries.put(id, new Draft(customerId, form.getDate(), form.getTime(), form.getGuests(),
           form.getPreferredArea(), form.getNote(), form.isConsentAccepted(), form.getTableId(),
-          form.getPreorderDishIds() == null ? java.util.List.of() : java.util.List.copyOf(form.getPreorderDishIds()),
           Instant.now().plusSeconds(1800)));
       while (entries.size() > 5) entries.remove(entries.keySet().iterator().next());
       session.setAttribute(KEY, entries);
@@ -39,7 +38,7 @@ public class ReservationDrafts {
       if (draft == null || !draft.valid() || !draft.belongsTo(customerId)) return null;
       if (draft.customerId() == null && customerId != null) {
         entries.put(id, new Draft(customerId, draft.date(), draft.time(), draft.guests(), draft.area(), draft.note(),
-            draft.consent(), draft.tableId(), draft.preorderDishIds(), draft.expires()));
+            draft.consent(), draft.tableId(), draft.expires()));
         session.setAttribute(KEY, entries);
       }
       var form = new ReservationForm();
@@ -50,7 +49,6 @@ public class ReservationDrafts {
       form.setNote(draft.note());
       form.setConsentAccepted(draft.consent());
       form.setTableId(draft.tableId());
-      form.setPreorderDishIds(new java.util.ArrayList<>(draft.preorderDishIds()));
       return form;
     }
   }
@@ -71,7 +69,7 @@ public class ReservationDrafts {
   }
 
   private record Draft(Long customerId, LocalDate date, LocalTime time, Integer guests, String area, String note,
-      boolean consent, Long tableId, java.util.List<Long> preorderDishIds, Instant expires) implements Serializable {
+      boolean consent, Long tableId, Instant expires) implements Serializable {
     boolean valid() { return Instant.now().isBefore(expires); }
     boolean belongsTo(Long customer) { return customerId == null || customerId.equals(customer); }
   }

@@ -6,9 +6,9 @@
   <meta name="description" content="Xem thực đơn T3L Restaurant, tìm món và chọn món ăn cho lịch đặt bàn." />
   <title>Thực đơn | T3L Restaurant</title>
   <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
-  <link rel="stylesheet" th:href="@{/css/menu.css(v=left-nav)}" />
+  <link rel="stylesheet" th:href="@{/css/menu.css(v=booking-order)}" />
   <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
-  <script defer th:src="@{/js/menu.js(v=left-nav)}"></script>
+  <script defer th:src="@{/js/menu.js(v=booking-order)}"></script>
 </head>
 <body class="home menu-page">
   <a class="skip-link" href="#main">Chuyển đến thực đơn</a>
@@ -25,7 +25,7 @@
           <input id="menu-search" type="search" aria-label="Tìm món" placeholder="Nhập tên món…" maxlength="140" />
         </div>
       </div>
-      <div sec:authorize="hasRole('ADMIN')" class="menu-admin-tools">
+      <div sec:authorize="hasRole('ADMIN')" class="menu-admin-tools" th:if="${menuBooking == null}">
         <a class="menu-primary" th:href="@{/admin/dishes/new}">Thêm món</a>
         <a class="menu-secondary" th:href="@{/admin/categories}">Danh mục</a>
       </div>
@@ -47,7 +47,7 @@
               <img th:src="${#strings.isEmpty(dish.imageUrl)} ? @{/images/menu/dish-placeholder.svg} : ${dish.imageUrl}"
                    th:attr="data-fallback=@{/images/menu/dish-placeholder.svg}" alt="" loading="lazy" decoding="async" width="540" height="375" />
             </div>
-              <a sec:authorize="hasRole('ADMIN')" class="menu-edit" th:href="@{/admin/dishes/{id}/edit(id=${dish.id})}"
+              <a sec:authorize="hasRole('ADMIN')" class="menu-edit" th:if="${menuBooking == null}" th:href="@{/admin/dishes/{id}/edit(id=${dish.id})}"
                  th:aria-label="${'Sửa ' + dish.name}" title="Sửa món">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6 4 4M5 19l4-.8L20 7l-4-4L5 14z"/></svg>
               </a>
@@ -55,7 +55,7 @@
               <h3 th:text="${dish.name}"></h3>
               <p class="menu-description" th:text="${dish.description}"></p>
               <p class="menu-dietary" th:unless="${#strings.isEmpty(dish.dietaryLabel)}" th:text="${dish.dietaryLabel}"></p>
-              <div sec:authorize="hasRole('ADMIN')" class="menu-availability">
+              <div sec:authorize="hasRole('ADMIN')" class="menu-availability" th:if="${menuBooking == null}">
                 <span th:if="${!dish.published}">Đang ẩn</span>
                 <span th:if="${!dish.available}">Hết món</span>
                 <span th:if="${hiddenCategories.contains(dish.categoryName)}">Danh mục ẩn</span>
@@ -63,7 +63,8 @@
               <div class="menu-card-actions">
                 <strong th:text="${#numbers.formatInteger(dish.price,1,'POINT') + ' ₫'}"></strong>
                 <button type="button" class="menu-detail" data-detail th:aria-label="${'Xem chi tiết ' + dish.name}" hidden>Chi tiết</button>
-                <button sec:authorize="hasRole('BUYER')" type="button" class="menu-add" data-add
+                <span class="menu-ordered" th:if="${menuBooking != null and menuOrderedDishIds.contains(dish.id)}">Đã đặt</span>
+                <button th:if="${menuBooking != null and !menuOrderedDishIds.contains(dish.id)}" type="button" class="menu-add" data-add
                         th:aria-label="${'Chọn ' + dish.name}" aria-pressed="false" hidden>+</button>
               </div>
             </div>
@@ -75,24 +76,33 @@
     </section>
 
     <aside class="menu-booking" id="menu-booking" tabindex="-1" aria-labelledby="menu-booking-title">
-      <h2 sec:authorize="hasRole('BUYER')" id="menu-booking-title">Món đặt trước</h2>
-      <h2 sec:authorize="!hasRole('BUYER')" id="menu-booking-title">Đặt bàn tại T3L</h2>
-      <form sec:authorize="hasRole('BUYER')" id="menu-preorder" th:action="@{/reservations/preorder}" method="post">
+      <h2 id="menu-booking-title" th:text="${menuBooking == null ? 'Đặt bàn tại T3L' : 'Đơn của lượt đặt bàn'}"></h2>
+      <div th:if="${menuBooking != null}" class="menu-order-reference">
+        <strong th:text="${menuBooking.code}"></strong>
+        <p th:if="${menuOrder != null}" th:text="${menuOrder.invoiceNumber}"></p>
+      </div>
+      <ul th:if="${menuOrder != null and menuOrder.hasItems()}" class="menu-saved-items" aria-label="Món đã lưu">
+        <li th:each="item : ${menuOrder.items}" th:unless="${item.cancelled}">
+          <span th:text="${item.dishName + ' × ' + item.quantity}"></span>
+          <strong th:text="${#numbers.formatInteger(item.amount,1,'POINT') + ' ₫'}"></strong>
+        </li>
+      </ul>
+      <form th:if="${menuBooking != null}" id="menu-preorder"
+            th:action="@{/reservations/{code}/preorder(code=${menuBooking.code})}" method="post">
         <div class="menu-selection-items" aria-live="polite">
-          <p id="menu-selection-empty">Chọn món để nhà hàng chuẩn bị trước cho buổi hẹn.</p>
-          <ul id="menu-selection" aria-label="Món đã chọn"></ul>
+          <p id="menu-selection-empty">Chọn món để thêm vào đơn của bàn này.</p>
+          <ul id="menu-selection" aria-label="Món sẽ thêm"></ul>
         </div>
-        <div class="menu-total"><span>Tạm tính</span><output id="menu-total" aria-live="polite">0 ₫</output></div>
-        <button class="menu-primary" type="submit">Chọn bàn</button>
-        <a class="menu-secondary" th:href="@{/reservations/new}">Đặt bàn không kèm món</a>
+        <div class="menu-total"><span>Tạm tính món thêm</span><output id="menu-total" aria-live="polite">0 ₫</output></div>
+        <button class="menu-primary" type="submit" disabled>Lưu món vào đơn</button>
+        <a class="menu-secondary" th:href="@{${bookingReturn}}">Về chi tiết đặt bàn</a>
       </form>
-      <div sec:authorize="!hasRole('BUYER')" class="menu-booking-links">
-        <p>Gửi số điện thoại để nhà hàng liên hệ xác nhận giữ chỗ.</p>
+      <div th:if="${menuBooking == null}" class="menu-booking-links">
+        <p>Chọn bàn để bắt đầu đặt chỗ.</p>
         <a class="menu-primary" th:href="@{/reservations/new}">Xem bàn trống</a>
-        <a sec:authorize="isAnonymous()" class="menu-secondary" th:href="@{/login(returnTo='/menu')}">Đăng nhập để đặt kèm món</a>
       </div>
     </aside>
-    <a sec:authorize="hasRole('BUYER')" class="menu-selection-shortcut menu-primary" id="menu-selection-shortcut"
+    <a th:if="${menuBooking != null}" class="menu-selection-shortcut menu-primary" id="menu-selection-shortcut"
        href="#menu-booking" hidden>Xem món đã chọn (<span id="menu-selection-count">0</span>)</a>
   </main>
   <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>

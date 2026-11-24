@@ -109,10 +109,6 @@
               <a class="home-text-link" th:href="@{/account}">Cập nhật hồ sơ</a>
             </fieldset>
 
-            <fieldset class="plan-preorder" th:if="${bookingCustomer and !bookingProfileMissing}">
-              <legend>Đặt trước món ăn (tùy chọn)</legend>
-              <div th:replace="~{web/fragments/preorder :: list}"></div>
-            </fieldset>
 
             <fieldset>
               <legend>Ghi chú cho buổi hẹn</legend>
@@ -128,7 +124,7 @@
             <button class="home-button booking-submit" type="submit"
                 th:text="${bookingProfileMissing ? 'Hoàn thiện hồ sơ' : 'Gửi yêu cầu đặt bàn'}"></button>
             <button sec:authorize="isAnonymous()" type="submit" id="booking-login-draft"
-                    class="home-button home-button-outline booking-submit" name="loginOnly" value="true" formnovalidate>Đăng nhập để đặt kèm món</button>
+                    class="home-button home-button-outline booking-submit" name="loginOnly" value="true" formnovalidate>Đăng nhập để tiếp tục đặt bàn</button>
             <p class="booking-submit-note" th:if="${!bookingCustomer}">Nhân viên sẽ gọi điện để xác nhận giữ chỗ.</p>
             <p class="booking-submit-note" th:if="${bookingCustomer and !bookingProfileMissing}">Yêu cầu sẽ ở trạng thái <strong>Chờ xác nhận</strong>.<br />Nhân viên sẽ liên hệ để xác nhận chỗ ngồi với bạn.</p>
           </form>

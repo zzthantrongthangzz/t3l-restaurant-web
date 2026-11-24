@@ -110,8 +110,9 @@ public class SecurityConfig {
           }));
     }
     return http.authorizeHttpRequests(a ->
-            a.requestMatchers("/account", "/account/**", "/reservations/lookup/*/claim", "/reservations/preorder")
+            a.requestMatchers("/account", "/account/**", "/reservations/lookup/*/claim")
                 .hasRole("BUYER")
+                .requestMatchers(HttpMethod.POST, "/reservations/*/preorder").hasAnyRole("BUYER", "STAFF", "ADMIN")
                 .requestMatchers("/login", "/oauth2/authorization/google", "/login/oauth2/code/google", "/login/sms/**",
                     "/login/recover/**", "/staff/login")
                 .permitAll()

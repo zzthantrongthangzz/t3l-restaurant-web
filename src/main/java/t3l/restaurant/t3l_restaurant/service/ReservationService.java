@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 import t3l.restaurant.t3l_restaurant.dto.ReservationForm;
 import t3l.restaurant.t3l_restaurant.dto.ReservationUpdateForm;
 import t3l.restaurant.t3l_restaurant.entity.DiningOrder;
-import t3l.restaurant.t3l_restaurant.entity.Dish;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
 import t3l.restaurant.t3l_restaurant.entity.ReservationEvent;
 import t3l.restaurant.t3l_restaurant.entity.ReservationEmail.Kind;
@@ -116,34 +115,56 @@ public class ReservationService {
         form.getNote() == null ? null : form.getNote().trim(), form.isConsentAccepted());
     booking.setBookingDetails(end, preferred.isEmpty() ? null : preferred);
     booking.assignCustomer(customer);
-    List<Dish> preorder = customer == null || form.getPreorderDishIds() == null ? List.of()
-        : form.getPreorderDishIds().stream().filter(Objects::nonNull).distinct()
-            .map(id -> dishes.findSellable(id).orElseThrow(() -> new BookingException(null,
-                "Một món đặt trước không còn trong thực đơn. Vui lòng tải lại trang.")))
-            .toList();
     boolean depositRequired = customer != null && requiresDeposit(assigned);
-    BigDecimal preorderTotal = preorder.stream().map(Dish::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
-    BigDecimal depositAmount = depositRequired
-        ? preorderTotal.multiply(new BigDecimal("0.70")).setScale(0, RoundingMode.CEILING)
-            .max(minimumDeposit(assigned))
-        : BigDecimal.ZERO;
-    booking.setDepositRequirement(depositAmount, depositRequired);
+    booking.setDepositRequirement(depositRequired ? minimumDeposit(assigned) : BigDecimal.ZERO, depositRequired);
     if (actor != null) {
       booking.updateStatus(CONFIRMED);
       if (walkIn) booking.checkIn(start);
     }
     Reservation saved = reservations.saveAndFlush(booking);
-    if (!preorder.isEmpty()) {
-      DiningOrder preorderOrder = new DiningOrder(saved, "CUSTOMER", now());
-      preorder.forEach(dish -> preorderOrder.addItem(dish, 1));
-      orders.save(preorderOrder);
-    }
     if (actor == null) emails.enqueue(saved, Kind.RECEIVED, null, null);
     else {
       record(saved, actor, walkIn ? "Tiếp nhận khách đến trực tiếp." : "Tạo và xác nhận đặt bàn qua nhân viên.");
       if (!walkIn) emails.enqueue(saved, Kind.CONFIRMED, null, null);
     }
     return saved;
+  }
+
+  public boolean canAddMenuItems(Reservation booking, DiningOrder order, boolean employee) {
+    if (order != null && !DiningOrder.DRAFT.equals(order.getStatus())) return false;
+    if (employee) return BLOCKING_STATUSES.contains(booking.getStatus());
+    return booking.isOpenBooking() && booking.getStartsAt().isAfter(now())
+        && !List.of("TRANSFER_SUBMITTED", "PAID").contains(booking.getDepositStatus());
+  }
+
+  @PreAuthorize("#actor == authentication.name and ((#employee and hasAnyRole('STAFF', 'ADMIN')) or "
+      + "(!#employee and hasRole('BUYER') and #customer != null and #customer.username == authentication.name))")
+  @Transactional(isolation = Isolation.READ_COMMITTED)
+  public void addMenuItems(Long reservationId, List<Long> dishIds, UserAccount customer, String actor, boolean employee) {
+    Reservation booking = lockBooking(reservationId);
+    if (!employee && !owns(booking, customer)) {
+      throw new BookingException(null, "Không tìm thấy lượt đặt bàn của bạn.");
+    }
+    DiningOrder order = orders.findByReservation_Id(reservationId).orElse(null);
+    if (!canAddMenuItems(booking, order, employee)) {
+      throw new BookingException(null, "Lượt đặt bàn này hiện không thể thêm món.");
+    }
+    if (dishIds == null || dishIds.isEmpty() || dishIds.size() > 30 || dishIds.stream().anyMatch(Objects::isNull)) {
+      throw new BookingException(null, "Vui lòng chọn từ 1 đến 30 món.");
+    }
+    if (order == null) order = new DiningOrder(booking, actor, now());
+    var currentDishIds = order.getItems().stream().filter(item -> !item.isCancelled())
+        .map(item -> item.getDishId()).collect(java.util.stream.Collectors.toSet());
+    var additions = dishIds.stream().distinct().filter(id -> !currentDishIds.contains(id))
+        .map(id -> dishes.findSellable(id).orElseThrow(() ->
+            new BookingException(null, "Một món đã ngừng phục vụ. Vui lòng chọn lại.")))
+        .toList();
+    for (var dish : additions) order.addItem(dish, 1);
+    orders.save(order);
+    if (booking.getDepositAmount().signum() > 0) {
+      BigDecimal amount = order.getCurrentTotal().multiply(new BigDecimal("0.70")).setScale(0, RoundingMode.CEILING);
+      booking.increaseUnpaidDeposit(amount);
+    }
   }
 
   private boolean requiresDeposit(RestaurantTable table) {

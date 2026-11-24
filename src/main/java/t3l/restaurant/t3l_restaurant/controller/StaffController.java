@@ -119,6 +119,7 @@ public class StaffController {
     model.addAttribute("booking", booking);
     model.addAttribute("actions", workspace.actions(booking));
     model.addAttribute("order", view.order());
+    model.addAttribute("canAddMenuItems", bookings.canAddMenuItems(booking, view.order(), true));
     model.addAttribute("history", workspace.history(id));
     model.addAttribute("changes", changes.history(id));
     bookingOptions(model);

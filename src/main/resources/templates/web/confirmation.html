@@ -35,6 +35,16 @@
         </section>
         <p class="receipt-deposit" th:if="${notice != null}" th:text="${notice}" role="status"></p>
 
+        <p class="receipt-deposit" th:if="${error != null}" th:text="${error}" role="alert"></p>
+
+        <section class="receipt-deposit" th:if="${canAddMenuItems}" aria-labelledby="receipt-menu-question">
+          <h2 id="receipt-menu-question" th:text="${preorder != null and preorder.hasItems() ? 'Bạn có muốn thêm món?' : 'Bạn có muốn đặt kèm món không?'}"></h2>
+          <div class="receipt-actions">
+            <a class="home-button" th:href="@{/menu(booking=${reservation.code})}">Có, chọn món</a>
+            <a class="home-text-link" th:href="@{/}">Để sau</a>
+          </div>
+        </section>
+
         <div class="receipt-layout">
           <section class="reservation-receipt" id="reservation-details" aria-labelledby="details-title">
             <div class="receipt-heading">
@@ -51,9 +61,9 @@
               <div><dt>Khu vực ưu tiên</dt><dd th:text="${reservation.preferredArea != null and !reservation.preferredArea.isBlank() ? reservation.preferredArea : 'Để T3L sắp xếp'}"></dd></div>
               <div class="receipt-note"><dt>Ghi chú đặc biệt</dt><dd th:text="${reservation.note != null and !reservation.note.isBlank() ? reservation.note : 'Không có ghi chú đặc biệt.'}"></dd></div>
             </dl>
-            <section class="receipt-deposit" th:if="${preorder != null and !preorder.items.isEmpty()}">
+            <section class="receipt-deposit" th:if="${preorder != null and preorder.hasItems()}">
               <h2>Món bạn đã đặt trước</h2>
-              <ul><li th:each="item : ${preorder.items}" th:text="${item.dishName + ' · ' + #numbers.formatInteger(item.unitPrice,1,'POINT') + ' đ'}"></li></ul>
+              <ul><li th:each="item : ${preorder.items}" th:unless="${item.cancelled}" th:text="${item.dishName + ' × ' + item.quantity + ' · ' + #numbers.formatInteger(item.amount,1,'POINT') + ' đ'}"></li></ul>
               <p th:if="${reservation.depositAmount.signum() > 0}">Tiền cọc được tính bằng 70% tổng giá món đặt trước, tối thiểu theo chính sách của loại bàn.</p>
             </section>
             <section class="receipt-deposit" th:if="${reservation.depositAmount.signum() > 0}">

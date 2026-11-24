@@ -112,29 +112,45 @@ class AdminWorkspaceIntegrationTest {
   }
 
   @Test
-  void carriesCustomerSelectionsIntoTheBookingAndKeepsGuestRequestsTableOnly() throws Exception {
+  void attachesMenuItemsOnlyAfterBookingAndKeepsGuestRequestsTableOnly() throws Exception {
     var customer = accounts.save(UserAccount.customer("Khách đặt món", null, "0901234567", "qa-preorder", "unused"));
     var session = new MockHttpSession();
     var buyer = user(customer.getUsername()).roles("BUYER");
     mvc.perform(get("/menu").session(session).with(buyer)).andExpect(status().isOk())
         .andExpect(content().string(containsString("<strong>Khách đặt món</strong>")))
         .andExpect(content().string(containsString("<small>Khách hàng</small>")));
-    String selectionUrl = mvc.perform(post("/reservations/preorder").session(session).with(buyer).with(csrf())
-            .param("preorderDishIds", String.valueOf(dish)))
-        .andExpect(redirectedUrlPattern("/reservations/new?draft=*&chooseTable=true"))
-        .andReturn().getResponse().getRedirectedUrl();
-    String draft = (String) mvc.perform(get(selectionUrl).session(session).with(buyer))
-        .andExpect(content().string(containsString("1 món đã chọn từ thực đơn.")))
-        .andReturn().getModelAndView().getModel().get("bookingDraft");
     LocalDate date = schedule.today().plusDays(2);
-    mvc.perform(get("/reservations/new").session(session).with(buyer).param("draft", draft)
+    String draft = (String) mvc.perform(get("/reservations/new").session(session).with(buyer)
             .param("date", date.toString()).param("tableId", String.valueOf(table)))
-        .andExpect(status().isOk()).andExpect(content().string(containsString("checked=\"checked\"")));
-    mvc.perform(post("/reservations").session(session).with(buyer).with(csrf()).param("draft", draft)
+        .andExpect(status().isOk())
+        .andExpect(content().string(not(containsString("Đặt trước món ăn"))))
+        .andReturn().getModelAndView().getModel().get("bookingDraft");
+    String receipt = mvc.perform(post("/reservations").session(session).with(buyer).with(csrf()).param("draft", draft)
             .param("tableId", String.valueOf(table)).param("date", date.toString()).param("time", "18:00")
-            .param("guests", "2").param("consentAccepted", "true").param("preorderDishIds", String.valueOf(dish)))
-        .andExpect(redirectedUrlPattern("/reservations/confirmation?code=*"));
+            .param("guests", "2").param("consentAccepted", "true"))
+        .andExpect(redirectedUrlPattern("/reservations/confirmation?code=*"))
+        .andReturn().getResponse().getRedirectedUrl();
+    String code = jdbc.queryForObject("select code from reservations", String.class);
+    String orderPath = "/reservations/" + code + "/preorder";
+    assertEquals(0, jdbc.queryForObject("select count(*) from dining_orders", Integer.class));
+    mvc.perform(get(receipt).session(session).with(buyer))
+        .andExpect(content().string(containsString("Bạn có muốn đặt kèm món không?")))
+        .andExpect(content().string(containsString("/menu?booking=" + code)));
+    mvc.perform(get("/menu").param("booking", code).session(session).with(buyer))
+        .andExpect(status().isOk()).andExpect(content().string(containsString(orderPath)));
+    mvc.perform(get("/menu").param("booking", code)).andExpect(status().isNotFound());
+    var another = accounts.save(UserAccount.customer("Khách khác", null, "0907654000", "qa-other-preorder", "unused"));
+    mvc.perform(post(orderPath).with(user(another.getUsername()).roles("BUYER")).with(csrf())
+        .param("dishIds", String.valueOf(dish))).andExpect(status().isNotFound());
+    for (int attempt = 0; attempt < 2; attempt++) {
+      mvc.perform(post(orderPath).session(session).with(buyer).with(csrf()).param("dishIds", String.valueOf(dish)))
+          .andExpect(redirectedUrl(receipt));
+    }
+    assertEquals(code, jdbc.queryForObject(
+        "select reservations.code from dining_orders join reservations on reservation_id = reservations.id", String.class));
     assertEquals(1, jdbc.queryForObject("select count(*) from dining_order_items", Integer.class));
+    mvc.perform(get(receipt).session(session).with(buyer))
+        .andExpect(content().string(containsString("Bít tết QA × 1")));
     mvc.perform(get("/reservations/new").param("date", date.toString()).param("time", "18:00"))
         .andExpect(content().string(containsString("Đang chờ xác nhận")))
         .andExpect(content().string(not(containsString("Chọn bàn A01"))));
@@ -145,8 +161,12 @@ class AdminWorkspaceIntegrationTest {
         .param("date", date.plusDays(1).toString()).param("time", "18:00").param("guests", "2")
         .param("guestName", "Khách giữ chỗ").param("consentAccepted", "true").param("preorderDishIds", String.valueOf(dish));
     mvc.perform(guestRequest).andExpect(status().isOk()).andExpect(model().attributeHasFieldErrors("form", "guestPhone"));
-    mvc.perform(guestRequest.param("guestPhone", "0907654321"))
-        .andExpect(redirectedUrlPattern("/reservations/confirmation?code=*"));
+    var guest = new MockHttpSession();
+    String guestReceipt = mvc.perform(guestRequest.session(guest).param("guestPhone", "0907654321"))
+        .andExpect(redirectedUrlPattern("/reservations/confirmation?code=*"))
+        .andReturn().getResponse().getRedirectedUrl();
+    mvc.perform(get(guestReceipt).session(guest))
+        .andExpect(content().string(not(containsString("Bạn có muốn đặt kèm món không?"))));
     assertEquals("PENDING_CONFIRMATION", jdbc.queryForObject(
         "select status from reservations where guest_phone='0907654321'", String.class));
     assertEquals(1, jdbc.queryForObject("select count(*) from dining_order_items", Integer.class));

@@ -6,6 +6,7 @@
   const noResults = document.getElementById('menu-no-results');
   const dialog = document.getElementById('dish-dialog');
   const selection = document.getElementById('menu-selection');
+  const submit = document.querySelector('#menu-preorder button[type="submit"]');
   const emptySelection = document.getElementById('menu-selection-empty');
   const total = document.getElementById('menu-total');
   const shortcut = document.getElementById('menu-selection-shortcut');
@@ -60,7 +61,7 @@
       name.textContent = card.dataset.name;
       const input = document.createElement('input');
       input.type = 'hidden';
-      input.name = 'preorderDishIds';
+      input.name = 'dishIds';
       input.value = id;
       const price = document.createElement('strong');
       price.textContent = formatPrice.format(Number(card.dataset.price));
@@ -70,13 +71,14 @@
       remove.setAttribute('aria-label', 'Bỏ ' + card.dataset.name);
       remove.addEventListener('click', () => {
         toggleDish(card);
-        (selection.querySelector('button') || document.querySelector('#menu-preorder button[type="submit"]')).focus();
+        (selection.querySelector('button') || document.querySelector('#menu-preorder a')).focus();
       });
       row.append(thumbnail, name, input, price, remove);
       selection.append(row);
     }
     emptySelection.hidden = picked.size > 0;
     total.textContent = formatPrice.format(subtotal);
+    submit.disabled = picked.size === 0;
     shortcut.hidden = picked.size === 0;
     document.getElementById('menu-selection-count').textContent = picked.size;
   }

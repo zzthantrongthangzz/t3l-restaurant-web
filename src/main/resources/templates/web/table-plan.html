@@ -14,7 +14,6 @@
       <div class="table-plan-heading">
         <div><h1>Chọn bàn cho buổi hẹn</h1>
           <p>Chọn ngày và giờ đến để xem bàn trống theo khung giờ.</p>
-          <p th:if="${preorderCount > 0}" th:text="${preorderCount + ' món đã chọn từ thực đơn.'}"></p>
           <p th:if="${bookingNotice != null}" th:text="${bookingNotice}" role="status"></p>
         </div>
         <form class="table-plan-date" method="get" th:action="@{/reservations/new}">
@@ -59,18 +58,13 @@
           <label>Số khách <input type="number" th:field="*{guests}" min="1" th:max="${selectedTable.capacity}" required /></label>
           <label class="plan-field-full">Ghi chú <textarea th:field="*{note}" rows="3" maxlength="500" placeholder="Yêu cầu đặc biệt (nếu có)"></textarea></label>
         </div>
-        <fieldset class="plan-preorder" th:if="${bookingCustomer}">
-          <legend>Đặt trước món ăn <small>(tùy chọn)</small></legend>
-          <p th:text="${depositPolicy}"></p>
-          <div th:replace="~{web/fragments/preorder :: list}"></div>
-          <small class="plan-form-hint">Mỗi món được đặt một phần.</small>
-        </fieldset>
+<p class="plan-dialog-note" th:if="${depositPolicy != null}" th:text="${depositPolicy}"></p>
         <p class="plan-dialog-note" th:if="${!bookingCustomer}">Khách chưa có tài khoản được giữ chỗ bằng số điện thoại. Không cần đặt món hoặc thanh toán cọc.</p>
         <label class="plan-consent"><input th:field="*{consentAccepted}" type="checkbox" required /><span>Tôi đồng ý với chính sách đặt bàn và quyền riêng tư của T3L.</span></label>
         <p class="plan-form-error" th:if="${#fields.hasAnyErrors()}" th:each="error : ${#fields.allErrors()}" th:text="${error}"></p>
         <button class="home-button" type="submit">Gửi yêu cầu giữ chỗ</button>
         <button sec:authorize="isAnonymous()" class="home-button home-button-outline" type="submit"
-                name="loginOnly" value="true" formnovalidate>Đăng nhập để đặt kèm món</button>
+                name="loginOnly" value="true" formnovalidate>Đăng nhập để tiếp tục đặt bàn</button>
       </form>
     </dialog>
     <script th:replace="~{web/fragments/restaurant-shell :: navigation}"></script>

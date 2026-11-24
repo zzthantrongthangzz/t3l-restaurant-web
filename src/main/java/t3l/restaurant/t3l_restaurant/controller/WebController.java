@@ -15,12 +15,14 @@ import java.util.stream.Collectors;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.dao.TransientDataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import t3l.restaurant.t3l_restaurant.dto.ReservationForm;
 import t3l.restaurant.t3l_restaurant.dto.CustomerProfileForm;
@@ -101,10 +103,27 @@ public class WebController {
   }
 
   @GetMapping("/menu")
-  public String menu(Authentication authentication, Model model) {
+  public String menu(@RequestParam(required = false) String booking, Authentication authentication,
+      HttpServletResponse response, Model model) {
     boolean admin = authentication != null && authentication.getAuthorities().stream()
         .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
-    var menuDishes = admin ? dishService.findAll() : dishService.findAvailable();
+    var menuDishes = admin && booking == null ? dishService.findAll() : dishService.findAvailable();
+    if (booking != null) {
+      response.setHeader("Cache-Control", "no-store");
+      response.setHeader("Referrer-Policy", "no-referrer");
+      var reservation = requireMenuBooking(booking, authentication);
+      var order = diningOrders.findByReservation_Id(reservation.getId()).orElse(null);
+      if (!reservationService.canAddMenuItems(reservation, order, isEmployee(authentication))) {
+        throw new ResponseStatusException(HttpStatus.CONFLICT,
+            "Lượt đặt bàn này hiện không thể thêm món.");
+      }
+      model.addAttribute("hideChat", true);
+      model.addAttribute("menuBooking", reservation);
+      model.addAttribute("menuOrder", order);
+      model.addAttribute("menuOrderedDishIds", order == null ? List.of() : order.getItems().stream()
+          .filter(item -> !item.isCancelled()).map(item -> item.getDishId()).toList());
+      model.addAttribute("bookingReturn", bookingReturn(reservation, authentication));
+    }
     model.addAttribute("dishGroups", menuDishes.stream()
         .sorted(Comparator.comparing(dish -> "Đồ uống".equals(dish.getCategoryName())))
         .collect(Collectors.groupingBy(Dish::getCategoryName, LinkedHashMap::new, Collectors.toList())));
@@ -116,25 +135,46 @@ public class WebController {
     return "web/menu";
   }
 
-  @PostMapping("/reservations/preorder")
-  public String startPreorder(@RequestParam(required = false) List<Long> preorderDishIds,
-      Authentication authentication, HttpSession session, RedirectAttributes redirect) {
-    UserAccount customer = customers.signedInCustomer(authentication);
-    if (customer == null) return "redirect:/login";
-    if (preorderDishIds == null || preorderDishIds.isEmpty()) return "redirect:/reservations/new";
-    var selected = dishService.findAvailable().stream()
-        .map(Dish::getId).filter(preorderDishIds::contains).toList();
-    if (selected.size() != preorderDishIds.stream().distinct().count()) {
-      redirect.addFlashAttribute("error", "Một món đã ngừng phục vụ. Vui lòng chọn lại.");
-      return "redirect:/menu";
+  @PostMapping("/reservations/{code}/preorder")
+  public String addMenuItems(@PathVariable String code, @RequestParam(required = false) List<Long> dishIds,
+      Authentication authentication, RedirectAttributes redirect) {
+    Reservation booking = requireMenuBooking(code, authentication);
+    try {
+      reservationService.addMenuItems(booking.getId(), dishIds, customers.signedInCustomer(authentication),
+          authentication.getName(), isEmployee(authentication));
+      redirect.addFlashAttribute("notice", "Đã lưu món vào đơn của lượt đặt bàn.");
+    } catch (BookingException exception) {
+      redirect.addFlashAttribute("error", exception.getMessage());
+      var current = reservationService.findByCode(code);
+      var order = diningOrders.findByReservation_Id(booking.getId()).orElse(null);
+      if (current != null && reservationService.canAddMenuItems(current, order, isEmployee(authentication))) {
+        redirect.addAttribute("booking", code);
+        return "redirect:/menu";
+      }
     }
-    var form = new ReservationForm();
-    form.setDate(reservationSchedule.today());
-    form.setGuests(2);
-    form.setPreorderDishIds(selected);
-    redirect.addAttribute("draft", drafts.save(session, form, customer.getId(), null));
-    redirect.addAttribute("chooseTable", true);
-    return "redirect:/reservations/new";
+    return "redirect:" + bookingReturn(booking, authentication);
+  }
+
+  private Reservation requireMenuBooking(String code, Authentication authentication) {
+    Reservation booking = isEmployee(authentication) && code.matches("T3L-[A-Z0-9-]{4,16}")
+        ? reservationService.findByCode(code)
+        : reservationService.findVisibleByCode(code, customers.signedInCustomer(authentication), false);
+    if (booking == null) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+    }
+    return booking;
+  }
+
+  private boolean isEmployee(Authentication authentication) {
+    return authentication != null && authentication.getAuthorities().stream().anyMatch(authority ->
+        "ROLE_ADMIN".equals(authority.getAuthority()) || "ROLE_STAFF".equals(authority.getAuthority()));
+  }
+
+  private String bookingReturn(Reservation booking, Authentication authentication) {
+    if (!isEmployee(authentication)) return "/reservations/confirmation?code=" + booking.getCode();
+    boolean admin = authentication.getAuthorities().stream()
+        .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+    return (admin ? "/admin" : "/staff") + "/reservations/" + booking.getId();
   }
 
   @GetMapping("/faq")
@@ -181,7 +221,6 @@ public class WebController {
       addTableBoardData(model, selectedDate, time == null ? null : form.getTime());
       model.addAttribute("openBookingDialog", false);
       model.addAttribute("bookingDraft", draft);
-      model.addAttribute("preorderCount", form.getPreorderDishIds().size());
       return "web/table-plan";
     }
     model.addAttribute("form", form);
@@ -195,7 +234,7 @@ public class WebController {
     Reservation booking = reservationService.findVisibleByCode(code, customer,
         confirmationAccess.canView(request.getSession(false), code));
     if (booking == null || booking.getCustomerId() == null || !reservationService.owns(booking, customer)) {
-      throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND);
     }
     try {
       reservationService.submitDepositReference(booking.getId(), reference);
@@ -333,17 +372,15 @@ public class WebController {
       LocalDate selectedDate = form.getDate() == null ? reservationSchedule.today() : form.getDate();
       RestaurantTable selectedTable = restaurantTables.findById(form.getTableId()).orElse(null);
       if (selectedTable == null || !selectedTable.isActive()) {
-        throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND);
       }
       String tableType = selectedTable == null || selectedTable.getTableType() == null ? ""
           : selectedTable.getTableType().toLowerCase(Locale.ROOT);
       addTableBoardData(model, selectedDate, form.getTime());
       model.addAttribute("selectedTable", selectedTable);
       model.addAttribute("openBookingDialog", true);
-      model.addAttribute("preorderCount", form.getPreorderDishIds().size());
       model.addAttribute("today", reservationSchedule.today());
       model.addAttribute("maxGuests", selectedTable == null ? 20 : selectedTable.getCapacity());
-      model.addAttribute("preorderDishes", customer == null ? List.of() : dishes.findByAvailableTrueOrderByCategoryNameAscNameAsc());
       model.addAttribute("depositPolicy", customer == null ? null : tableType.contains("vip")
           ? "Bàn VIP: cọc tối thiểu 500.000 đ hoặc 70% giá trị món đặt trước (lấy mức cao hơn). Sau khi nhân viên duyệt, bạn gửi mã giao dịch để xác nhận cọc."
           : selectedTable != null && (tableType.contains("lớn") || selectedTable.getCapacity() >= 9)
@@ -351,7 +388,6 @@ public class WebController {
               : "Bàn này không bắt buộc đặt cọc trước.");
       return "web/table-plan";
     }
-    model.addAttribute("preorderDishes", customer == null || missing ? List.of() : dishService.findAvailable());
     addReservationPageData(model);
     return "web/reservation-form";
   }
@@ -362,14 +398,18 @@ public class WebController {
     response.setHeader("Cache-Control", "no-store, max-age=0");
     response.setHeader("Pragma", "no-cache");
     response.setHeader("Referrer-Policy", "no-referrer");
-    Reservation reservation = reservationService.findVisibleByCode(code, customers.signedInCustomer(authentication),
+    UserAccount customer = customers.signedInCustomer(authentication);
+    Reservation reservation = reservationService.findVisibleByCode(code, customer,
         confirmationAccess.canView(request.getSession(false), code));
     if (reservation == null) {
       response.setStatus(HttpServletResponse.SC_NOT_FOUND);
       model.asMap().remove("loginReturnTo");
     } else {
       model.addAttribute("reservation", reservation);
-      model.addAttribute("preorder", diningOrders.findByReservation_Id(reservation.getId()).orElse(null));
+      var order = diningOrders.findByReservation_Id(reservation.getId()).orElse(null);
+      model.addAttribute("preorder", order);
+      model.addAttribute("canAddMenuItems", reservationService.owns(reservation, customer)
+          && reservationService.canAddMenuItems(reservation, order, false));
     }
     return "web/confirmation";
   }

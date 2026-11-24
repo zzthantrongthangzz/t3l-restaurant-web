@@ -211,6 +211,22 @@ class StaffOperationsIntegrationTest {
   }
 
   @Test
+  void staffAddsMenuItemsToTheInvoiceForBothWaitingAndWalkInBookings() throws Exception {
+    long reserved = createPhone("Khách đặt bàn chờ", "18:00", tableOne, 2);
+    long arrived = walkIn("Khách đến ngay", tableTwo);
+    for (long id : List.of(reserved, arrived)) {
+      String code = reservations.findOneById(id).orElseThrow().getCode();
+      String details = "/staff/reservations/" + id;
+      String preorder = "/reservations/" + code + "/preorder";
+      staff(get(details)).andExpect(content().string(containsString("/menu?booking=" + code)));
+      staff(get("/menu").param("booking", code)).andExpect(content().string(containsString(preorder)));
+      staff(post(preorder).param("dishIds", dishId.toString())).andExpect(redirectedUrl(details));
+    }
+    assertEquals(2L, id("select count(distinct reservation_id) from dining_orders where status='DRAFT'"));
+    assertEquals(2L, id("select count(*) from dining_order_items"));
+  }
+
+  @Test
   void handlesNoShowAndWalkInsAndRequiresRealTransferConfirmation() throws Exception {
     var missed = publicBooking("Khách đặt trực tuyến", "11:30");
     step(missed, "CONFIRMED").andExpect(flash().attributeExists("notice"));

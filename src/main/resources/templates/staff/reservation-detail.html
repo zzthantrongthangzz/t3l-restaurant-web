@@ -10,6 +10,13 @@
         <span th:replace="~{staff/fragments/shell :: status(${booking})}"></span>
       </div>
       <div th:replace="~{staff/fragments/shell :: messages}"></div>
+      <section class="staff-panel" th:if="${canAddMenuItems}" aria-labelledby="staff-menu-question">
+        <h2 id="staff-menu-question" th:text="${order != null and order.hasItems() ? 'Thêm món vào đơn của bàn' : 'Bạn có muốn đặt kèm món không?'}"></h2>
+        <div class="staff-actions">
+          <a class="staff-button" th:href="@{/menu(booking=${booking.code})}">Có, chọn món</a>
+          <a class="staff-button is-outline" th:href="@{${opsBase + '/tables'}}">Để sau</a>
+        </div>
+      </section>
       <div class="staff-split">
         <div class="staff-stack">
           <section class="staff-panel">

@@ -169,6 +169,12 @@ public class Reservation {
     depositStatus = required ? "PENDING_STAFF_CONFIRMATION" : "NOT_REQUIRED";
   }
 
+  public void increaseUnpaidDeposit(BigDecimal amount) {
+    if ("PENDING_STAFF_CONFIRMATION".equals(depositStatus) || "WAITING_PAYMENT".equals(depositStatus)) {
+      depositAmount = depositAmount.max(amount);
+    }
+  }
+
   public void approveDepositRequirement() {
     if ("PENDING_STAFF_CONFIRMATION".equals(depositStatus)) depositStatus = "WAITING_PAYMENT";
   }
