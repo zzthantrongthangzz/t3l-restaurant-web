@@ -127,13 +127,20 @@ window.t3lPage.register(({ signal, state }) => {
 
     search.addEventListener('input', filter);
     category.addEventListener('change', filter);
+    function trackCart(item, before) {
+      const type = item.quantity === 0 ? 'CART_REMOVE' : before === 0 ? 'CART_ADD' : 'CART_QUANTITY';
+      document.dispatchEvent(new CustomEvent('t3l:cart', { detail: { type, id: item.id, quantity: item.quantity } }));
+    }
+
     picker.addEventListener('click', (event) => {
       const button = event.target.closest('button');
       if (!button) return;
       if (button.dataset.preorderRemove) {
         const item = items.get(button.dataset.preorderRemove);
+        const before = item.quantity;
         item.quantity = 0;
         render();
+        trackCart(item, before);
         if (item.available && !item.element.hidden) item.element.querySelector('[data-preorder-step="1"]').focus();
         else search.focus();
         return;
@@ -145,8 +152,10 @@ window.t3lPage.register(({ signal, state }) => {
         warning.textContent = 'Giỏ chỉ nhận tối đa 30 loại món.';
         return;
       }
+      const before = item.quantity;
       item.quantity += step;
       render();
+      trackCart(item, before);
     });
 
     filter();

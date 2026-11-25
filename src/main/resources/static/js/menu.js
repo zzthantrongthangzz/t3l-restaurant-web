@@ -53,6 +53,10 @@ window.t3lPage.register(({ signal, state }) => {
     }));
   }
 
+  function trackCart(type, id, quantity) {
+    document.dispatchEvent(new CustomEvent('t3l:cart', { detail: { type, id, quantity } }));
+  }
+
   function validQuantity(value) {
     const quantity = Number(value);
     return Number.isInteger(quantity) && quantity >= 1 && quantity <= 100 ? quantity : null;
@@ -114,6 +118,7 @@ window.t3lPage.register(({ signal, state }) => {
         button.addEventListener('click', () => {
           quantity.value = Math.min(100, Math.max(1, (validQuantity(quantity.valueAsNumber) ?? 1) + delta));
           updateQuantity();
+          trackCart("CART_QUANTITY", id, quantity.valueAsNumber);
         });
       }
       stepper.append(decrease, quantity, increase);
@@ -133,6 +138,10 @@ window.t3lPage.register(({ signal, state }) => {
         updateTotal();
       }
       quantity.addEventListener('input', updateQuantity);
+      quantity.addEventListener('change', () => {
+        const count = validQuantity(quantity.valueAsNumber);
+        if (count !== null) trackCart('CART_QUANTITY', id, count);
+      });
 
       const note = document.createElement('input');
       note.className = 'menu-item-note-input';
@@ -181,6 +190,7 @@ window.t3lPage.register(({ signal, state }) => {
     else picked.delete(id);
     setSelected(card, selected);
     updateSelection();
+    trackCart(selected ? "CART_ADD" : "CART_REMOVE", id, selected ? 1 : 0);
   }
 
   function setSelected(card, selected) {

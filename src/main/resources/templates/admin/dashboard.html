@@ -15,6 +15,10 @@
     <a class="staff-metric" th:href="@{/admin/tables}"><span>Bàn đang sử dụng</span><strong th:text="${dashboard.occupied}"></strong></a>
     <a class="staff-metric" th:href="@{/admin/reservations(status='PENDING_CONFIRMATION')}"><span>Yêu cầu chờ xử lý</span><strong th:text="${dashboard.pending}"></strong></a>
   </section>
+  <section class="staff-panel analytics-overview" aria-label="Phân tích hành vi hôm nay">
+    <div><h2>Hành vi hôm nay</h2><p th:text="${traffic.views + ' lượt truy cập · ' + traffic.conversion + '% chuyển đổi đặt bàn'}"></p></div>
+    <a class="staff-link" th:href="@{/admin/analytics(period='today')}">Phân tích hành vi</a>
+  </section>
   <div class="admin-dashboard-grid">
     <section class="staff-panel admin-revenue-chart">
       <div class="staff-panel-heading"><h2>Doanh thu theo thời gian</h2>

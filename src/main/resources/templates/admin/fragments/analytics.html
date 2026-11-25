@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"><body>
+<ol th:fragment="steps(rows)" class="analytics-steps">
+  <li th:each="step : ${rows}">
+    <span th:text="${step.label}"></span>
+    <strong th:text="${step.count}"></strong>
+    <small th:text="${step.rate + '%'}"></small>
+  </li>
+</ol>
+<section th:fragment="metrics(title,rows,primary,secondary)" class="staff-panel analytics-metrics">
+  <h2 th:text="${title}"></h2>
+  <p th:if="${rows.empty}" class="staff-empty">Chưa có dữ liệu.</p>
+  <table th:unless="${rows.empty}" class="analytics-table">
+    <thead><tr><th scope="col">Chỉ số</th><th scope="col" th:text="${primary}"></th>
+      <th scope="col" th:if="${secondary != null}" th:text="${secondary}"></th></tr></thead>
+    <tbody><tr th:each="row : ${rows}"><th scope="row" th:text="${row.label}"></th><td th:text="${row.count}"></td>
+      <td th:if="${secondary != null}" th:text="${row.secondary}"></td></tr></tbody>
+  </table>
+</section>
+</body></html>

@@ -116,7 +116,7 @@ public class SecurityConfig {
                 .requestMatchers("/login", "/oauth2/authorization/google", "/login/oauth2/code/google", "/login/sms/**",
                     "/login/recover/**", "/register", "/register/verify", "/staff/login")
                 .permitAll()
-                .requestMatchers("/chat/**").access(new org.springframework.security.web.access.expression.WebExpressionAuthorizationManager(
+                .requestMatchers("/chat/**", "/tracking/**").access(new org.springframework.security.web.access.expression.WebExpressionAuthorizationManager(
                     "isAnonymous() or hasRole('BUYER')"))
                 .requestMatchers(
                     "/", "/menu", "/about", "/contact", "/faq", "/reservations/**",

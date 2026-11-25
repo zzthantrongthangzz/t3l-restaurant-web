@@ -19,6 +19,8 @@
     <link rel="stylesheet" th:href="@{/css/fonts.css}" />
     <link rel="stylesheet" th:href="@{/css/typography.css}" />
     <script defer th:src="@{/js/navigation.js}"></script>
+    <script async sec:authorize="isAnonymous() or hasRole('BUYER')"
+            th:src="@{/js/tracking.js}" th:attr="data-endpoint=@{/tracking/}"></script>
   </th:block>
   <th:block th:fragment="assets">
     <link rel="stylesheet" th:href="@{/css/theme.css}" />

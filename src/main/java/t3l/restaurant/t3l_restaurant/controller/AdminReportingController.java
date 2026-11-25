@@ -15,6 +15,7 @@ import t3l.restaurant.t3l_restaurant.dto.AdminReportFilter;
 import t3l.restaurant.t3l_restaurant.repository.DiningOrderRepository;
 import t3l.restaurant.t3l_restaurant.service.AdminReportingService;
 import t3l.restaurant.t3l_restaurant.service.DiningOrderService;
+import t3l.restaurant.t3l_restaurant.service.TrackingReportService;
 
 @Controller
 @RequestMapping("/admin")
@@ -22,12 +23,14 @@ import t3l.restaurant.t3l_restaurant.service.DiningOrderService;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminReportingController {
   private final AdminReportingService reports;
+  private final TrackingReportService tracking;
   private final DiningOrderRepository invoices;
   private final DiningOrderService orders;
 
   @GetMapping({"", "/dashboard"})
   public String dashboard(@RequestParam(defaultValue = "day") String period, Model model) {
     model.addAttribute("dashboard", reports.dashboard(period));
+    model.addAttribute("traffic", tracking.summary(tracking.filter("today", null, null, "", "day")));
     return "admin/dashboard";
   }
 

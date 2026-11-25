@@ -15,7 +15,7 @@ public class PageFragments implements WebMvcConfigurer {
   private static final Set<String> FILTER_VIEWS = Set.of(
       "staff/reservations", "staff/tables", "account/panel",
       "admin/accounts", "admin/activity", "admin/contacts", "admin/inventory",
-      "admin/invoices", "admin/revenue", "admin/shifts");
+      "admin/invoices", "admin/revenue", "admin/shifts", "admin/analytics");
 
   @Override
   public void addInterceptors(InterceptorRegistry registry) {

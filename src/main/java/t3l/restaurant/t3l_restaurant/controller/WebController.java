@@ -46,6 +46,7 @@ import t3l.restaurant.t3l_restaurant.service.PreorderService;
 import t3l.restaurant.t3l_restaurant.service.PaymentIntentService;
 import t3l.restaurant.t3l_restaurant.service.PaymentVerificationService;
 import t3l.restaurant.t3l_restaurant.service.SepayProperties;
+import t3l.restaurant.t3l_restaurant.service.TrackingService;
 
 @Controller
 public class WebController {
@@ -67,6 +68,7 @@ public class WebController {
   private final PaymentIntentService paymentIntents;
   private final PaymentVerificationService paymentVerification;
   private final SepayProperties sepay;
+  private final TrackingService tracking;
 
   public WebController(
       DishRepository dishes,
@@ -78,7 +80,8 @@ public class WebController {
       CustomerAccountService customers, ReservationDrafts drafts, Validator validator,
       PublicTableBoardService publicTableBoard, DiningOrderRepository diningOrders, DiningPaymentRepository diningPayments,
       PreorderService preorders, PaymentIntentService paymentIntents,
-      PaymentVerificationService paymentVerification, SepayProperties sepay, DishService dishService, AdminInventoryService inventory) {
+      PaymentVerificationService paymentVerification, SepayProperties sepay, DishService dishService, AdminInventoryService inventory,
+      TrackingService tracking) {
     this.dishes = dishes;
     this.restaurantTables = restaurantTables;
     this.reservationService = reservationService;
@@ -97,6 +100,7 @@ public class WebController {
     this.paymentIntents = paymentIntents;
     this.paymentVerification = paymentVerification;
     this.sepay = sepay;
+    this.tracking = tracking;
   }
 
   @GetMapping("/")
@@ -254,6 +258,9 @@ public class WebController {
       draft = drafts.save(request.getSession(), form, customerId(customer), draft);
     }
     if (customer != null && !customers.needsBookingProfile(customer)) fillContact(form, customer);
+    if (choose || chooseTable || (tableId != null && form.getTableId() != null)) {
+      tracking.booking(request, authentication, tableId != null && form.getTableId() != null, null);
+    }
     model.addAttribute("form", form);
     return bookingPage(model, customer, draft, form, rules, board, !choose && !chooseTable && (resumed || form.getTableId() != null));
   }
@@ -311,7 +318,7 @@ public class WebController {
   @PostMapping("/reservations")
   public String reserve(
       @ModelAttribute("form") ReservationForm form, BindingResult result,
-      HttpSession session, Authentication authentication, @RequestParam(required = false) String draft,
+      HttpSession session, HttpServletRequest request, Authentication authentication, @RequestParam(required = false) String draft,
       @RequestParam(defaultValue = "false") boolean loginOnly, @RequestParam(defaultValue = "false") boolean choose,
       Model model, RedirectAttributes redirect) {
     UserAccount customer = customers.signedInCustomer(authentication);
@@ -360,6 +367,7 @@ public class WebController {
           return "redirect:/reservations/new";
         }
         Reservation saved = reservationService.create(form, customer);
+        tracking.booking(request, authentication, true, saved);
         drafts.remove(session, draft);
         confirmationAccess.grant(session, saved.getCode());
         redirect.addAttribute("code", saved.getCode());
@@ -486,8 +494,14 @@ public class WebController {
       if (order != null) model.addAttribute("payment", diningPayments.findByOrder_Id(order.getId()).orElse(null));
       model.addAttribute("depositRefundTerms", reservationService.depositRefundTerms());
       model.addAttribute("depositOverdue", reservation.hasExpiredDeposit(java.time.LocalDateTime.now(reservationSchedule.getClock())));
-      model.addAttribute("depositCheckout", paymentIntents.depositCheckout(reservation.getId()));
-      model.addAttribute("paymentStatus", paymentIntents.depositStatus(reservation));
+      var checkout = paymentIntents.depositCheckout(reservation.getId());
+      var paymentStatus = paymentIntents.depositStatus(reservation);
+      model.addAttribute("depositCheckout", checkout);
+      model.addAttribute("paymentStatus", paymentStatus);
+      if (!reservation.isDepositDemo() && "WAITING".equals(paymentStatus.status())
+          && (checkout != null && checkout.hasQr() || !paymentIntents.usesQr())) {
+        tracking.depositOpened(request, authentication, reservation.getId());
+      }
       model.addAttribute("demoEnabled", sepay.demoAllowed());
       model.addAttribute("qrPayments", paymentIntents.usesQr());
     }

@@ -31,6 +31,7 @@ import t3l.restaurant.t3l_restaurant.service.BookingException;
 import t3l.restaurant.t3l_restaurant.service.CustomerAccountService;
 import t3l.restaurant.t3l_restaurant.service.ReservationDrafts;
 import t3l.restaurant.t3l_restaurant.service.ReservationService;
+import t3l.restaurant.t3l_restaurant.service.TrackingService;
 
 @RestController
 @RequestMapping("/chat")
@@ -41,15 +42,17 @@ class ChatController {
   private final CustomerAccountService customers;
   private final ReservationDrafts drafts;
   private final ReservationService reservations;
+  private final TrackingService tracking;
 
   ChatController(ChatStore store, ChatSettings settings, ChatAssistant assistant, CustomerAccountService customers,
-      ReservationDrafts drafts, ReservationService reservations) {
+      ReservationDrafts drafts, ReservationService reservations, TrackingService tracking) {
     this.store = store;
     this.settings = settings;
     this.assistant = assistant;
     this.customers = customers;
     this.drafts = drafts;
     this.reservations = reservations;
+    this.tracking = tracking;
   }
 
   record Message(@NotBlank @Size(max = 800)
@@ -98,6 +101,7 @@ class ChatController {
           minute, settings.requestsPerMinute)) return limited();
       var result = assistant.reply(message.text().strip(), store.history(scope.id()), customer);
       store.append(scope.id(), result.turn());
+      tracking.chatMessage(request, auth);
       String token = result.reply().draft() ? UUID.randomUUID().toString() : null;
       session.setAttribute(DRAFT_READY, token == null ? null : new DraftReady(scope.id(), token));
       return response(HttpStatus.OK, new MessageView(result.reply(), token));

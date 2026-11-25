@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/fragments/shell :: head('Phân tích hành vi')}"></head>
+<body class="staff-page admin-page">
+<header th:replace="~{admin/fragments/shell :: header('analytics')}"></header>
+<main data-navigation data-navigation-fragment class="staff-main analytics-page"
+      th:with="filter=${report.filter}, total=${report.summary}">
+  <div class="staff-page-heading">
+    <div><h1>Phân tích hành vi</h1><p>Hành vi của khách đã đồng ý phân tích · Giờ Việt Nam</p></div>
+    <a class="staff-button is-outline" th:href="@{/admin/analytics.csv(period=${filter.preset},from=${filter.from},
+         to=${filter.to},actor=${filter.actor},grain=${filter.grain})}" download>Xuất CSV</a>
+  </div>
+  <section class="staff-panel">
+    <form class="staff-filters analytics-filters" th:action="@{/admin/analytics}" method="get" aria-label="Bộ lọc phân tích">
+      <label class="staff-field">Khoảng thời gian<select name="period">
+        <option value="today" th:selected="${filter.preset == 'today'}">Hôm nay</option>
+        <option value="7" th:selected="${filter.preset == '7'}">7 ngày gần nhất</option>
+        <option value="30" th:selected="${filter.preset == '30'}">30 ngày gần nhất</option>
+        <option value="custom" th:selected="${filter.preset == 'custom'}">Tùy chỉnh</option>
+      </select></label>
+      <label class="staff-field">Từ ngày<input type="date" name="from" th:value="${filter.from}" /></label>
+      <label class="staff-field">Đến ngày<input type="date" name="to" th:value="${filter.to}" /></label>
+      <label class="staff-field">Đối tượng<select name="actor">
+        <option value="" th:selected="${filter.actor == ''}">Tất cả</option>
+        <option value="GUEST" th:selected="${filter.actor == 'GUEST'}">Khách vãng lai</option>
+        <option value="BUYER" th:selected="${filter.actor == 'BUYER'}">Khách đã đăng nhập</option>
+      </select></label>
+      <label class="staff-field">Nhóm biểu đồ<select name="grain">
+        <option value="day" th:selected="${filter.grain == 'day'}">Ngày</option>
+        <option value="week" th:selected="${filter.grain == 'week'}">Tuần</option>
+        <option value="month" th:selected="${filter.grain == 'month'}">Tháng</option>
+      </select></label>
+      <button type="submit" class="staff-button">Áp dụng</button>
+    </form>
+  </section>
+  <section class="staff-metrics" aria-label="Chỉ số tổng quan">
+    <div class="staff-metric"><span>Tổng lượt truy cập</span><strong th:text="${total.views}"></strong></div>
+    <div class="staff-metric"><span>Khách duy nhất</span><strong th:text="${total.visitors}"></strong></div>
+    <div class="staff-metric"><span>Tổng phiên</span><strong th:text="${total.sessions}"></strong></div>
+    <div class="staff-metric"><span>Hoạt động trung bình / phiên</span><strong th:text="${total.activeAverage + ' giây'}"></strong></div>
+    <div class="staff-metric"><span>Chuyển đổi đặt bàn</span><strong th:text="${total.conversion + '%'}"></strong></div>
+    <div class="staff-metric"><span>Bỏ dở đặt bàn</span><strong th:text="${total.abandonment + '%'}"></strong></div>
+  </section>
+
+  <section class="staff-panel" aria-labelledby="traffic-title">
+    <h2 id="traffic-title">Lượt truy cập theo thời gian</h2>
+    <p class="staff-empty" th:if="${total.views == 0}">Chưa có lượt truy cập trong khoảng đã chọn.</p>
+    <figure th:if="${total.views > 0}" class="admin-chart">
+      <ol class="analytics-bars admin-bars" tabindex="0" aria-label="Lượt xem từng kỳ">
+        <li th:each="point : ${report.series}" th:title="${point.label + ' · ' + point.count + ' lượt'}">
+          <span class="admin-bar-track" aria-hidden="true"><span class="admin-bar" th:style="|--height:${100.0 * point.count / report.seriesMax}%|"></span></span>
+          <span th:text="${point.label.substring(5)}"></span><span class="admin-sr-only" th:text="${point.count + ' lượt'}"></span>
+        </li>
+      </ol>
+      <details class="staff-disclosure"><summary>Xem số liệu từng kỳ</summary>
+        <dl><div th:each="point : ${report.series}"><dt th:text="${point.label}"></dt><dd th:text="${point.count}"></dd></div></dl>
+      </details>
+    </figure>
+  </section>
+
+  <section class="staff-panel analytics-funnel" aria-labelledby="funnel-title">
+    <h2 id="funnel-title">Phễu chuyển đổi</h2>
+    <p class="staff-muted">Phễu chính đếm theo phiên có lượt xem. Hai nhánh cọc đếm theo yêu cầu đã gửi. Tỷ lệ mỗi bước tính trên bước liền trước.</p>
+    <ol class="analytics-steps" th:replace="~{admin/fragments/analytics :: steps(${report.funnel})}"></ol>
+    <div class="analytics-grid">
+      <section th:each="branch : ${report.branches}">
+        <h3 th:text="${branch.label}"></h3>
+        <ol th:replace="~{admin/fragments/analytics :: steps(${branch.steps})}"></ol>
+      </section>
+    </div>
+    <p class="staff-muted" th:text="${total.abandoned + ' lượt bắt đầu nhưng chưa gửi sau 30 phút không hoạt động. Các yêu cầu đã gửi và đang chờ xử lý vẫn thuộc nhóm đã gửi.'}"></p>
+  </section>
+
+  <div class="analytics-grid">
+    <section th:replace="~{admin/fragments/analytics :: metrics('Khách vãng lai và đã đăng nhập',${report.audiences},'Lượt xem',null)}"></section>
+    <section th:replace="~{admin/fragments/analytics :: metrics('Trang được truy cập nhiều',${report.pages},'Lượt xem','Giây hoạt động')}"></section>
+    <section th:replace="~{admin/fragments/analytics :: metrics('Top 10 món được quan tâm',${report.dishes},'Lượt thấy','Lượt mở chi tiết')}"></section>
+    <section th:replace="~{admin/fragments/analytics :: metrics('Top 10 từ khóa thực đơn',${report.searches},'Lượt tìm',null)}"></section>
+    <section th:replace="~{admin/fragments/analytics :: metrics('Danh mục được quan tâm',${report.categories},'Lượt chọn',null)}"></section>
+    <section th:replace="~{admin/fragments/analytics :: metrics('Khung giờ phổ biến',${report.hours},'Lượt xem',null)}"></section>
+    <section th:replace="~{admin/fragments/analytics :: metrics('Sử dụng AI ChatBox',${report.chat},'Lượt',null)}"></section>
+    <section th:replace="~{admin/fragments/analytics :: metrics('Giỏ món đặt trước',${report.cart},'Thao tác',null)}"></section>
+    <section th:replace="~{admin/fragments/analytics :: metrics('Sơ đồ bàn và thanh toán',${report.behaviors},'Lượt',null)}"></section>
+  </div>
+</main>
+
+</body>
+</html>

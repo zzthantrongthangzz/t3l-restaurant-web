@@ -155,3 +155,13 @@ mongosh "mongodb://localhost:27018/t3l_restaurant" database/mongodb/01_faq_seed.
 ```
 
 Maven/IntelliJ: mở thư mục gốc hoặc `pom.xml`, dùng JDK 21, sau đó chọn **Reload All Maven Projects**. Nếu Lombok chưa nhận getter/setter tự sinh, bật Annotation Processing trong cấu hình IntelliJ.
+
+## Phân tích hành vi khách hàng
+
+Quản trị viên xem báo cáo tại `/admin/analytics`. Với volume MySQL đã có, sao lưu database trước khi áp dụng `database/mysql/21_user_tracking.sql`. Docker Compose tự nạp migration khi khởi tạo volume mới.
+
+- Nút **Quyền riêng tư** cho phép khách bật hoặc tắt phân tích. Phiên dùng một cookie ngẫu nhiên có chữ ký, hết hạn sau 90 ngày. Khi đăng nhập BUYER, phiên đang hoạt động được liên kết với ID tài khoản.
+- Một lượt truy cập là một lượt xem trang. Phiên mới bắt đầu sau 30 phút không hoạt động. Thời gian hoạt động chỉ cộng khi trang hiển thị, có focus và còn tương tác gần đây.
+- Từ khóa được giới hạn ở các cụm khớp tên món hoặc danh mục đang bán. Báo cáo dùng tên trang chuẩn hóa, ID món và ID yêu cầu đặt bàn nội bộ. Nội dung trò chuyện, biểu mẫu cá nhân và dữ liệu chuyển khoản nằm ngoài dữ liệu tracking.
+- Phễu chính đếm theo phiên có lượt xem, với đối tượng xác định tại lúc bắt đầu đặt bàn. Hai nhánh cọc đếm theo yêu cầu đã gửi và dùng trạng thái đặt bàn, cọc từ MySQL. Lượt bỏ dở là lượt bắt đầu nhưng chưa gửi sau 30 phút không hoạt động. Yêu cầu đã gửi và đang chờ vẫn thuộc nhóm đã gửi.
+- Tác vụ lúc 03:35 theo giờ Việt Nam dọn dữ liệu tracking quá 90 ngày. Dùng `TRACKING_ENABLED=false` ở môi trường kiểm thử và khi chạy tự động hóa trên dữ liệu dùng chung. Phiên đã đăng nhập bằng SMS local và yêu cầu đặt bàn có khoản cọc DEMO được loại khỏi thống kê tương ứng.

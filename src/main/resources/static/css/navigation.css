@@ -74,3 +74,12 @@
 
 .navigation-error { margin: 12px 0; padding: 12px; border: 1px solid var(--error); border-radius: 8px; color: var(--error); }
 main[data-navigation]:focus { outline: none; }
+
+.tracking-choice { position: fixed; left: max(12px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom)); z-index: 19; color: var(--text); font: var(--text-caption)/1.45 var(--font-sans); }
+.tracking-panel { position: absolute; bottom: calc(100% + 8px); left: 0; width: min(310px, calc(100vw - 24px)); padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); }
+.tracking-panel > p { margin-block: 6px; }
+.tracking-panel .tracking-status { color: var(--text-muted); }
+.tracking-panel .tracking-status:empty { display: none; }
+.tracking-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.tracking-choice button { min-height: 34px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.tracking-actions button:hover, .tracking-toggle:hover { background: var(--accent-wash); }
