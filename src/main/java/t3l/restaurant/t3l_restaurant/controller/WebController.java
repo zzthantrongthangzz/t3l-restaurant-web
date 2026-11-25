@@ -69,6 +69,7 @@ public class WebController {
   private final PaymentVerificationService paymentVerification;
   private final SepayProperties sepay;
   private final TrackingService tracking;
+  private final t3l.restaurant.t3l_restaurant.service.VoucherService vouchers;
 
   public WebController(
       DishRepository dishes,
@@ -81,7 +82,7 @@ public class WebController {
       PublicTableBoardService publicTableBoard, DiningOrderRepository diningOrders, DiningPaymentRepository diningPayments,
       PreorderService preorders, PaymentIntentService paymentIntents,
       PaymentVerificationService paymentVerification, SepayProperties sepay, DishService dishService, AdminInventoryService inventory,
-      TrackingService tracking) {
+      TrackingService tracking,t3l.restaurant.t3l_restaurant.service.VoucherService vouchers) {
     this.dishes = dishes;
     this.restaurantTables = restaurantTables;
     this.reservationService = reservationService;
@@ -101,6 +102,7 @@ public class WebController {
     this.paymentVerification = paymentVerification;
     this.sepay = sepay;
     this.tracking = tracking;
+    this.vouchers=vouchers;
   }
 
   @GetMapping("/")
@@ -367,7 +369,8 @@ public class WebController {
           return "redirect:/reservations/new";
         }
         Reservation saved = reservationService.create(form, customer);
-        tracking.booking(request, authentication, true, saved);
+        tracking.booking(request, authentication, true, saved,
+            form.getVoucherCode() != null && !form.getVoucherCode().isBlank());
         drafts.remove(session, draft);
         confirmationAccess.grant(session, saved.getCode());
         redirect.addAttribute("code", saved.getCode());
@@ -469,6 +472,8 @@ public class WebController {
       model.addAttribute("pickerPaid", java.math.BigDecimal.ZERO);
       model.addAttribute("depositRefundTerms", reservationService.depositRefundTerms());
       model.addAttribute("preorderCards", preorders.picker(form, null));
+      if (customer!=null) model.addAttribute("voucherOffers",vouchers.offers(customer.getId(),false));
+      model.addAttribute("selectedVoucher",form.getVoucherCode());
     }
     return "web/table-plan";
   }

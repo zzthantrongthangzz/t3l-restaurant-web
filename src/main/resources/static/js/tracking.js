@@ -107,6 +107,7 @@
     lastInteraction = lastTick = performance.now();
     if (choice !== 'allowed' || !page) return;
     record('PAGE_VIEW');
+    if (page === 'vouchers') record('VOUCHER_VIEW');
     if (page === 'booking' && main?.querySelector('.table-plan-grid')) record('TABLE_MAP_VIEW');
     if ('IntersectionObserver' in window) {
       observer = new IntersectionObserver(entries => {
@@ -220,6 +221,7 @@
   document.addEventListener('change', event => {
     if (event.target.matches('[data-preorder-category]') && event.target.value) record('CATEGORY', { term: event.target.value });
   });
+  document.addEventListener('t3l:voucher-applied', () => record('VOUCHER_QUOTE'));
   document.addEventListener('t3l:cart', event => record(event.detail.type, {
     dishId: Number(event.detail.id), quantity: event.detail.quantity
   }));

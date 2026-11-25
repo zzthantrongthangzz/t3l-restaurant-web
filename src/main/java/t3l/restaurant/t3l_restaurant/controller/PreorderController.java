@@ -32,6 +32,7 @@ public class PreorderController {
   private final ReservationService bookings;
   private final ReservationManagementService management;
   private final PreorderService preorders;
+  private final t3l.restaurant.t3l_restaurant.service.VoucherService vouchers;
 
   @ModelAttribute
   void privateResponse(HttpServletResponse response) {
@@ -77,12 +78,17 @@ public class PreorderController {
       form = new PreorderForm();
       form.setPreorderQuantities(current.quantities());
       form.setPreorderNote(current.note());
+      form.setVoucherCode(current.voucherCode());
       model.addAttribute("preorderForm", form);
     }
     var blocked = management.preorderBlockedReason(booking);
     if (booking.getTable() == null) blocked = "Chỉ chọn món khi đặt bàn đã có bàn được phân.";
     model.addAttribute("booking", booking);
     model.addAttribute("currentPreorder", current);
+    model.addAttribute("currentOrder",order);
+    model.addAttribute("voucherOffers",vouchers.offers(booking.getCustomerId(),false));
+    model.addAttribute("selectedVoucher",form.getVoucherCode());
+    model.addAttribute("voucherBookingCode",booking.getCode());
     if (order != null && order.isLegacyCustomerOrder()) model.addAttribute("legacyOrder", order);
     model.addAttribute("preorderHistory", management.history(booking.getId()).stream()
         .filter(request -> "PREORDER".equals(request.getRequestType())).toList());

@@ -12,7 +12,7 @@
   <div class="staff-stack">
     <section class="staff-panel">
       <div class="staff-panel-heading"><h2>Chi tiết món</h2><strong class="staff-total">
-        <span th:replace="~{admin/fragments/shell :: money(${order.totalAmount ?: order.currentTotal})}"></span></strong></div>
+        <span th:replace="~{admin/fragments/shell :: money(${order.totalAmount ?: order.netTotal})}"></span></strong></div>
       <div class="staff-table-wrap" th:unless="${order.items.isEmpty()}"><table class="staff-table"><thead><tr><th>Món</th><th>Số lượng</th><th>Đơn giá tại thời điểm gọi</th><th>Thành tiền</th></tr></thead>
         <tbody><tr th:each="item : ${order.items}" th:classappend="${item.cancelled ? 'staff-cancelled' : ''}">
           <td data-label="Món"><strong th:text="${item.dishName}"></strong><small th:if="${item.note != null}" th:text="${'Ghi chú: ' + item.note}"></small><small th:if="${item.cancelled}">Đã hủy</small></td>

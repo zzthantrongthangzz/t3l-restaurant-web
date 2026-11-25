@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/fragments/shell :: head('Voucher & khuyến mãi')}"></head>
+<body class="staff-page admin-page">
+<header th:replace="~{admin/fragments/shell :: header('vouchers')}"></header>
+<main data-navigation data-navigation-fragment class="staff-main">
+  <div class="staff-page-heading"><div><h1>Voucher &amp; khuyến mãi</h1><p>Quản lý mã giảm và lượt sử dụng.</p></div>
+    <a class="staff-button" th:href="@{/admin/vouchers/new}">Tạo voucher</a></div>
+  <div th:replace="~{admin/fragments/shell :: messages}"></div>
+  <section class="staff-panel">
+    <form class="staff-filters" method="get" th:action="@{/admin/vouchers}">
+      <label class="staff-field">Mã hoặc tên<input name="q" maxlength="120" th:value="${q}" /></label>
+      <label class="staff-field">Trạng thái<select name="status">
+        <option value="" th:selected="${status == ''}">Tất cả</option>
+        <option value="ACTIVE" th:selected="${status == 'ACTIVE'}">Đang hoạt động</option>
+        <option value="SCHEDULED" th:selected="${status == 'SCHEDULED'}">Sắp bắt đầu</option>
+        <option value="EXPIRED" th:selected="${status == 'EXPIRED'}">Hết hạn</option>
+        <option value="DISABLED" th:selected="${status == 'DISABLED'}">Đã tắt</option>
+      </select></label>
+      <button class="staff-button" type="submit">Lọc</button>
+    </form>
+    <p class="staff-empty" th:if="${rows.empty}">Chưa có voucher phù hợp.</p>
+    <div class="staff-table-wrap" th:unless="${rows.empty}">
+      <table class="staff-table">
+        <thead><tr><th scope="col">Mã</th><th scope="col">Ưu đãi</th><th scope="col">Trạng thái</th>
+          <th scope="col">Đã dùng</th><th scope="col">Còn lại</th><th scope="col">Đã giảm</th><th scope="col">Thao tác</th></tr></thead>
+        <tbody><tr th:each="row : ${rows}" th:with="v=${row.voucher}">
+          <td data-label="Mã"><strong th:text="${v.code}"></strong><small th:text="${v.title}"></small></td>
+          <td data-label="Ưu đãi"><span th:text="${v.offerLabel}"></span><small th:text="${v.publicOffer ? 'Công khai' : 'Nhập mã riêng'}"></small></td>
+          <td data-label="Trạng thái" th:switch="${row.state}">
+            <span th:case="'ACTIVE'" class="staff-badge">Đang hoạt động</span><span th:case="'SCHEDULED'">Sắp bắt đầu</span>
+            <span th:case="'EXPIRED'">Hết hạn</span><span th:case="*">Đã tắt</span></td>
+          <td data-label="Đã dùng" th:text="${row.used}"></td>
+          <td data-label="Còn lại" th:text="${row.remaining == null ? 'Không giới hạn' : row.remaining}"></td>
+          <td data-label="Đã giảm"><span th:replace="~{admin/fragments/shell :: money(${row.discount})}"></span></td>
+          <td data-label="Thao tác">
+            <div class="staff-actions">
+              <a class="staff-link" th:href="@{/admin/vouchers/{id}(id=${v.id})}">Sửa và xem lịch sử</a>
+              <form method="post" data-partial-submit th:action="@{/admin/vouchers/{id}/status(id=${v.id})}">
+                <button class="staff-link-button" name="enabled" th:value="${!v.enabled}" th:text="${v.enabled ? 'Vô hiệu hóa' : 'Kích hoạt'}"></button>
+              </form>
+            </div>
+          </td>
+        </tr></tbody>
+      </table>
+    </div>
+  </section>
+</main></body></html>

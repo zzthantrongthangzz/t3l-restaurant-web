@@ -28,11 +28,14 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import t3l.restaurant.t3l_restaurant.dto.ReservationCancellationForm;
 import t3l.restaurant.t3l_restaurant.dto.ReservationForm;
 import t3l.restaurant.t3l_restaurant.dto.ReservationUpdateForm;
+import t3l.restaurant.t3l_restaurant.dto.VoucherForm;
+import t3l.restaurant.t3l_restaurant.entity.PaymentIntent;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
 import t3l.restaurant.t3l_restaurant.entity.ReservationEmail;
 import t3l.restaurant.t3l_restaurant.repository.ReservationRepository;
 import t3l.restaurant.t3l_restaurant.repository.UserAccountRepository;
+import t3l.restaurant.t3l_restaurant.repository.PaymentIntentRepository;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
@@ -63,6 +66,8 @@ class StaffOperationsIntegrationTest {
   @Autowired ReservationManagementService changes;
   @Autowired UserAccountRepository accounts;
   @Autowired PreorderService preorders;
+  @Autowired VoucherService vouchers;
+  @Autowired PaymentIntentRepository paymentIntents;
   private Long tableOne;
   private Long tableTwo;
   private Long smallTable;
@@ -88,7 +93,7 @@ class StaffOperationsIntegrationTest {
   @BeforeEach
   void prepare() {
     clock.at(TODAY.atTime(11, 0));
-    for (String table : List.of("dining_payments", "dining_order_items", "dining_orders",
+    for (String table : List.of("payment_intents", "voucher_usages", "vouchers", "dining_payments", "dining_order_items", "dining_orders",
         "reservation_events", "reservation_emails", "reservation_change_requests", "reservations",
         "cash_sales", "staff_shifts", "restaurant_tables", "dishes", "payment_reference_claims")) {
       jdbc.update("delete from " + table);
@@ -452,6 +457,158 @@ class StaffOperationsIntegrationTest {
 
   private Reservation preorderBooking(UserAccount buyer, String time, int quantity) {
     return bookings.create(preorderForm(time, quantity), buyer);
+  }
+
+  private VoucherForm voucher(String code, String type, String amount) {
+    VoucherForm form = new VoucherForm();
+    form.setCode(code);
+    form.setTitle("Voucher kiểm thử");
+    form.setDiscountType(type);
+    form.setDiscountValue(new BigDecimal(amount));
+    form.setStartsAt(TODAY.atStartOfDay());
+    form.setEndsAt(TODAY.plusDays(1).atStartOfDay());
+    return form;
+  }
+
+  @Test
+  void appliesCanonicalPercentagePricePreservesSnapshotAndReleasesCancelledBooking() {
+    var buyer = preorderBuyer();
+    var offer = voucher("CAP20", "PERCENT", "20");
+    offer.setMaximumDiscount(new BigDecimal("60000"));
+    offer.setMinimumTotal(new BigDecimal("400000"));
+    offer.setCustomerLimit(1);
+    vouchers.save(null, offer);
+    var tooSmall = preorderForm("12:00", 1);
+    tooSmall.setVoucherCode("CAP20");
+    assertThrows(BookingException.class, () -> bookings.create(tooSmall, buyer));
+    var form = preorderForm("12:00", 2);
+    form.setVoucherCode("cap20");
+    var booking = bookings.create(form, buyer);
+    assertEquals(new BigDecimal("308000"), booking.getDepositAmount());
+    assertEquals(new BigDecimal("60000"), preorders.order(booking.getId()).getVoucherDiscount());
+    var repeated = preorderForm("14:00", 2);
+    repeated.setVoucherCode("CAP20");
+    assertTrue(assertThrows(BookingException.class, () -> bookings.create(repeated, buyer)).getMessage().contains("Khách"));
+    long offerId = id("select id from vouchers");
+    offer.setDiscountValue(new BigDecimal("95"));
+    offer.setEndsAt(TODAY.atTime(11, 1));
+    vouchers.save(offerId, offer);
+    vouchers.setEnabled(offerId, false);
+    clock.at(TODAY.atTime(11, 5));
+    var order = preorders.order(booking.getId());
+    assertEquals(new BigDecimal("60000"), vouchers.preview("CAP20", new BigDecimal("500000"), buyer.getId(), booking, order));
+    assertTrue(assertThrows(BookingException.class, () -> bookings.create(repeated, buyer)).getMessage().contains("vô hiệu"));
+    vouchers.setEnabled(offerId, true);
+    assertTrue(assertThrows(BookingException.class, () -> bookings.create(repeated, buyer)).getMessage().contains("hết hạn"));
+    assertDoesNotThrow(() -> step(booking.getId(), "CANCELLED").andExpect(flash().attributeExists("notice")));
+    assertEquals(1L, id("select count(*) from voucher_usages where status='RELEASED' and active_order_id is null"));
+  }
+
+  @Test
+  void serializesLastVoucherSlotAcrossBuyers() throws Exception {
+    var first = preorderBuyer();
+    var second = accounts.findByUsername("voucher-buyer-two").orElseGet(() -> accounts.save(
+        UserAccount.customer("Khách khác", "voucher-two@example.test", "0988888888", "voucher-buyer-two", "unused")));
+    var offer = voucher("LAST", "FIXED", "50000");
+    offer.setTotalLimit(1);
+    vouchers.save(null, offer);
+    var a = preorderForm("12:00", 2);
+    var b = preorderForm("12:00", 2);
+    b.setTableId(tableTwo);
+    a.setVoucherCode("LAST");
+    b.setVoucherCode("LAST");
+    var start = new CountDownLatch(1);
+    try (var executor = Executors.newFixedThreadPool(2)) {
+      var results = List.of(executor.submit(() -> attemptVoucher(start, a, first)),
+          executor.submit(() -> attemptVoucher(start, b, second)));
+      start.countDown();
+      assertEquals(1, results.stream().mapToInt(result -> {
+        try { return result.get(10, TimeUnit.SECONDS); }
+        catch (Exception error) { throw new AssertionError(error); }
+      }).sum());
+    }
+    assertEquals(1L, id("select count(*) from voucher_usages where status='HELD'"));
+  }
+
+  private int attemptVoucher(CountDownLatch start, ReservationForm form, UserAccount buyer) throws InterruptedException {
+    start.await();
+    try {
+      bookings.create(form, buyer);
+      return 1;
+    } catch (BookingException error) {
+      assertTrue(error.getMessage().contains("hết lượt"), error.getMessage());
+      return 0;
+    }
+  }
+
+  @Test
+  void protectsPendingInvoiceAndSettlesDiscountedBillFromDepositWithRefund() throws Exception {
+    vouchers.save(null, voucher("LESS100", "FIXED", "100000"));
+    jdbc.update("update restaurant_tables set table_type='Phòng VIP' where id=?", tableOne);
+    long booking = depositGuest(tableOne, "14:00", "QA-VOUCHER-CREDIT");
+    clock.at(TODAY.atTime(13, 45));
+    staff(post("/staff/shift/open").param("openingCash", "0")).andExpect(flash().attributeExists("notice"));
+    step(booking, "CHECKED_IN").andExpect(flash().attributeExists("notice"));
+    step(booking, "SEATED").andExpect(flash().attributeExists("notice"));
+    String order = "/staff/orders/" + booking;
+    staff(post(order + "/open")).andExpect(flash().attributeExists("notice"));
+    staff(post(order + "/items").param("dishId", dishId.toString()).param("quantity", "1")).andExpect(flash().attributeExists("notice"));
+    staff(post(order + "/voucher").param("code", "LESS100").param("operation", "apply").param("discount", "250000"))
+        .andExpect(flash().attributeExists("notice"));
+    assertEquals(100000L, id("select voucher_discount from dining_orders"));
+    staff(post(order + "/voucher").param("code", "LESS100").param("operation", "apply")).andExpect(flash().attributeExists("error"));
+    staff(post(order + "/finalize")).andExpect(flash().attributeExists("notice"));
+    long orderId = id("select id from dining_orders");
+    paymentIntents.save(new PaymentIntent("QAVOUCHER1", PaymentIntent.INVOICE, booking, orderId,
+        new BigDecimal("150000"), TODAY.atTime(13, 45), TODAY.atTime(14, 0)));
+    staff(post(order + "/voucher").param("operation", "remove")).andExpect(flash().attributeExists("error"));
+    assertEquals(150000L, id("select amount from payment_intents"));
+    clock.at(TODAY.atTime(14, 1));
+    staff(post(order + "/pay").param("method", "DEPOSIT").param("received", "true")).andExpect(flash().attributeExists("notice"));
+    assertEquals(150000L, id("select deposit_applied from dining_payments"));
+    assertEquals(1L, id("select count(*) from voucher_usages where status='USED' and demo=false"));
+    assertEquals(new BigDecimal("350000"), reservations.findOneById(booking).orElseThrow().getRefundRemaining());
+    staff(post("/staff/reservations/" + booking + "/deposit/refund").param("amount", "350000").param("reference", "QA-VOUCHER-REFUND"))
+        .andExpect(flash().attributeExists("notice"));
+  }
+
+  @Test
+  void releasesVoucherForUnavailableDishOnlyAfterTheDepositQrExpires() throws Exception {
+    var buyer = preorderBuyer();
+    var offer = voucher("LOWER", "FIXED", "50000");
+    offer.setMinimumTotal(new BigDecimal("400000"));
+    vouchers.save(null, offer);
+    var form = preorderForm("13:00", 2);
+    form.setVoucherCode("LOWER");
+    var booking = bookings.create(form, buyer);
+    assertEquals(new BigDecimal("315000"), booking.getDepositAmount());
+    paymentIntents.save(new PaymentIntent("QAVOUCHER2", PaymentIntent.DEPOSIT, booking.getId(), null,
+        booking.getDepositAmount(), TODAY.atTime(11, 0), TODAY.atTime(11, 15)));
+    jdbc.update("update dishes set available=false where id=?", dishId);
+    String action = "/staff/reservations/" + booking.getId() + "/preorder/unavailable";
+    staff(post(action)).andExpect(flash().attributeExists("error"));
+    assertEquals(1L, id("select count(*) from voucher_usages where status='HELD'"));
+    assertEquals(315000L, id("select amount from payment_intents"));
+    clock.at(TODAY.atTime(11, 16));
+    staff(post(action)).andExpect(flash().attributeExists("notice"));
+    assertEquals(1L, id("select count(*) from voucher_usages where status='RELEASED'"));
+    assertEquals(BigDecimal.ZERO, reservations.findOneById(booking.getId()).orElseThrow().getDepositAmount());
+    assertEquals(1L, id("select count(*) from reservation_events where description like 'Voucher đã được gỡ%'"));
+  }
+
+  @Test
+  void limitsAdminVoucherAndBuyerQuoteToTheirRoles() throws Exception {
+    mvc.perform(get("/admin/vouchers").with(user("staff").roles("STAFF"))).andExpect(status().isForbidden());
+    mvc.perform(get("/admin/vouchers/new").with(user("admin").roles("ADMIN"))).andExpect(status().isOk());
+    mvc.perform(post("/account/vouchers/quote").with(user("staff").roles("STAFF")).with(csrf()))
+        .andExpect(status().isForbidden());
+    var buyer = preorderBuyer();
+    vouchers.save(null, voucher("SAFEQUOTE", "FIXED", "50000"));
+    mvc.perform(post("/account/vouchers/quote").with(user(buyer.getUsername()).roles("BUYER")).with(csrf())
+        .param("tableId", tableOne.toString()).param("preorderQuantities[" + dishId + "]", "2")
+        .param("voucherCode", "SAFEQUOTE").param("discount", "500000"))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.discount").value("50000"))
+        .andExpect(jsonPath("$.deposit").value("315000")).andExpect(jsonPath("$.balance").value("135000"));
   }
 
   private ReservationForm preorderForm(String time, int quantity) {

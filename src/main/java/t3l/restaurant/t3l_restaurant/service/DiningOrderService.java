@@ -41,10 +41,11 @@ public class DiningOrderService {
   private final ReservationEmailQueue emails;
   private final PaymentReferences references;
   private final PaymentIntentService qrPayments;
+  private final VoucherService vouchers;
 
   public record OrderView(Reservation booking, DiningOrder order, DiningPayment payment) {
     public BigDecimal getTotal() {
-      return order == null ? BigDecimal.ZERO : order.getTotalAmount() == null ? order.getCurrentTotal() : order.getTotalAmount();
+      return order == null ? BigDecimal.ZERO : order.getTotalAmount() == null ? order.getNetTotal() : order.getTotalAmount();
     }
     public BigDecimal getDepositApplied() { return payment == null ? booking.getAvailableDeposit().min(getTotal()) : payment.getDepositApplied(); }
     public BigDecimal getBalance() { return payment == null ? getTotal().subtract(getDepositApplied()) : BigDecimal.ZERO; }
@@ -90,10 +91,11 @@ public class DiningOrderService {
     Dish dish = dishes.findSellable(dishId)
         .orElseThrow(() -> new BookingException(null, "Món không còn được bán."));
     order.addItem(dish, quantity);
+    vouchers.reprice(order,order.getCurrentTotal());
   }
 
   @Transactional(isolation = Isolation.READ_COMMITTED)
-  public void adjustItem(Long reservationId, Long itemId, Integer quantity, boolean cancel) {
+  public boolean adjustItem(Long reservationId, Long itemId, Integer quantity, boolean cancel) {
     DiningOrder order = draft(reservationId);
     DiningOrderItem item = order.getItems().stream().filter(line -> line.getId().equals(itemId)).findFirst()
         .orElseThrow(() -> new BookingException(null, "Không tìm thấy món trong hóa đơn này."));
@@ -103,6 +105,25 @@ public class DiningOrderService {
       validateQuantity(quantity);
       item.changeQuantity(quantity);
     }
+    return vouchers.reprice(order,order.getCurrentTotal());
+  }
+
+  @Transactional(isolation=Isolation.READ_COMMITTED)
+  public void voucher(Long reservationId, String code, String operation) {
+    Reservation booking=lockBooking(reservationId);
+    requireSeated(booking);
+    DiningOrder order=requireOrder(reservationId);
+    if (!List.of(DiningOrder.DRAFT,DiningOrder.FINALIZED).contains(order.getStatus()) || payments.findByOrder_Id(order.getId()).isPresent())
+      throw new BookingException("voucherCode","Hóa đơn đã đóng hoặc đã thanh toán.");
+    if (!List.of("apply","replace","remove").contains(operation))
+      throw new BookingException("voucherCode","Thao tác voucher không hợp lệ.");
+    if ("apply".equals(operation) && order.getVoucherCode()!=null)
+      throw new BookingException("voucherCode","Hóa đơn đã giữ một voucher. Chọn thay mã hoặc gỡ mã hiện tại.");
+    if (!"remove".equals(operation) && (code==null || code.isBlank()))
+      throw new BookingException("voucherCode","Hãy nhập mã voucher.");
+    vouchers.guardInvoice(order);
+    vouchers.change(order,booking,"remove".equals(operation) ? "" : code,order.getCurrentTotal());
+    if (DiningOrder.FINALIZED.equals(order.getStatus())) order.finalizeOrder(now());
   }
 
   @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -150,6 +171,7 @@ public class DiningOrderService {
     payments.saveAndFlush(new DiningPayment(order, shift, method, transferReference, applied, actor, paidAt));
     booking.settleDeposit(applied, paidAt);
     if (applied.signum() > 0) markDepositIntentApplied(reservationId);
+    vouchers.consume(order,booking.isDepositDemo());
     order.markPaid();
     bookingService.finishService(booking, actor, now());
     if (applied.signum() > 0) emails.enqueue(booking,
@@ -191,6 +213,7 @@ public class DiningOrderService {
     if (applied.signum() > 0) markDepositIntentApplied(reservationId);
     order.markPaid();
     bookingService.finishService(booking, actor, now());
+    vouchers.consume(order,intent.isDemo() || booking.isDepositDemo());
     intent.markApplied(now());
     if (applied.signum() > 0) emails.enqueue(booking,
         t3l.restaurant.t3l_restaurant.entity.ReservationEmail.Kind.DEPOSIT_APPLIED, null,

@@ -32,5 +32,6 @@
     </div>
     <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
     <th:block th:replace="~{web/fragments/restaurant-shell :: navigation}"></th:block>
+    <script th:if="${section == 'vouchers'}" data-page-script defer th:src="@{/js/voucher-copy.js}"></script>
   </body>
 </html>

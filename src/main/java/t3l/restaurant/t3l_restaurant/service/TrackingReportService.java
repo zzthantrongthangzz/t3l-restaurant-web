@@ -102,7 +102,14 @@ public class TrackingReportService {
         params, (rs,row) -> new Metric("%02d:00".formatted(rs.getInt(1)),rs.getLong(2)));
     var chat = eventCounts(params, "('CHAT_OPEN','CHAT_MESSAGE')");
     var cart = eventCounts(params, "('CART_ADD','CART_REMOVE','CART_QUANTITY')");
-    var behaviors = new ArrayList<>(eventCounts(params, "('TABLE_MAP_VIEW')"));
+    var behaviors = new ArrayList<>(eventCounts(params, "('TABLE_MAP_VIEW','VOUCHER_VIEW','VOUCHER_QUOTE','VOUCHER_APPLY')"));
+    Long voucherUsed=jdbc.queryForObject("""
+        SELECT COUNT(*) FROM voucher_usages u JOIN dining_orders o ON o.id=u.order_id
+        WHERE u.status='USED' AND u.demo=FALSE AND u.closed_at>=:start AND u.closed_at<:end
+          AND EXISTS (SELECT 1 FROM tracking_events e WHERE e.reservation_id=o.reservation_id
+            AND e.event_type='BOOKING_SUBMITTED' AND (:actor='' OR e.actor_kind=:actor))
+        """,params,Long.class);
+    behaviors.add(new Metric("Voucher đã dùng",voucherUsed));
     var flows = cohort.flows();
     behaviors.add(new Metric("Bắt đầu thanh toán cọc", flows.stream().filter(f -> f.paymentStarted() || f.paid()).count()));
     behaviors.add(new Metric("Hoàn tất thanh toán cọc", flows.stream().filter(Flow::paid).count()));
@@ -215,6 +222,9 @@ public class TrackingReportService {
       case "invoices" -> "Hóa đơn";
       case "preorder" -> "Đặt món trước";
       case "TABLE_MAP_VIEW" -> "Xem sơ đồ bàn";
+      case "VOUCHER_VIEW" -> "Xem ví voucher";
+      case "VOUCHER_QUOTE" -> "Kiểm tra mã voucher thành công";
+      case "VOUCHER_APPLY" -> "Áp dụng voucher vào đặt món";
       case "CART_ADD" -> "Thêm món";
       case "CART_REMOVE" -> "Xóa món";
       case "CART_QUANTITY" -> "Đổi số lượng";

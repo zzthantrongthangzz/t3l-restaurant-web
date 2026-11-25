@@ -26,6 +26,7 @@
           <ul><li th:each="line : ${currentPreorder.lines}"
               th:text="${line.name + ' × ' + line.quantity + ' · ' + #numbers.formatInteger(line.price,1,'POINT') + ' đ/phần'}"></li></ul>
           <p th:if="${currentPreorder.note != null}" th:text="${'Ghi chú cho bếp: ' + currentPreorder.note}"></p>
+          <p th:if="${currentOrder != null and currentOrder.voucherCode != null}" th:text="${'Voucher ' + currentOrder.voucherCode + ' · giảm ' + #numbers.formatInteger(currentOrder.voucherDiscount,1,'POINT') + ' đ'}"></p>
           <p th:if="${legacyOrder == null}" th:text="${'Tổng tiền món: ' + #numbers.formatInteger(currentPreorder.total(),1,'POINT') + ' đ'}"></p>
           <div th:if="${legacyOrder != null}">
             <p>Chi tiết đơn cũ</p>

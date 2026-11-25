@@ -28,12 +28,14 @@ public class PreorderService {
   private final DishRepository dishes;
   private final DiningOrderRepository orders;
   private final ObjectMapper json;
+  private final VoucherService vouchers;
 
   public record Line(Long dishId, String name, BigDecimal price, int quantity) {
     public BigDecimal amount() { return price.multiply(BigDecimal.valueOf(quantity)); }
   }
 
-  public record Quote(List<Line> lines, String note) {
+  public record Quote(List<Line> lines, String note, String voucherCode) {
+    public Quote(List<Line> lines, String note) { this(lines,note,null); }
     public BigDecimal total() { return lines.stream().map(Line::amount).reduce(BigDecimal.ZERO, BigDecimal::add); }
     public Map<Long, Integer> quantities() {
       var quantities = new TreeMap<Long, Integer>();
@@ -74,7 +76,7 @@ public class PreorderService {
     if (form.getPreorderExpectedTotal() != null && form.getPreorderExpectedTotal().compareTo(quote.total()) != 0) {
       throw new BookingException("preorderQuantities", "Giá món đã thay đổi. Vui lòng xem lại giỏ món và xác nhận tổng mới.");
     }
-    return quote;
+    return new Quote(quote.lines(),quote.note(),form.getVoucherCode());
   }
 
   Quote quote(Map<Long, Integer> quantities, String note, DiningOrder order) {
@@ -105,7 +107,7 @@ public class PreorderService {
     order.getPreorderItems().stream()
         .map(item -> new Line(item.getDishId(), item.getDishName(), item.getUnitPrice(), item.getQuantity()))
         .sorted(java.util.Comparator.comparing(Line::dishId)).forEach(line -> append(lines, line));
-    return new Quote(List.copyOf(lines), order.getPreorderNote());
+    return new Quote(List.copyOf(lines), order.getPreorderNote(),order.getVoucherCode());
   }
 
   private void append(List<Line> lines, Line next) {
@@ -148,8 +150,11 @@ public class PreorderService {
 
   public DiningOrder order(Long bookingId) { return orders.findByReservation_Id(bookingId).orElse(null); }
 
-  void apply(Reservation booking, DiningOrder order, Quote quote, LocalDateTime now) {
-    if (order == null && quote.lines().isEmpty()) return;
+  DiningOrder apply(Reservation booking, DiningOrder order, Quote quote, LocalDateTime now) {
+    if (order == null && quote.lines().isEmpty()) {
+      if (quote.voucherCode()!=null && !quote.voucherCode().isBlank()) throw new BookingException("voucherCode","Hãy chọn món trước khi áp dụng voucher.");
+      return null;
+    }
     if (order == null) order = new DiningOrder(booking, "CUSTOMER", now);
     if (!DiningOrder.DRAFT.equals(order.getStatus())) throw new BookingException(null, "Đơn món đã đóng hoặc đã chốt.");
     var previous = new ArrayList<>(order.getPreorderItems());
@@ -162,7 +167,9 @@ public class PreorderService {
     }
     previous.forEach(DiningOrderItem::cancel);
     order.setPreorderNote(quote.note());
-    orders.save(order);
+    order=orders.save(order);
+    if (quote.voucherCode()!=null) vouchers.change(order,booking,quote.voucherCode(),quote.total());
+    return order;
   }
 
   public Set<Long> unavailable(DiningOrder order) {
@@ -182,7 +189,10 @@ public class PreorderService {
 
   void close(Long bookingId) {
     var order = order(bookingId);
-    if (order != null && DiningOrder.DRAFT.equals(order.getStatus())) order.voidEmptyDraft();
+    if (order != null && DiningOrder.DRAFT.equals(order.getStatus())) {
+      vouchers.release(order);
+      order.voidEmptyDraft();
+    }
   }
 
   String encode(Quote quote) {

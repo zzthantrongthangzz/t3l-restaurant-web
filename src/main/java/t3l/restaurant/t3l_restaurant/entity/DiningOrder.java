@@ -48,6 +48,12 @@ public class DiningOrder {
   @Column(name = "preorder_note", length = 500)
   private String preorderNote;
 
+  @Column(name="voucher_code",length=32)
+  private String voucherCode;
+
+  @Column(name="voucher_discount",precision=16,scale=0)
+  private BigDecimal voucherDiscount;
+
   public DiningOrder(Reservation reservation, String openedBy, LocalDateTime openedAt) {
     this.reservation = reservation;
     this.openedBy = openedBy;
@@ -89,12 +95,21 @@ public class DiningOrder {
         .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
+  public BigDecimal getVoucherDiscount() { return voucherDiscount==null ? BigDecimal.ZERO : voucherDiscount; }
+
+  public BigDecimal getNetTotal() { return getCurrentTotal().subtract(getVoucherDiscount()).max(BigDecimal.ZERO); }
+
+  public void setVoucher(String code, BigDecimal amount) {
+    voucherCode=code;
+    voucherDiscount=amount;
+  }
+
   public boolean hasItems() {
     return items.stream().anyMatch(item -> !item.isCancelled());
   }
 
   public void finalizeOrder(LocalDateTime now) {
-    totalAmount = getCurrentTotal();
+    totalAmount = getNetTotal();
     finalizedAt = now;
     status = FINALIZED;
   }

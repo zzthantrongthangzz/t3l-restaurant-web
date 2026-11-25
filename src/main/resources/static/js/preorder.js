@@ -4,6 +4,11 @@ window.t3lPage.register(({ signal, state }) => {
     const format = (amount) => currency.format(amount) + ' đ';
     const minimum = BigInt(picker.dataset.minimum);
     const paid = BigInt(picker.dataset.paid);
+    const voucher = picker.querySelector('[data-voucher-url]');
+    const voucherCode = voucher?.querySelector('[data-voucher-code]');
+    const voucherMessage = voucher?.querySelector('[data-voucher-message]');
+    let quoteRequest;
+    let quoteTimer;
     const search = picker.querySelector('[data-preorder-search]');
     const category = picker.querySelector('[data-preorder-category]');
     const cart = picker.querySelector('[data-preorder-lines]');
@@ -66,6 +71,53 @@ window.t3lPage.register(({ signal, state }) => {
       return total + item.price * BigInt(remaining);
     }
 
+    function showTotals(total, discount, net, deposit, topup, balance) {
+      picker.querySelector('[data-preorder-total]').textContent = format(total);
+      picker.querySelector('[data-preorder-deposit]').textContent = format(deposit);
+      picker.querySelector('[data-preorder-balance]').textContent = format(balance);
+      const extra = picker.querySelector('[data-preorder-topup]');
+      if (extra) extra.textContent = format(topup);
+      if (voucher) {
+        voucher.querySelector('[data-voucher-discount]').textContent = format(discount);
+        voucher.querySelector('[data-voucher-net]').textContent = format(net);
+      }
+    }
+
+    async function preview(requestedByUser = false) {
+      clearTimeout(quoteTimer);
+      quoteRequest?.abort();
+      const code = voucherCode?.value.trim();
+      if (!code) {
+        if (voucherMessage) voucherMessage.textContent = '';
+        return;
+      }
+      const ctrl = new AbortController();
+      quoteRequest = ctrl;
+      const form = picker.closest('form');
+      const body = new URLSearchParams();
+      for (const input of fields.querySelectorAll('input')) body.set(input.name, input.value);
+      body.set('voucherCode',code);
+      const csrf = form.querySelector('input[name="_csrf"]');
+      if (csrf) body.set(csrf.name,csrf.value);
+      const table = form.querySelector('input[name="tableId"]');
+      if (table) body.set('tableId',table.value);
+      if (voucher.dataset.voucherBooking) body.set('bookingCode',voucher.dataset.voucherBooking);
+      try {
+        const response = await fetch(voucher.dataset.voucherUrl,{method:'POST',body,signal:ctrl.signal,credentials:'same-origin'});
+        const result = await response.json();
+        if (ctrl.signal.aborted || !picker.isConnected) return;
+        if (!response.ok) {
+          voucherMessage.textContent = result.message || 'Chưa thể kiểm tra mã voucher.';
+          return;
+        }
+        showTotals(...['gross','discount','net','deposit','topup','balance'].map(key=>BigInt(result[key])));
+        voucherMessage.textContent = 'Mã hợp lệ với giỏ hiện tại. Lượt được giữ khi yêu cầu được lưu hoặc duyệt.';
+        if (requestedByUser) document.dispatchEvent(new Event('t3l:voucher-applied'));
+      } catch (error) {
+        if (error.name !== 'AbortError') voucherMessage.textContent = 'Chưa thể kiểm tra mã voucher.';
+      }
+    }
+
     function render() {
       const lines = document.createDocumentFragment();
       const inputs = document.createDocumentFragment();
@@ -102,15 +154,17 @@ window.t3lPage.register(({ signal, state }) => {
       const portion = (total * 70n + 99n) / 100n;
       const deposit = portion > minimum ? portion : minimum;
       const credit = paid > deposit ? paid : deposit;
-      picker.querySelector('[data-preorder-total]').textContent = format(total);
-      picker.querySelector('[data-preorder-deposit]').textContent = format(deposit);
-      picker.querySelector('[data-preorder-balance]').textContent = format(total > credit ? total - credit : 0n);
-      const topup = picker.querySelector('[data-preorder-topup]');
-      if (topup) topup.textContent = format(deposit > paid ? deposit - paid : 0n);
+      showTotals(total,0n,total,deposit,deposit > paid ? deposit - paid : 0n,total > credit ? total - credit : 0n);
       picker.querySelector('[data-preorder-expected]').value = total.toString();
       picker.querySelector('[data-preorder-empty]').hidden = count > 0;
       cart.replaceChildren(lines);
       fields.replaceChildren(inputs);
+      if (voucher) {
+        clearTimeout(quoteTimer);
+        quoteRequest?.abort();
+        voucherMessage.textContent = '';
+        if (voucherCode.value.trim()) quoteTimer = setTimeout(preview, 240);
+      }
       warning.textContent = unavailable ? 'Bỏ món đã hết hoặc ngừng bán khỏi giỏ trước khi gửi.' : '';
       if (submit && picker.dataset.buyer === 'false') {
         submit.textContent = count > 0 ? 'Đăng nhập để đặt bàn và món' : submit.dataset.defaultLabel;
@@ -124,6 +178,16 @@ window.t3lPage.register(({ signal, state }) => {
         }
       }
     }
+
+    voucherCode?.addEventListener('input',render);
+    voucher?.querySelector('[data-voucher-select]')?.addEventListener('change',event => {
+      if (!event.target.value) return;
+      voucherCode.value = event.target.value;
+      render();
+      void preview(true);
+    });
+    voucher?.querySelector('[data-voucher-preview]').addEventListener('click',()=> void preview(true));
+    signal.addEventListener('abort',()=> {clearTimeout(quoteTimer);quoteRequest?.abort();},{once:true});
 
     search.addEventListener('input', filter);
     category.addEventListener('change', filter);

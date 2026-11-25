@@ -83,3 +83,7 @@
   .preorder-product { grid-template-columns: 58px minmax(0, 1fr) auto; gap: 7px; }
   .preorder-product img { width: 58px; height: 52px; }
 }
+
+.preorder-voucher { display: grid; gap: 8px; margin-block: 12px; padding-block: 10px; border-block: 1px solid var(--border); }
+.preorder-voucher :is(input,select) { width: 100%; min-width: 0; }
+.preorder-voucher button { justify-self: start; }

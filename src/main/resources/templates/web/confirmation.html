@@ -71,6 +71,7 @@
               </li></ul>
               <p th:if="${preorder.preorderNote != null}" th:text="${'Ghi chú cho bếp: ' + preorder.preorderNote}"></p>
               <p th:text="${'Tổng món đặt trước: ' + #numbers.formatInteger(preorder.preorderTotal,1,'POINT') + ' đ'}"></p>
+              <p th:if="${preorder.voucherCode != null}" th:text="${'Voucher ' + preorder.voucherCode + ' · giảm ' + #numbers.formatInteger(preorder.voucherDiscount,1,'POINT') + ' đ'}"></p>
               <p th:if="${preorder.status == 'VOID'}">Đơn đã hủy.</p>
             </section>
             <section th:replace="~{web/fragments/deposit :: details(${reservation})}"></section>

@@ -6,6 +6,7 @@
   <div class="staff-page-heading"><div><h1>Báo cáo doanh thu</h1><p>Ghi nhận tiền cọc khi khấu trừ vào hóa đơn hoặc khi giữ cọc theo chính sách.</p></div>
     <a class="staff-button" th:href="@{/admin/revenue.csv(from=${filter.from},to=${filter.to},employee=${filter.employee},method=${filter.method})}">Xuất CSV</a></div>
   <section class="staff-metrics" aria-label="Tổng hợp doanh thu">
+    <div class="staff-metric"><span>Giảm giá voucher</span><strong><span th:replace="~{admin/fragments/shell :: money(${summary.discount})}"></span></strong></div>
     <div class="staff-metric"><span>Doanh thu đã thu</span><strong><span th:replace="~{admin/fragments/shell :: money(${summary.total})}"></span></strong></div>
     <div class="staff-metric"><span>Hóa đơn bàn đã thu</span><strong th:text="${summary.dining}"></strong></div>
     <div class="staff-metric"><span>Khoản bán lẻ</span><strong th:text="${summary.direct}"></strong></div>

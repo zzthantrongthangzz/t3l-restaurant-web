@@ -33,13 +33,15 @@ public class CustomerAccountController {
   private final ReservationService reservations;
   private final DiningOrderRepository diningOrders;
   private final GoogleOAuthFlow google;
+  private final t3l.restaurant.t3l_restaurant.service.VoucherService vouchers;
 
   public CustomerAccountController(CustomerAccountService customers, ReservationService reservations, DiningOrderRepository diningOrders,
-      GoogleOAuthFlow google) {
+      GoogleOAuthFlow google,t3l.restaurant.t3l_restaurant.service.VoucherService vouchers) {
     this.customers = customers;
     this.reservations = reservations;
     this.diningOrders = diningOrders;
     this.google = google;
+    this.vouchers=vouchers;
   }
 
   @ModelAttribute
@@ -85,7 +87,12 @@ public class CustomerAccountController {
       Model model) {
     boolean past = "past".equals(tab);
     model.addAttribute("tab", past ? "past" : "upcoming");
-    model.addAttribute("bookings", reservations.customerBookings(customers.signedInCustomer(authentication).getId(), past));
+    var bookings=reservations.customerBookings(customers.signedInCustomer(authentication).getId(),past);
+    model.addAttribute("bookings",bookings);
+    var voucherOrders=bookings.isEmpty() ? java.util.Map.of() : diningOrders.findByReservation_IdIn(bookings.stream().map(b -> b.getId()).toList())
+        .stream().filter(order -> order.getVoucherCode()!=null).collect(java.util.stream.Collectors.toMap(
+          order -> order.getReservation().getId(),java.util.function.Function.identity()));
+    model.addAttribute("voucherOrders",voucherOrders);
     return page(model, "reservations", "Lịch sử đặt bàn");
   }
 
@@ -99,11 +106,14 @@ public class CustomerAccountController {
   }
 
   @GetMapping("/vouchers")
-  String vouchers(@RequestParam(defaultValue = "available") String tab, Model model) {
+  String vouchers(@RequestParam(defaultValue = "available") String tab, Authentication authentication, Model model) {
     model.addAttribute("tab", switch (tab) {
       case "used", "expired" -> tab;
       default -> "available";
     });
+    var buyer=customers.signedInCustomer(authentication);
+    model.addAttribute("voucherOffers", "used".equals(tab) ? List.of() : vouchers.offers(buyer.getId(),"expired".equals(tab)));
+    model.addAttribute("usedVouchers", "used".equals(tab) ? vouchers.used(buyer.getId()) : List.of());
     return page(model, "vouchers", "Ví voucher");
   }
 

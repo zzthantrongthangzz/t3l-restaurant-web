@@ -35,14 +35,27 @@
       <h3>Giỏ món ăn</h3>
       <p data-preorder-empty class="preorder-hint">Chưa chọn món.</p>
       <ul data-preorder-lines></ul>
+      <div th:if="${buyer}" class="preorder-voucher"
+          th:attr="data-voucher-url=@{/account/vouchers/quote},data-voucher-booking=${voucherBookingCode}">
+        <label th:if="${voucherOffers != null and !voucherOffers.empty}">Ưu đãi có sẵn
+          <select data-voucher-select><option value="">Chọn mã</option>
+            <option th:each="offer : ${voucherOffers}" th:value="${offer.code}" th:text="${offer.code + ' · ' + offer.offerLabel}"></option>
+          </select>
+        </label>
+        <label>Mã voucher<input name="voucherCode" data-voucher-code maxlength="32" autocomplete="off" th:value="${selectedVoucher}" /></label>
+        <button class="home-button home-button-outline" type="button" data-voucher-preview>Kiểm tra mã</button>
+        <p class="preorder-hint" role="status" data-voucher-message></p>
+      </div>
       <dl class="preorder-totals" aria-live="polite">
-        <div><dt>Tổng tiền món đặt trước</dt><dd data-preorder-total>0 đ</dd></div>
+        <div><dt>Tiền món trước giảm</dt><dd data-preorder-total>0 đ</dd></div>
+        <div th:if="${buyer}"><dt>Giảm giá voucher</dt><dd data-voucher-discount>0 đ</dd></div>
+        <div th:if="${buyer}"><dt>Tiền món sau giảm</dt><dd data-voucher-net>0 đ</dd></div>
         <div><dt>Cọc bắt buộc</dt><dd data-preorder-deposit th:text="${#numbers.formatInteger(minimum,1,'POINT') + ' đ'}"></dd></div>
         <div th:if="${paid.signum() > 0}"><dt>Cọc đã nhận</dt><dd th:text="${#numbers.formatInteger(paid,1,'POINT') + ' đ'}"></dd></div>
         <div th:if="${paid.signum() > 0}"><dt>Cần nộp thêm</dt><dd data-preorder-topup>0 đ</dd></div>
         <div><dt>Dự kiến còn lại cho món</dt><dd data-preorder-balance>0 đ</dd></div>
       </dl>
-      <p class="preorder-hint">Cọc là mức cao hơn giữa cọc tối thiểu của bàn và 70% tiền món. Tiền còn lại tính riêng cho món đã chọn.</p>
+      <p class="preorder-hint">Cọc là mức cao hơn giữa cọc tối thiểu của bàn và 70% tiền món sau giảm. Tiền còn lại tính riêng cho món đã chọn.</p>
       <label>Ghi chú cho bếp
         <textarea name="preorderNote" rows="2" maxlength="500" th:text="${note}" placeholder="Ví dụ: để sốt riêng"></textarea>
       </label>

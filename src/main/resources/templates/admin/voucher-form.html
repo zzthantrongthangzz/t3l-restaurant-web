@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/fragments/shell :: head('Thiết lập voucher')}"></head>
+<body class="staff-page admin-page">
+<header th:replace="~{admin/fragments/shell :: header('vouchers')}"></header>
+<main data-navigation class="staff-main">
+  <a class="staff-link staff-back" th:href="@{/admin/vouchers}">Danh sách voucher</a>
+  <div class="staff-page-heading"><h1 th:text="${voucherId == null ? 'Tạo voucher' : 'Chỉnh sửa voucher'}"></h1></div>
+  <section class="staff-panel">
+    <form class="staff-form" method="post" data-partial-submit th:object="${form}"
+        th:action="${voucherId == null} ? @{/admin/vouchers} : @{/admin/vouchers/{id}(id=${voucherId})}">
+      <div th:replace="~{admin/fragments/shell :: errors}"></div>
+      <div class="voucher-fields">
+        <label class="staff-field">Mã voucher<input th:field="*{code}" required maxlength="32" autocomplete="off" /></label>
+        <label class="staff-field">Tên chương trình<input th:field="*{title}" required maxlength="120" /></label>
+        <label class="staff-field">Hình thức<select th:field="*{discountType}">
+          <option value="PERCENT">Phần trăm</option><option value="FIXED">Số tiền cố định</option></select></label>
+        <label class="staff-field">Mức giảm<input type="number" min="0.01" step="0.01" required th:field="*{discountValue}" /></label>
+        <label class="staff-field">Tiền món tối thiểu (₫)<input type="number" min="0" required th:field="*{minimumTotal}" /></label>
+        <label class="staff-field">Giảm tối đa (₫)<input type="number" min="1" placeholder="Không giới hạn" th:field="*{maximumDiscount}" /></label>
+        <label class="staff-field">Bắt đầu (giờ Việt Nam)<input type="datetime-local" required th:field="*{startsAt}" /></label>
+        <label class="staff-field">Kết thúc (giờ Việt Nam)<input type="datetime-local" required th:field="*{endsAt}" /></label>
+        <label class="staff-field">Tổng lượt<input type="number" min="1" placeholder="Không giới hạn" th:field="*{totalLimit}" /></label>
+        <label class="staff-field">Lượt mỗi khách<input type="number" min="1" placeholder="Không giới hạn" th:field="*{customerLimit}" /></label>
+      </div>
+      <label class="staff-check"><input type="checkbox" th:field="*{publicOffer}" /> Công khai trong Ví voucher</label>
+      <label class="staff-check"><input type="checkbox" th:field="*{enabled}" /> Kích hoạt theo lịch</label>
+      <div class="staff-actions"><button type="submit" class="staff-button">Lưu voucher</button></div>
+    </form>
+  </section>
+  <section class="staff-panel" th:if="${voucherId != null}">
+    <h2>Lịch sử lượt voucher</h2>
+    <p class="staff-empty" th:if="${history.empty}">Voucher chưa phát sinh lượt.</p>
+    <div class="staff-table-wrap" th:unless="${history.empty}">
+      <table class="staff-table"><thead><tr><th>Mã</th><th>Hóa đơn</th><th>Đã giữ</th><th>Trạng thái</th><th>Số tiền giảm</th></tr></thead>
+        <tbody><tr th:each="usage : ${history}">
+          <td data-label="Mã" th:text="${usage.code}"></td>
+          <td data-label="Hóa đơn"><a class="staff-link" th:href="@{/admin/invoices/{id}(id=${usage.orderId})}" th:text="${'T3L-HD-' + usage.orderId}"></a></td>
+          <td data-label="Đã giữ" th:text="${#temporals.format(usage.heldAt,'dd/MM/yyyy HH:mm')}"></td>
+          <td data-label="Trạng thái" th:text="${usage.status == 'HELD' ? 'Đang giữ' : (usage.status == 'RELEASED' ? 'Đã trả lượt' : (usage.demo ? 'Đã dùng · DEMO' : 'Đã dùng'))}"></td>
+          <td data-label="Số tiền giảm"><span th:replace="~{admin/fragments/shell :: money(${usage.discountAmount})}"></span></td>
+        </tr></tbody></table>
+    </div>
+    <nav class="staff-actions" aria-label="Trang lịch sử">
+      <a class="staff-link" th:if="${historyPage > 0}" th:href="@{/admin/vouchers/{id}(id=${voucherId},page=${historyPage - 1})}">Trang trước</a>
+      <a class="staff-link" th:if="${historyNext}" th:href="@{/admin/vouchers/{id}(id=${voucherId},page=${historyPage + 1})}">Trang sau</a>
+    </nav>
+  </section>
+</main></body></html>

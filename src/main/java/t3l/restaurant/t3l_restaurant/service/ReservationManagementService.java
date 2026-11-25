@@ -26,11 +26,12 @@ public class ReservationManagementService {
   private final AdminAudit audit;
   private final DepositPolicy deposits;
   private final PreorderService preorders;
+  private final VoucherService vouchers;
 
   public ReservationManagementService(ReservationRepository reservations, ReservationChangeRequestRepository requests,
       RestaurantTableRepository tables, ReservationService bookings, ReservationSchedule schedule,
       ReservationChangePolicy policy, Validator validator, ReservationEmailQueue emails, AdminAudit audit,
-      DepositPolicy deposits, PreorderService preorders) {
+      DepositPolicy deposits, PreorderService preorders, VoucherService vouchers) {
     this.reservations = reservations;
     this.requests = requests;
     this.tables = tables;
@@ -42,6 +43,7 @@ public class ReservationManagementService {
     this.audit = audit;
     this.deposits = deposits;
     this.preorders = preorders;
+    this.vouchers = vouchers;
   }
 
   static String canonicalPhone(String value) {
@@ -93,6 +95,8 @@ public class ReservationManagementService {
     bookings.requireDepositChangeAllowed(booking);
     var order = preorders.order(booking.getId());
     var quote = preorders.quote(form, order);
+    if (quote.voucherCode()!=null && !quote.voucherCode().isBlank())
+      vouchers.preview(quote.voucherCode(),quote.total(),customerId,booking,order);
     if (quote.equals(preorders.current(order))) throw new BookingException(null, "Giỏ món và ghi chú chưa thay đổi.");
     return requests.saveAndFlush(ReservationChangeRequest.preorder(booking, preorders.encode(quote), policy.now()));
   }
@@ -256,8 +260,10 @@ public class ReservationManagementService {
   private void verifyPreorderQuote(Reservation booking, PreorderService.Quote requested, DiningOrder order) {
     if (booking.getCustomerId() == null) throw new BookingException(null, "Yêu cầu đổi món thiếu tài khoản đặt bàn.");
     if (booking.getTable() == null) throw new BookingException(null, "Lượt đặt chưa có bàn được phân.");
+    if (requested.voucherCode()!=null && !requested.voucherCode().isBlank())
+      vouchers.preview(requested.voucherCode(),requested.total(),booking.getCustomerId(),booking,order);
     var current = preorders.quote(requested.quantities(), requested.note(), order);
-    if (!requested.equals(current)) {
+    if (!requested.lines().equals(current.lines()) || !Objects.equals(requested.note(),current.note())) {
       throw new BookingException(null, "Giá hoặc thông tin món đã thay đổi. Vui lòng từ chối và yêu cầu khách xác nhận lại.");
     }
   }

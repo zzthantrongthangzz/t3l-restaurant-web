@@ -60,7 +60,7 @@ public class AdminReportingService {
     public boolean isNext() { return (page + 1L) * PAGE_SIZE < total; }
   }
   public record RevenueRow(String code, LocalDateTime time, String actor, String method, BigDecimal amount, String source) {}
-  public record RevenueSummary(BigDecimal total, long dining, long direct) {}
+  public record RevenueSummary(BigDecimal total, long dining, long direct, BigDecimal discount) {}
   public record InvoiceRow(Long id, LocalDateTime time, String bookingCode, String table, String status,
                            String employee, String method, BigDecimal amount, boolean demo) {
     public String getCode() { return "T3L-HD-" + id; }
@@ -212,12 +212,23 @@ public class AdminReportingService {
 
   @Transactional(readOnly = true)
   public RevenueSummary revenueSummary(Filter filter) {
+    var params=parameters(filter);
+    BigDecimal discount=db.queryForObject("""
+        SELECT COALESCE(SUM(u.discount_amount),0)
+        FROM voucher_usages u JOIN dining_payments p ON p.order_id=u.order_id
+        JOIN dining_orders o ON o.id=p.order_id AND o.status='PAID'
+        JOIN reservations r ON r.id=o.reservation_id
+        WHERE u.status='USED' AND u.demo=FALSE AND p.is_demo=FALSE
+          AND p.paid_at>=:start AND p.paid_at<:end AND (:employee='' OR p.received_by=:employee)
+          AND (:method='' OR (p.payment_method=:method AND (p.amount>0 OR p.deposit_applied=0))
+            OR (:method='TRANSFER' AND p.deposit_applied>0 AND r.deposit_demo=FALSE))
+        """,params,BigDecimal.class);
     return db.queryForObject(RECEIPTS + """
         SELECT COALESCE(SUM(amount),0) AS total,
           COUNT(DISTINCT invoice_id) AS dining,
           COALESCE(SUM(CASE WHEN source_type='DIRECT' THEN 1 ELSE 0 END),0) AS direct_sales
         FROM receipts WHERE (:employee='' OR employee=:employee) AND (:method='' OR method=:method)
-        """, parameters(filter), (row, index) -> new RevenueSummary(row.getBigDecimal("total"), row.getLong("dining"), row.getLong("direct_sales")));
+        """,params,(row,index) -> new RevenueSummary(row.getBigDecimal("total"),row.getLong("dining"),row.getLong("direct_sales"),discount));
   }
 
   @Transactional(readOnly = true)

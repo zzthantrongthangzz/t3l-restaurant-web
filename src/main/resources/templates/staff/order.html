@@ -55,10 +55,22 @@
             <label class="staff-field">Số lượng <input type="number" name="quantity" value="1" min="1" max="100" required /></label>
             <button class="staff-button is-outline" type="submit">Thêm món</button>
           </form>
-          <form id="checkout" class="staff-actions" th:if="${order.status == 'DRAFT' and order.hasItems() and booking.status == 'SEATED'}" th:action="@{${opsBase + '/orders/{id}/finalize'}(id=${booking.id})}" method="post">
+          <form id="checkout" class="staff-actions" th:if="${order.status == 'DRAFT' and order.hasItems() and booking.status == 'SEATED'}" th:action="@{${opsBase + '/orders/{id}/finalize'}(id=${booking.id})}" method="post" data-partial-submit>
             <button class="staff-button" type="submit" data-confirm="Chốt hóa đơn cho các món đã phục vụ? Hãy hủy món chưa phục vụ trước khi chốt.">Chốt hóa đơn</button>
           </form>
         </section>
+        <section class="staff-panel" aria-labelledby="order-voucher-title" th:if="${order.status == 'DRAFT' or order.status == 'FINALIZED'}">
+          <h2 id="order-voucher-title">Voucher</h2>
+          <p th:if="${voucherNotice}" class="staff-notice is-error" role="status" th:text="${voucherNotice}"></p>
+          <p th:if="${order.voucherCode != null}" th:text="${'Đang giữ ' + order.voucherCode + ' · giảm ' + #numbers.formatInteger(order.voucherDiscount,1,'POINT') + ' đ'}"></p>
+          <form class="staff-actions" method="post" data-partial-submit th:action="@{${opsBase + '/orders/{id}/voucher'}(id=${booking.id})}">
+            <label class="staff-field">Mã voucher<input name="code" maxlength="32" autocomplete="off" /></label>
+            <button class="staff-button" name="operation" th:value="${order.voucherCode == null ? 'apply' : 'replace'}"
+                th:text="${order.voucherCode == null ? 'Kiểm tra và áp dụng' : 'Kiểm tra và thay mã'}"></button>
+            <button class="staff-button is-outline" th:if="${order.voucherCode != null}" name="operation" value="remove">Gỡ voucher</button>
+          </form>
+        </section>
+
         <section id="checkout" class="staff-panel staff-form-narrow" th:if="${order.status == 'FINALIZED'}">
           <h2>Xác nhận thu tiền</h2>
           <dl th:replace="~{staff/fragments/settlement :: totals(${view})}"></dl>

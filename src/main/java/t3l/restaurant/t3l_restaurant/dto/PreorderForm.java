@@ -22,4 +22,7 @@ public class PreorderForm {
 
   @Digits(integer = 16, fraction = 0, message = "Tổng món đặt trước không hợp lệ.")
   private BigDecimal preorderExpectedTotal;
+
+  @Size(max=32, message="Mã voucher không vượt quá 32 ký tự.")
+  private String voucherCode;
 }

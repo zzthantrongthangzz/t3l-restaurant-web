@@ -16,9 +16,10 @@
         <div th:replace="~{account/fragments/activity :: empty('reservations',${tab == 'past' ? 'Chưa có lịch đặt bàn đã qua' : 'Chưa có lịch đặt bàn sắp tới'},'Các lịch được lưu vào tài khoản sẽ hiển thị tại đây.')}"></div>
       </th:block>
       <ul class="account-list" th:unless="${bookings.isEmpty()}">
-        <li class="account-record" th:each="booking : ${bookings}">
+        <li class="account-record" th:each="booking : ${bookings}" th:with="order=${voucherOrders.get(booking.id)}">
           <div>
             <p class="account-record-title" th:text="${#temporals.format(booking.reservationDate, 'dd/MM/yyyy') + ' · ' + #temporals.format(booking.reservationTime, 'HH:mm')}"></p>
+            <p class="account-muted" th:if="${order != null}" th:text="${'Voucher ' + order.voucherCode + ' · giảm ' + #numbers.formatInteger(order.voucherDiscount,1,'POINT') + ' đ'}"></p>
             <p class="account-muted" th:text="${booking.guestCount + ' khách · ' + booking.code}"></p>
           </div>
           <div class="account-record-actions">
@@ -45,7 +46,8 @@
         <li class="account-record" th:each="order : ${diningOrders}">
           <div>
             <p class="account-record-title" th:text="${order.reservation.code}"></p>
-            <p class="account-muted" th:text="${#numbers.formatInteger(order.currentTotal, 1, 'POINT') + ' đ'}"></p>
+            <p class="account-muted" th:text="${#numbers.formatInteger(order.netTotal, 1, 'POINT') + ' đ'}"></p>
+            <p class="account-muted" th:if="${order.voucherCode != null}" th:text="${'Voucher ' + order.voucherCode + ' · giảm ' + #numbers.formatInteger(order.voucherDiscount,1,'POINT') + ' đ'}"></p>
           </div>
           <div class="account-record-actions">
             <span class="account-status" th:text="${order.statusLabel}"></span>
@@ -61,7 +63,29 @@
         <a th:href="@{/account/vouchers(tab='used')}" th:attr="aria-current=${tab == 'used' ? 'page' : null}">Đã sử dụng</a>
         <a th:href="@{/account/vouchers(tab='expired')}" th:attr="aria-current=${tab == 'expired' ? 'page' : null}">Hết hạn</a>
       </nav>
-      <div th:replace="~{account/fragments/activity :: empty('vouchers',${tab == 'used' ? 'Chưa có voucher đã sử dụng' : (tab == 'expired' ? 'Chưa có voucher hết hạn' : 'Chưa có voucher khả dụng')},null)}"></div>
+      <th:block th:if="${voucherOffers.empty and usedVouchers.empty}">
+        <div th:replace="~{account/fragments/activity :: empty('vouchers',${tab == 'used' ? 'Chưa có voucher đã sử dụng' : (tab == 'expired' ? 'Chưa có voucher hết hạn' : 'Chưa có voucher khả dụng')},null)}"></div>
+      </th:block>
+      <ul class="account-list" th:unless="${voucherOffers.empty}">
+        <li class="account-record" th:each="offer : ${voucherOffers}">
+          <div>
+            <p class="account-record-title" th:text="${offer.title + ' · Giảm ' + offer.offerLabel}"></p>
+            <p class="account-muted" th:text="${'Mã ' + offer.code + ' · Hết hạn ' + #temporals.format(offer.endsAt,'dd/MM/yyyy HH:mm')}"></p>
+            <p class="account-muted" th:text="${'Tiền món tối thiểu ' + #numbers.formatInteger(offer.minimumTotal,1,'POINT') + ' đ'}"></p>
+            <p class="account-muted" th:if="${offer.maximumDiscount != null}" th:text="${'Giảm tối đa ' + #numbers.formatInteger(offer.maximumDiscount,1,'POINT') + ' đ'}"></p>
+            <p class="account-muted" th:if="${offer.customerLimit != null}" th:text="${'Tối đa ' + offer.customerLimit + ' lượt mỗi khách'}"></p>
+          </div>
+          <div class="account-record-actions" th:if="${tab == 'available'}">
+            <button type="button" class="account-button" th:attr="data-copy-voucher=${offer.code}">Sao chép mã</button>
+          </div>
+        </li>
+      </ul>
+      <ul class="account-list" th:unless="${usedVouchers.empty}">
+        <li class="account-record" th:each="usage : ${usedVouchers}">
+          <div><p class="account-record-title" th:text="${usage.code + ' · T3L-HD-' + usage.orderId}"></p>
+          <p class="account-muted" th:text="${'Đã giảm ' + #numbers.formatInteger(usage.discountAmount,1,'POINT') + ' đ · ' + #temporals.format(usage.closedAt,'dd/MM/yyyy HH:mm')}"></p></div>
+        </li>
+      </ul>
     </div>
   </body>
 </html>

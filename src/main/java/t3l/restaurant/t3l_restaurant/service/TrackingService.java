@@ -163,7 +163,7 @@ public class TrackingService {
     } else if ("ACTIVE".equals(type)) {
       if (input.seconds() == null) return null;
       seconds = input.seconds();
-    } else if (!Set.of("PAGE_VIEW", "TABLE_MAP_VIEW", "CHAT_OPEN").contains(type)
+    } else if (!Set.of("PAGE_VIEW", "TABLE_MAP_VIEW", "CHAT_OPEN", "VOUCHER_VIEW", "VOUCHER_QUOTE").contains(type)
         || "TABLE_MAP_VIEW".equals(type) && !"booking".equals(input.page())) {
       return null;
     }
@@ -186,6 +186,11 @@ public class TrackingService {
   }
 
   public void booking(HttpServletRequest request, Authentication auth, boolean selected, Reservation submitted) {
+    booking(request, auth, selected, submitted, false);
+  }
+
+  public void booking(HttpServletRequest request, Authentication auth, boolean selected, Reservation submitted,
+      boolean voucherApplied) {
     safely(() -> {
       Actor actor = actor(request, auth);
       if (actor == null) return;
@@ -208,6 +213,7 @@ public class TrackingService {
           }
           if (submitted != null) writeStage(visit.id(), actor.kind(), now, flow.id(), "BOOKING_SUBMITTED",
               submitted.getId(), submitted.getDepositAmount().signum() > 0);
+          if (submitted != null && voucherApplied) writeStage(visit.id(), actor.kind(), now, flow.id(), "VOUCHER_APPLY", submitted.getId(), null);
           return null;
         });
         if (submitted == null) session.setAttribute(FLOW, flow);

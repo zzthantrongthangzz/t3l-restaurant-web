@@ -53,12 +53,13 @@ public class ReservationService {
   private final DepositPolicy depositPolicy;
   private final PaymentReferences references;
   private final PaymentIntentService paymentIntents;
+  private final VoucherService vouchers;
 
   public ReservationService(ReservationRepository reservations, RestaurantTableRepository tables,
       ReservationSchedule schedule, Validator validator, ReservationEmailQueue emails,
       ReservationEventRepository events, DiningOrderRepository orders, StaffShiftService shifts,
       PreorderService preorders, DishRepository dishes, RestaurantSectionRepository sections, AdminAudit audit,
-      DepositPolicy depositPolicy, PaymentReferences references, PaymentIntentService paymentIntents) {
+      DepositPolicy depositPolicy, PaymentReferences references, PaymentIntentService paymentIntents, VoucherService vouchers) {
     this.reservations = reservations;
     this.tables = tables;
     this.schedule = schedule;
@@ -74,6 +75,7 @@ public class ReservationService {
     this.depositPolicy = depositPolicy;
     this.references = references;
     this.paymentIntents = paymentIntents;
+    this.vouchers=vouchers;
   }
 
   @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -128,6 +130,9 @@ public class ReservationService {
       throw new BookingException("preorderQuantities", "Vui lòng đăng nhập để đặt món trước.");
     }
     var preorder = preorders.quote(form, null);
+    if (preorder.voucherCode()!=null && !preorder.voucherCode().isBlank() && (customer==null || actor!=null)) {
+      throw new BookingException("voucherCode","Hãy đăng nhập khách hàng để sử dụng voucher khi đặt món trước.");
+    }
     if (actor != null) {
       booking.updateStatus(CONFIRMED);
       if (walkIn) {
@@ -135,11 +140,12 @@ public class ReservationService {
         booking.seat(shifts.requireOpenShiftForUpdate(actor), start, end);
       }
     }
-    booking.priceDeposit(walkIn ? BigDecimal.ZERO : depositPolicy.required(assigned, preorder.total()),
+    Reservation saved = reservations.saveAndFlush(booking);
+    var preorderOrder=preorders.apply(saved, null, preorder, now());
+    var net=preorder.total().subtract(preorderOrder==null ? BigDecimal.ZERO : preorderOrder.getVoucherDiscount());
+    booking.priceDeposit(walkIn ? BigDecimal.ZERO : depositPolicy.required(assigned, net),
         depositPolicy.paymentDeadline(booking, now()));
     if (booking.isOpenBooking() && actor == null && !paymentIntents.usesQr()) booking.waitForStaffBeforeDeposit();
-    Reservation saved = reservations.saveAndFlush(booking);
-    preorders.apply(saved, null, preorder, now());
     paymentIntents.ensureDepositIntent(saved);
     if (actor == null) emails.enqueue(saved, Kind.RECEIVED, null, null);
     else {
@@ -182,10 +188,10 @@ public class ReservationService {
       order.addItem(dish, item.getQuantity(), item.getNote(), booking.isOpenBooking());
     }
     orders.save(order);
-    if (booking.isOpenBooking() && booking.getDepositAmount().signum() > 0) {
+    if (booking.isOpenBooking() && (booking.getDepositAmount().signum() > 0 || vouchers.affected(order))) {
       requireDepositChangeAllowed(booking);
       repriceDeposit(booking);
-    }
+    } else if (!booking.isOpenBooking()) vouchers.reprice(order,order.getCurrentTotal());
   }
 
   public BigDecimal minimumDeposit(RestaurantTable table) {
@@ -381,7 +387,10 @@ public class ReservationService {
       case COMPLETED -> {
         if (!SEATED.equals(booking.getStatus())) throw new BookingException(null, "Chỉ kết thúc lượt đang phục vụ.");
         orders.findByReservation_Id(id).ifPresent(order -> {
-          if (DiningOrder.DRAFT.equals(order.getStatus()) && !order.hasItems()) order.voidEmptyDraft();
+          if (DiningOrder.DRAFT.equals(order.getStatus()) && !order.hasItems()) {
+            vouchers.release(order);
+            order.voidEmptyDraft();
+          }
           else if (!DiningOrder.PAID.equals(order.getStatus())) {
             throw new BookingException(null, "Hãy thanh toán hóa đơn trước khi kết thúc phục vụ.");
           }
@@ -511,8 +520,15 @@ public class ReservationService {
   }
 
   void repriceDeposit(Reservation booking) {
-    var preorderTotal = orders.findByReservation_Id(booking.getId()).map(DiningOrder::getPreorderTotal).orElse(BigDecimal.ZERO);
-    booking.priceDeposit(depositPolicy.required(booking.getTable(), preorderTotal), depositPolicy.paymentDeadline(booking, now()));
+    var order=preorders.order(booking.getId());
+    var gross=order==null ? BigDecimal.ZERO : order.getPreorderTotal();
+    boolean affected=vouchers.affected(order);
+    boolean released=order!=null && vouchers.reprice(order,gross);
+    var net=gross.subtract(order==null ? BigDecimal.ZERO : order.getVoucherDiscount());
+    var required=depositPolicy.required(booking.getTable(),net);
+    if (affected) vouchers.guardDeposit(booking,required);
+    booking.priceDeposit(required,depositPolicy.paymentDeadline(booking,now()));
+    if (released) record(booking,null,"Voucher đã được gỡ vì giỏ món không còn đủ điều kiện.");
     if (PENDING.equals(booking.getStatus()) && !paymentIntents.usesQr()) booking.waitForStaffBeforeDeposit();
     paymentIntents.ensureDepositIntent(booking);
   }
@@ -528,10 +544,15 @@ public class ReservationService {
   }
 
   private boolean removeUnavailablePreorders(Reservation booking, String actor, boolean reprice) {
-    var removed = preorders.removeUnavailable(preorders.order(booking.getId()));
+    var order=preorders.order(booking.getId());
+    var removed = preorders.removeUnavailable(order);
     if (removed.isEmpty()) return false;
+    boolean hadVoucher=order.getVoucherCode()!=null;
     if (reprice) repriceDeposit(booking);
+    else if (vouchers.reprice(order,order.getCurrentTotal()))
+      record(booking,actor,"Voucher đã được gỡ vì giỏ món không còn đủ điều kiện.");
     String note = "Đã bỏ " + removed.size() + " món đặt trước không còn phục vụ.";
+    if (hadVoucher && order.getVoucherCode()==null) note+=" Voucher đã được gỡ vì giỏ món không còn đủ điều kiện.";
     var event = record(booking, actor, note);
     emails.enqueue(booking, Kind.PREORDER_UNAVAILABLE, event.getId(), note);
     return true;

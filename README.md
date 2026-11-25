@@ -160,6 +160,14 @@ Maven/IntelliJ: mở thư mục gốc hoặc `pom.xml`, dùng JDK 21, sau đó c
 
 Quản trị viên xem báo cáo tại `/admin/analytics`. Với volume MySQL đã có, sao lưu database trước khi áp dụng `database/mysql/21_user_tracking.sql`. Docker Compose tự nạp migration khi khởi tạo volume mới.
 
+## Voucher và khuyến mãi
+
+Với database hiện có, xác minh bản sao lưu MySQL rồi chạy `database/mysql/22_vouchers.sql` sau migration `21_user_tracking.sql`. Docker Compose chạy migration theo thứ tự khi tạo volume mới.
+
+ADMIN quản lý mã tại `/admin/vouchers`. BUYER tìm mã công khai trong Ví voucher và áp dụng khi đặt món trước. STAFF quản lý một mã trên mỗi hóa đơn tại màn hình phục vụ. Lượt được giữ khi đơn được lưu hoặc yêu cầu đổi món được duyệt, chốt khi thanh toán và trả lại khi đơn hủy hoặc mã được gỡ hợp lệ. Điều kiện và số tiền giảm trên hóa đơn được lưu theo lần sử dụng.
+
+Mức cọc theo tiền món áp dụng trên giá sau giảm và vẫn giữ mức tối thiểu theo loại bàn. Các thay đổi làm lệch số tiền QR còn hiệu lực hoặc cần đối soát phải chờ xử lý giao dịch. Lượt thanh toán DEMO được ghi nhận riêng trong lịch sử vận hành và được loại khỏi tổng lượt sử dụng thực tế.
+
 - Nút **Quyền riêng tư** cho phép khách bật hoặc tắt phân tích. Phiên dùng một cookie ngẫu nhiên có chữ ký, hết hạn sau 90 ngày. Khi đăng nhập BUYER, phiên đang hoạt động được liên kết với ID tài khoản.
 - Một lượt truy cập là một lượt xem trang. Phiên mới bắt đầu sau 30 phút không hoạt động. Thời gian hoạt động chỉ cộng khi trang hiển thị, có focus và còn tương tác gần đây.
 - Từ khóa được giới hạn ở các cụm khớp tên món hoặc danh mục đang bán. Báo cáo dùng tên trang chuẩn hóa, ID món và ID yêu cầu đặt bàn nội bộ. Nội dung trò chuyện, biểu mẫu cá nhân và dữ liệu chuyển khoản nằm ngoài dữ liệu tracking.

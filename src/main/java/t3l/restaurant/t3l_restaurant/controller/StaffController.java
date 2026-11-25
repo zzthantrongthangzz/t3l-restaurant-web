@@ -283,7 +283,16 @@ public class StaffController {
       @RequestParam(required = false) Integer quantity, @RequestParam(defaultValue = "false") boolean cancel,
       RedirectAttributes redirect) {
     return action(redirect, ORDERS + "/" + id, cancel ? "Đã hủy món." : "Đã cập nhật số lượng.",
-        () -> orders.adjustItem(id, itemId, quantity, cancel));
+        () -> {
+          if (orders.adjustItem(id,itemId,quantity,cancel))
+            redirect.addFlashAttribute("voucherNotice","Voucher đã được gỡ vì giỏ món không còn đạt điều kiện.");
+        });
+  }
+
+  @PostMapping("/orders/{id}/voucher")
+  public String voucher(@PathVariable Long id,@RequestParam(defaultValue="") String code,
+      @RequestParam String operation,RedirectAttributes redirect) {
+    return action(redirect,ORDERS+"/"+id,"Đã cập nhật voucher.",() -> orders.voucher(id,code,operation));
   }
 
   @PostMapping("/orders/{id}/finalize")
