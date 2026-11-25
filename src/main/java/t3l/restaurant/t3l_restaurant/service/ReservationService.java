@@ -376,7 +376,9 @@ public class ReservationService {
       case CONFIRMED, CANCELLED -> decideBooking(booking, status, active, actor);
       case CHECKED_IN -> checkIn(booking, now);
       case SEATED, "RECEIVE" -> {
-        if ("RECEIVE".equals(status) && CONFIRMED.equals(booking.getStatus())) checkIn(booking, now);
+        if (("RECEIVE".equals(status) || SEATED.equals(status)) && CONFIRMED.equals(booking.getStatus())) {
+          checkIn(booking, now);
+        }
         if (!CHECKED_IN.equals(booking.getStatus())) throw new BookingException(null, "Hãy check-in khách trước khi nhận bàn.");
         if (!inServiceHours(now)) throw new BookingException("time", "Chỉ nhận bàn trong giờ phục vụ của nhà hàng.");
         LocalDateTime end = expectedServiceEnd(booking, now);

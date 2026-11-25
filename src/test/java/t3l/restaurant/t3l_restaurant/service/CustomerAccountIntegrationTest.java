@@ -377,7 +377,42 @@ class CustomerAccountIntegrationTest {
   }
 
   @Test
-  void localSmsKeepsBookingDraftAndRequiresProfileBeforeCreatingBooking() throws Exception {
+  void passwordLoginReturnsToBookingDraftAndCanCreateReservation() throws Exception {
+    jdbc.update("insert into restaurant_tables(code, table_type, capacity, active) values (?, ?, ?, ?)",
+        "PASSWORD-QA-TABLE", "Bàn nhỏ", 4, true);
+    Long tableId = jdbc.queryForObject("select id from restaurant_tables where code='PASSWORD-QA-TABLE'", Long.class);
+    String phone = "0912345678";
+    String username = "password-booking-" + UUID.randomUUID();
+    var customer = UserAccount.customer("Khách mật khẩu", null, phone, username, passwords.encode(PASSWORD));
+    customer.verifyPhone(phone);
+    accounts.saveAndFlush(customer);
+
+    var session = new MockHttpSession();
+    String date = "2098-12-18";
+    String draft = (String) mvc.perform(get("/reservations/new").session(session)
+        .param("date", date).param("time", "18:00").param("guests", "2").param("tableId", tableId.toString()))
+        .andExpect(status().isOk()).andReturn().getModelAndView().getModel().get("bookingDraft");
+    String target = "/reservations/new?draft=" + draft;
+
+    mvc.perform(post("/login/password").session(session).with(csrf()).param("phone", phone)
+        .param("password", PASSWORD).param("returnTo", target)).andExpect(redirectedUrl(target));
+
+    var form = (ReservationForm) mvc.perform(get(target).session(session)).andExpect(status().isOk())
+        .andExpect(model().attribute("bookingCustomer", true))
+        .andExpect(model().attribute("bookingProfileMissing", false))
+        .andReturn().getModelAndView().getModel().get("form");
+    assertEquals("Khách mật khẩu", form.getGuestName());
+    assertEquals(phone, form.getGuestPhone());
+
+    mvc.perform(post("/reservations").session(session).with(csrf()).param("draft", draft)
+        .param("tableId", tableId.toString()).param("date", date).param("time", "18:00")
+        .param("guests", "2").param("consentAccepted", "true"))
+        .andExpect(redirectedUrlPattern("/reservations/confirmation?code=*"));
+    assertEquals(1, bookings.findByCustomerIdOrderByReservationDateAscReservationTimeAscIdAsc(customer.getId()).size());
+  }
+
+  @Test
+  void localSmsKeepsBookingDraftAndCanCreateBookingWithProvidedContact() throws Exception {
     jdbc.update("insert into restaurant_tables(code, table_type, capacity, active) values (?, ?, ?, ?)",
         "SMS-QA-TABLE", "Bàn nhỏ", 4, true);
     var session = new MockHttpSession();
@@ -410,29 +445,22 @@ class CustomerAccountIntegrationTest {
         .andExpect(redirectedUrl(target));
     assertTrue(accounts.findByVerifiedPhone("0900000000").isEmpty());
     var account = accounts.findByUsername("local-sms:0900000000").orElseThrow();
-    mvc.perform(get(target).session(session)).andExpect(status().isOk())
-        .andExpect(content().string(containsString("HOÀN THIỆN HỒ SƠ CỦA BẠN")))
-        .andExpect(content().string(containsString("0900000000")))
-        .andExpect(model().attribute("profileForm", org.hamcrest.Matchers.hasProperty("givenName",
-            org.hamcrest.Matchers.equalTo("Linh"))))
-        .andExpect(model().attribute("form", org.hamcrest.Matchers.hasProperty("note",
-            org.hamcrest.Matchers.equalTo("Ghi chú cần giữ"))));
-    mvc.perform(post("/reservations/profile").session(session).with(csrf()).param("draft", draft)
-        .param("givenName", "Linh").param("familyName", "Nguyễn").param("phone", "0900000000")
-        .param("bookingNotifications", "true")).andExpect(redirectedUrl(target));
-    mvc.perform(get(target).session(session))
+    var form = (ReservationForm) mvc.perform(get(target).session(session)).andExpect(status().isOk())
         .andExpect(content().string(not(containsString("HOÀN THIỆN HỒ SƠ CỦA BẠN"))))
-        .andExpect(content().string(containsString("Nguyễn Linh")));
+        .andExpect(model().attribute("bookingProfileMissing", true))
+        .andReturn().getModelAndView().getModel().get("form");
+    assertEquals("Nguyễn Linh", form.getGuestName());
+    assertEquals("0900000000", form.getGuestPhone());
+    assertEquals("Ghi chú cần giữ", form.getNote());
     mvc.perform(post("/reservations").session(session).with(csrf()).param("draft", draft)
         .param("date", date).param("time", "18:00").param("guests", "3").param("preferredArea", "Bàn nhỏ")
-        .param("guestName", "Tampered").param("guestPhone", "0988888888").param("guestEmail", "fake@example.test")
+        .param("guestName", form.getGuestName()).param("guestPhone", form.getGuestPhone())
         .param("note", "Ghi chú cần giữ").param("consentAccepted", "true"))
         .andExpect(redirectedUrlPattern("/reservations/confirmation?code=*"));
     var saved = bookings.findByCustomerIdOrderByReservationDateAscReservationTimeAscIdAsc(account.getId()).getFirst();
     assertEquals("Nguyễn Linh", saved.getGuestName());
     assertEquals("0900000000", saved.getGuestPhone());
     assertNull(saved.getGuestEmail());
-    assertFalse(profiles.findById(account.getId()).orElseThrow().isMarketingOptIn());
     mvc.perform(get("/account/reservations").session(session))
         .andExpect(content().string(containsString(saved.getCode())));
     mvc.perform(post("/login/sms/verify").session(session).with(csrf()).param("code", code))
@@ -524,7 +552,7 @@ class CustomerAccountIntegrationTest {
   }
 
   @Test
-  void googleBookingPrefillsContactAndKeepsSelectionThroughTheProfilePopup() throws Exception {
+  void googleBookingKeepsSelectionAndCanCreateBookingWithPhone() throws Exception {
     jdbc.update("insert into restaurant_tables(code, table_type, capacity, active) values (?, ?, ?, ?)",
         "GOOGLE-QA-TABLE", "Bàn nhỏ", 4, true);
     var session = new MockHttpSession();
@@ -552,26 +580,14 @@ class CustomerAccountIntegrationTest {
     String state = startGoogleSignIn(session, target);
     assertEquals(target, completeGoogleSignIn(session, state, null, identity));
 
-    var model = mvc.perform(get(target).session(session)).andExpect(status().isOk())
-        .andExpect(content().string(containsString("HOÀN THIỆN HỒ SƠ CỦA BẠN")))
-        .andReturn().getModelAndView().getModel();
-    var profile = (CustomerProfileForm) model.get("profileForm");
-    assertEquals("Guest", profile.getGivenName());
-    assertEquals("Google", profile.getFamilyName());
-    assertEquals(identity.getEmail(), profile.getEmail());
-    assertNull(profile.getPhone());
-    mvc.perform(post("/reservations/profile").session(session).with(csrf()).param("draft", draft)
-        .param("givenName", profile.getGivenName()).param("familyName", profile.getFamilyName())
-        .param("email", profile.getEmail())).andExpect(model().attributeHasFieldErrors("profileForm", "phone"));
-    mvc.perform(post("/reservations/profile").session(session).with(csrf()).param("draft", draft)
-        .param("givenName", profile.getGivenName()).param("familyName", profile.getFamilyName())
-        .param("email", profile.getEmail()).param("phone", "0901234568")).andExpect(redirectedUrl(target));
-
     var resumed = (ReservationForm) mvc.perform(get(target).session(session)).andExpect(status().isOk())
-        .andExpect(model().attribute("bookingProfileMissing", false)).andReturn().getModelAndView().getModel().get("form");
+        .andExpect(content().string(not(containsString("HOÀN THIỆN HỒ SƠ CỦA BẠN"))))
+        .andExpect(model().attribute("bookingProfileMissing", true)).andReturn().getModelAndView().getModel().get("form");
     assertEquals(LocalDate.parse(date), resumed.getDate());
     assertEquals(LocalTime.of(18, 30), resumed.getTime());
     assertEquals(3, resumed.getGuests());
+    assertEquals("Google Guest", resumed.getGuestName());
+    assertNull(resumed.getGuestPhone());
     assertEquals("Ghi chú của lịch Google", resumed.getNote());
     assertEquals(tableId, resumed.getTableId());
     assertTrue(resumed.isConsentAccepted());
@@ -581,7 +597,9 @@ class CustomerAccountIntegrationTest {
     mvc.perform(post("/reservations").session(session).with(csrf()).param("draft", draft)
         .param("tableId", tableId.toString())
         .param(quantityField, "3").param("preorderNote", "Để sốt riêng").param("preorderExpectedTotal", "300000")
-        .param("date", date).param("time", "18:30").param("guests", "3").param("consentAccepted", "true"))
+        .param("date", date).param("time", "18:30").param("guests", "3")
+        .param("guestName", resumed.getGuestName()).param("guestPhone", "0901234568")
+        .param("guestEmail", identity.getEmail()).param("consentAccepted", "true"))
         .andExpect(redirectedUrlPattern("/reservations/confirmation?code=*"));
     Long owner = profiles.findAccountIdByGoogleSubject(identity.getSubject()).orElseThrow();
     var saved = bookings.findByCustomerIdOrderByReservationDateAscReservationTimeAscIdAsc(owner).getFirst();

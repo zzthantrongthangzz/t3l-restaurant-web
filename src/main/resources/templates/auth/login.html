@@ -10,6 +10,40 @@
         <p th:if="${param.google[0] == 'email-in-use'}">Email này thuộc một tài khoản T3L khác. Hãy đăng nhập bằng phương thức đã liên kết với tài khoản đó.</p>
         <p th:unless="${param.google[0] == 'email-in-use'}">Chưa thể đăng nhập bằng Google. Vui lòng thử lại.</p>
       </div>
+      <p class="login-notice login-notice-error"
+         role="alert"
+         th:if="${passwordError != null}"
+         th:text="${passwordError}"></p>
+
+      <form class="login-form" method="post" th:action="@{/login/password}">
+        <input type="hidden"
+               name="returnTo"
+               th:if="${googleReturnTo != null}"
+               th:value="${googleReturnTo}" />
+
+        <div class="login-field">
+          <label for="login-phone">Số điện thoại</label>
+          <input id="login-phone"
+                 name="phone"
+                 type="tel"
+                 autocomplete="username"
+                 placeholder="090 123 4567"
+                 required />
+        </div>
+
+        <div class="login-field">
+          <label for="login-password">Mật khẩu</label>
+          <input id="login-password"
+                 name="password"
+                 type="password"
+                 autocomplete="current-password"
+                 required />
+        </div>
+
+        <button class="home-button login-submit" type="submit">
+          Đăng nhập
+        </button>
+      </form>
       <div class="auth-options">
         <a class="home-button auth-option" th:if="${smsAvailable}" th:href="@{/login/sms(returnTo=${googleReturnTo})}">
           <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M10 18h4"/></svg>

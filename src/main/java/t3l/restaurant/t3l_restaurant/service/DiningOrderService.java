@@ -213,7 +213,7 @@ public class DiningOrderService {
     if (applied.signum() > 0) markDepositIntentApplied(reservationId);
     order.markPaid();
     bookingService.finishService(booking, actor, now());
-    vouchers.consume(order,intent.isDemo() || booking.isDepositDemo());
+    vouchers.consume(order,intent.isDemo());
     intent.markApplied(now());
     if (applied.signum() > 0) emails.enqueue(booking,
         t3l.restaurant.t3l_restaurant.entity.ReservationEmail.Kind.DEPOSIT_APPLIED, null,

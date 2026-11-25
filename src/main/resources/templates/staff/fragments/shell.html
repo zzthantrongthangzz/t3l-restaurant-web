@@ -8,9 +8,10 @@
     <th:block th:replace="~{web/fragments/theme :: start}"></th:block>
     <link rel="stylesheet" th:href="@{/css/site.css}" />
     <link rel="stylesheet" th:href="@{/css/reservation-requests.css}" />
-    <link rel="stylesheet" th:href="@{/css/staff.css}" />
+    <link rel="stylesheet" th:href="@{/css/staff.css(v=3)}" />
     <link rel="stylesheet" th:href="@{/css/table-plan.css}" />
     <script data-page-script defer th:src="@{/js/staff.js}"></script>
+    <script data-page-script defer th:src="@{/js/staff-pending-bookings.js}"></script>
     <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
   </head>
   <body>
@@ -35,6 +36,12 @@
         <a th:href="@{/staff/shift}" th:attr="aria-current=${section == 'shift' ? 'page' : null}">Ca làm &amp; doanh thu</a>
         <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/dashboard}">Quản trị</a>
       </nav>
+      <a class="staff-pending-float" data-pending-bookings hidden
+          th:href="@{/staff/reservations(status='PENDING_CONFIRMATION')}"
+          th:attr="data-endpoint=@{/staff/notifications/pending-bookings}"
+          aria-live="polite" aria-label="Mở các yêu cầu đặt bàn đang chờ">
+        <span>Hiện có</span><strong data-pending-count>0</strong><span>yêu cầu đặt bàn đang chờ</span>
+      </a>
     </header>
     <div th:fragment="messages" th:remove="tag">
       <p class="staff-notice is-success" th:if="${notice}" th:text="${notice}" role="status"></p>

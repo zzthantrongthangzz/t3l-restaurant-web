@@ -36,29 +36,43 @@ public class PhoneCustomerService {
   }
 
   @Transactional(isolation = Isolation.READ_COMMITTED)
-  public UserAccount register(String fullName, String inputPhone, boolean local) {
+  public UserAccount register(
+          String fullName,
+          String inputPhone,
+          boolean local,
+          String encodedPassword
+  ) {
     String name = fullName == null ? "" : fullName.strip().replaceAll("\\s+", " ");
     String phone = SmsOtpService.normalizePhone(inputPhone);
-    if (name.isBlank() || name.length() > 120 || phone == null) {
-      throw new OtpException("Vui lòng nhập họ tên và số điện thoại hợp lệ.");
+
+    if (name.isBlank() || name.length() > 120 || phone == null
+            || encodedPassword == null || encodedPassword.isBlank()
+            || encodedPassword.length() > 100) {
+      throw new OtpException("Vui lòng kiểm tra lại thông tin đăng ký.");
     }
 
     if (local) {
-      String username = LOCAL_PREFIX + phone;
-      var existing = accounts.findByUsername(username);
+      String localUsername = LOCAL_PREFIX + phone;
+      var existing = accounts.findByUsername(localUsername);
+
       if (existing.isPresent()) {
         UserAccount account = requireCustomer(existing.get());
         account.updateCustomerContact(name, account.getEmail(), phone);
+        account.manage(account.getRole(), account.isEnabled(), encodedPassword);
         return accounts.saveAndFlush(account);
       }
     } else if (!canRegister(phone)) {
-      throw new OtpException("Số điện thoại đã có tài khoản. Vui lòng đăng nhập hoặc khôi phục tài khoản.");
+      throw new OtpException(
+              "Số điện thoại đã có tài khoản. Vui lòng đăng nhập hoặc khôi phục tài khoản.");
     }
 
     String username = (local ? LOCAL_PREFIX + phone : "sms:" + UUID.randomUUID());
-    UserAccount account = UserAccount.customer(name, null, phone, username,
-        passwords.encode(UUID.randomUUID().toString()));
-    if (!local) account.verifyPhone(phone);
+    UserAccount account = UserAccount.customer(name, null, phone, username, encodedPassword);
+
+    if (!local) {
+      account.verifyPhone(phone);
+    }
+
     return accounts.saveAndFlush(account);
   }
 

@@ -30,6 +30,27 @@
               placeholder="090 123 4567" required th:attr="aria-invalid=${#fields.hasErrors('phone')}" />
           <small class="register-error" th:errors="*{phone}"></small>
         </div>
+        <div class="login-field register-wide">
+          <label for="register-password">Mật khẩu</label>
+          <input id="register-password"
+                 name="password"
+                 type="password"
+                 autocomplete="new-password"
+                 minlength="12"
+                 maxlength="72"
+                 required />
+          <small class="register-error" th:errors="*{password}"></small>
+        </div>
+
+        <div class="login-field register-wide">
+          <label for="register-confirm-password">Xác nhận mật khẩu</label>
+          <input id="register-confirm-password"
+                 name="confirmPassword"
+                 type="password"
+                 autocomplete="new-password"
+                 required />
+          <small class="register-error" th:errors="*{confirmPassword}"></small>
+        </div>
         <button class="home-button login-submit register-wide" type="submit">Gửi mã xác thực</button>
       </form>
       <section class="register-wide" th:if="${registrationPending}" aria-labelledby="registration-code-title">

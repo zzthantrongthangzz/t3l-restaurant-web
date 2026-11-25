@@ -31,7 +31,6 @@ public class TrackingReportService {
           AND (:actor='' OR a.actor_kind=:actor)
         GROUP BY a.flow_key,a.session_id
       ) p LEFT JOIN reservations r ON r.id=p.reservation_id
-      WHERE COALESCE(r.deposit_demo,FALSE)=FALSE
       """;
 
   public record Filter(LocalDate from, LocalDate to, String preset, String actor, String grain) {}

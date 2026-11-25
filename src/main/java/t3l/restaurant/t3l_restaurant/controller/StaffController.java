@@ -87,6 +87,14 @@ public class StaffController {
     return "staff/reservations";
   }
 
+  @GetMapping("/notifications/pending-bookings")
+  @ResponseBody
+  public PendingBookingCount pendingBookingCount() {
+    return new PendingBookingCount(workspace.pendingBookingCount());
+  }
+
+  public record PendingBookingCount(long count) {}
+
   @GetMapping("/reservations/new")
   public String newBooking(@RequestParam(required = false) Long tableId,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,

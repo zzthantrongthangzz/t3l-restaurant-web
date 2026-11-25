@@ -256,15 +256,15 @@ public class WebController {
         model.addAttribute("bookingNotice", "Bàn đã chọn không còn phù hợp hoặc vừa có lượt đặt. Vui lòng chọn bàn khác.");
       }
     }
+    if (customer != null) prefillMissingContact(form, customer);
     if (resumed || customer != null || form.getTableId() != null) {
       draft = drafts.save(request.getSession(), form, customerId(customer), draft);
     }
-    if (customer != null && !customers.needsBookingProfile(customer)) fillContact(form, customer);
     if (choose || chooseTable || (tableId != null && form.getTableId() != null)) {
       tracking.booking(request, authentication, tableId != null && form.getTableId() != null, null);
     }
     model.addAttribute("form", form);
-    return bookingPage(model, customer, draft, form, rules, board, !choose && !chooseTable && (resumed || form.getTableId() != null));
+    return bookingPage(model, customer, draft, form, rules, board);
   }
 
   @PostMapping("/reservations/{code}/deposit-reference")
@@ -299,14 +299,14 @@ public class WebController {
     try {
       var checkout = paymentIntents.depositCheckout(booking.getId());
       if (checkout == null) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
-      paymentVerification.simulate(checkout.intent().getPaymentCode());
-      redirect.addFlashAttribute("notice", "Đã ghi nhận khoản cọc DEMO; nhân viên có thể xác nhận đặt bàn.");
+      paymentVerification.simulateDepositAsPaid(checkout.intent().getPaymentCode());
+      redirect.addFlashAttribute("notice", "Đã ghi nhận khoản cọc; nhân viên có thể xác nhận đặt bàn.");
     } catch (org.springframework.web.server.ResponseStatusException exception) {
       throw exception;
     } catch (BookingException exception) {
       redirect.addFlashAttribute("error", exception.getMessage());
     } catch (RuntimeException exception) {
-      redirect.addFlashAttribute("error", "Chưa thể ghi nhận giao dịch DEMO. Vui lòng tải lại trang và thử lại.");
+      redirect.addFlashAttribute("error", "Chưa thể ghi nhận khoản cọc. Vui lòng tải lại trang và thử lại.");
     }
     redirect.addAttribute("code", code);
     return "redirect:/reservations/confirmation";
@@ -325,7 +325,10 @@ public class WebController {
       Model model, RedirectAttributes redirect) {
     UserAccount customer = customers.signedInCustomer(authentication);
     boolean incompleteProfile = customer != null && customers.needsBookingProfile(customer);
-    if (customer != null && !incompleteProfile) fillContact(form, customer);
+    if (customer != null) {
+      if (incompleteProfile) prefillMissingContact(form, customer);
+      else fillContact(form, customer);
+    }
     boolean saveForLogin = customer == null && loginOnly;
     if (customer == null && !saveForLogin) {
       form.setPreorderDishIds(List.of());
@@ -339,7 +342,7 @@ public class WebController {
         result.rejectValue("preorderQuantities", "booking.invalid", exception.getMessage());
       }
     }
-    boolean draftOnly = choose || saveForLogin || incompleteProfile;
+    boolean draftOnly = choose || saveForLogin;
 
     for (var violation : validator.validate(form)) {
       String field = violation.getPropertyPath().toString();
@@ -423,7 +426,18 @@ public class WebController {
   private void fillContact(ReservationForm form, UserAccount customer) {
     form.setGuestName(customer.getFullName());
     form.setGuestPhone(customers.bookingPhone(customer.getPhone()));
-    form.setGuestEmail(customer.getEmail());
+  }
+
+  private void prefillMissingContact(ReservationForm form, UserAccount customer) {
+    if (form.getGuestName() == null || form.getGuestName().isBlank()) {
+      form.setGuestName(customer.getFullName());
+    }
+    if (form.getGuestPhone() == null || form.getGuestPhone().isBlank()) {
+      form.setGuestPhone(customers.bookingPhone(customer.getPhone()));
+    }
+    if (form.getGuestEmail() == null || form.getGuestEmail().isBlank()) {
+      form.setGuestEmail(customer.getEmail());
+    }
   }
 
   private String redisplayBooking(Model model, UserAccount customer, String draft, ReservationForm form) {
@@ -432,27 +446,20 @@ public class WebController {
     var slots = reservationSchedule.futureSlots(date, rules);
     var time = slots.contains(form.getTime()) ? form.getTime() : slots.isEmpty() ? null : slots.getFirst();
     var board = publicTableBoard.forSlot(date, time, boardGuests(form.getGuests()), rules.duration());
-    return bookingPage(model, customer, draft, form, rules, board, false);
+    return bookingPage(model, customer, draft, form, rules, board);
   }
 
   private String bookingPage(Model model, UserAccount customer, String draft, ReservationForm form,
-      ReservationSchedule.Rules rules, List<PublicTableBoardService.TableView> board, boolean openProfile) {
+      ReservationSchedule.Rules rules, List<PublicTableBoardService.TableView> board) {
     var today = reservationSchedule.today();
     var date = form.getDate() == null ? today : form.getDate();
     var slots = reservationSchedule.futureSlots(date, rules);
     var time = slots.contains(form.getTime()) ? form.getTime() : slots.isEmpty() ? null : slots.getFirst();
     boolean missing = customer != null && customers.needsBookingProfile(customer);
-    boolean showProfile = missing && draft != null && (openProfile || model.containsAttribute("profileForm"));
     model.addAttribute("bookingCustomer", customer != null);
     model.addAttribute("bookingDraft", draft);
     model.addAttribute("bookingProfileMissing", missing);
-    model.addAttribute("showBookingProfile", showProfile);
-    if (showProfile && !model.containsAttribute("profileForm")) {
-      var profile = customers.profileForm(customer, customers.profile(customer), form.getGuestName());
-      if (customers.bookingPhone(profile.getPhone()) == null) profile.setPhone(customers.bookingPhone(form.getGuestPhone()));
-      if (profile.getEmail() == null || profile.getEmail().isBlank()) profile.setEmail(form.getGuestEmail());
-      model.addAttribute("profileForm", profile);
-    }
+    model.addAttribute("showBookingProfile", false);
     if (customer != null) {
       model.addAttribute("bookingName", customer.getFullName());
       model.addAttribute("verifiedPhone", customer.getVerifiedPhone());

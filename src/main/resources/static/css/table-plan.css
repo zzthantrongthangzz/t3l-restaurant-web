@@ -37,6 +37,9 @@
 .plan-booking-fields :is(input,select,textarea) { width:100%; min-height:43px; padding:9px 10px; border:1px solid #cbd9dd; border-radius:7px; background:#fff; color:#18394a; font:400 1rem/1.4 var(--font-sans); }
 .plan-booking-fields textarea { resize:vertical; }.plan-field-full { grid-column:1/-1; }.plan-consent { display:flex; align-items:flex-start; gap:9px; margin:14px 0; color:#526875; font-size:.9rem; }
 .plan-consent input { width:17px; height:17px; flex:none; margin:2px 0 0; accent-color:#17759a; }.plan-booking-form > .home-button { width:100%; justify-content:center; }.plan-form-error { margin:5px 0; color:#a2342d; font-size:.9rem; }
+.plan-form-error-summary { margin:0 0 16px; padding:12px 14px; border:1px solid #c64c45; border-radius:8px; background:#fff1ef; color:#7d211d; }
+.plan-form-error-summary:focus { outline:3px solid #c64c4580; outline-offset:2px; }
+.plan-form-error-summary ul { display:grid; gap:4px; margin:7px 0 0; padding-left:20px; }
 .plan-preorder { grid-column:1/-1; max-height:235px; overflow:auto; margin:4px 0 0; padding:11px; border:1px solid #d8e3e4; border-radius:8px; }
 .plan-preorder legend { padding-inline:5px; color:#274c5e; font-weight:700; }.plan-preorder legend small { color:#697d85; font-weight:400; }
 .plan-preorder > p,.plan-form-hint { display:block; margin:3px 0 9px; color:#5b707a; font-size:.84rem; line-height:1.4; }

@@ -70,16 +70,30 @@ public class PaymentVerificationService {
 
   @Transactional(isolation = Isolation.READ_COMMITTED)
   public PaymentIntent simulate(String paymentCode) {
+    return simulate(paymentCode, true, false);
+  }
+
+  @Transactional(isolation = Isolation.READ_COMMITTED)
+  public PaymentIntent simulateDepositAsPaid(String paymentCode) {
+    return simulate(paymentCode, false, true);
+  }
+
+  private PaymentIntent simulate(String paymentCode, boolean demo, boolean depositOnly) {
     if (!properties.demoAllowed()) throw new org.springframework.web.server.ResponseStatusException(
         org.springframework.http.HttpStatus.NOT_FOUND);
     PaymentIntent intent = intents.findByPaymentCode(paymentCode)
         .orElseThrow(() -> new BookingException(null, "Không tìm thấy yêu cầu thanh toán."));
+    if (depositOnly && !PaymentIntent.DEPOSIT.equals(intent.getPaymentType())) {
+      throw new BookingException(null, "Yêu cầu thanh toán này không phải tiền cọc.");
+    }
     var now = now();
     String account = properties.bankAccount().isBlank() ? "DEMO-ACCOUNT" : properties.bankAccount();
-    String direction = "in";
-    var incoming = new Incoming("DEMO-" + intent.getId(), "DEMO-" + intent.getPaymentCode(), account,
-        direction, intent.getAmount(), BigDecimal.ZERO, "DEMO " + intent.getPaymentCode(), now);
-    process(intent.getId(), incoming, true);
+    String prefix = demo ? "DEMO-" : "SIM-";
+    String reference = demo ? "DEMO-" + intent.getPaymentCode() : "SIM-" + intent.getPaymentCode();
+    String content = demo ? "DEMO " + intent.getPaymentCode() : intent.getPaymentCode();
+    var incoming = new Incoming(prefix + intent.getId(), reference, account,
+        "in", intent.getAmount(), BigDecimal.ZERO, content, now);
+    process(intent.getId(), incoming, demo);
     return intents.findByPaymentCode(paymentCode).orElseThrow();
   }
 

@@ -33,7 +33,9 @@ import t3l.restaurant.t3l_restaurant.security.JwtAuthenticationFilter;
 import t3l.restaurant.t3l_restaurant.security.JwtService;
 import t3l.restaurant.t3l_restaurant.service.DatabaseUserDetailsService;
 import t3l.restaurant.t3l_restaurant.repository.UserAccountRepository;
-
+import org.springframework.security.authentication.ProviderManager;
+import t3l.restaurant.t3l_restaurant.security.AccountPrincipal;
+import t3l.restaurant.t3l_restaurant.service.SmsOtpService;
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
@@ -46,6 +48,32 @@ public class SecurityConfig {
   AuthenticationManager authenticationManager(AuthenticationConfiguration configuration)
       throws Exception {
     return configuration.getAuthenticationManager();
+  }
+  @Bean("customerPasswordAuthenticationManager")
+  AuthenticationManager customerPasswordAuthenticationManager(
+          UserAccountRepository accounts,
+          PasswordEncoder passwords
+  ) {
+    var provider = new DaoAuthenticationProvider();
+    provider.setPasswordEncoder(passwords);
+
+    provider.setUserDetailsService(inputPhone -> {
+      String phone = SmsOtpService.normalizePhone(inputPhone);
+
+      if (phone == null) {
+        throw new UsernameNotFoundException("Không tìm thấy tài khoản khách hàng.");
+      }
+
+      var account = accounts.findByVerifiedPhone(phone)
+              .or(() -> accounts.findByUsername("local-sms:" + phone))
+              .filter(user -> "BUYER".equals(user.getRole()))
+              .orElseThrow(() ->
+                      new UsernameNotFoundException("Không tìm thấy tài khoản khách hàng."));
+
+      return new AccountPrincipal(account);
+    });
+
+    return new ProviderManager(java.util.List.of(provider));
   }
 
   @Bean
@@ -113,7 +141,7 @@ public class SecurityConfig {
             a.requestMatchers("/account", "/account/**", "/reservations/lookup/*/claim")
                 .hasRole("BUYER")
                 .requestMatchers(HttpMethod.POST, "/reservations/*/preorder").hasAnyRole("BUYER", "STAFF", "ADMIN")
-                .requestMatchers("/login", "/oauth2/authorization/google", "/login/oauth2/code/google", "/login/sms/**",
+                .requestMatchers("/login","/login/password",  "/oauth2/authorization/google", "/login/oauth2/code/google", "/login/sms/**",
                     "/login/recover/**", "/register", "/register/verify", "/staff/login")
                 .permitAll()
                 .requestMatchers("/chat/**", "/tracking/**").access(new org.springframework.security.web.access.expression.WebExpressionAuthorizationManager(

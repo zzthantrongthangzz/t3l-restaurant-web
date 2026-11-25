@@ -23,6 +23,20 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
   @EntityGraph(attributePaths = {"table"})
   java.util.Optional<Reservation> findByCode(String code);
 
+  @Query(value = """
+      SELECT r.* FROM reservations r
+      WHERE r.customer_id IS NULL
+        AND CASE
+          WHEN REGEXP_REPLACE(r.guest_phone, '[^0-9]', '') LIKE '84%'
+            AND CHAR_LENGTH(REGEXP_REPLACE(r.guest_phone, '[^0-9]', '')) = 11
+          THEN CONCAT('0', SUBSTRING(REGEXP_REPLACE(r.guest_phone, '[^0-9]', ''), 3))
+          ELSE REGEXP_REPLACE(r.guest_phone, '[^0-9]', '')
+        END = :phone
+      ORDER BY r.reservation_date DESC, r.reservation_time DESC, r.id DESC
+      LIMIT 20
+      """, nativeQuery = true)
+  List<Reservation> findTop20UnclaimedByCanonicalPhone(@Param("phone") String phone);
+
   List<Reservation> findByCustomerIdOrderByReservationDateAscReservationTimeAscIdAsc(Long customerId);
 
   @Query("select r.id from Reservation r where r.code = :code")

@@ -54,14 +54,6 @@
       const status = await response.json();
       panel.dataset.status = status.status;
       if (statusText) statusText.textContent = status.label;
-      let demoBadge = panel.querySelector('[data-payment-demo-label]');
-      if (status.demo && !demoBadge) {
-        demoBadge = document.createElement('span');
-        demoBadge.className = 'staff-badge is-warning';
-        demoBadge.dataset.paymentDemoLabel = '';
-        demoBadge.textContent = 'DEMO · không tính doanh thu thực tế';
-        statusText?.after(demoBadge);
-      }
       if (countdown && status.remainingSeconds >= 0 && status.status === 'WAITING') {
         seconds = status.remainingSeconds;
         countdown.hidden = false;

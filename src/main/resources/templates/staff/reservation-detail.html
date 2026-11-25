@@ -47,7 +47,6 @@
               <p th:if="${booking.depositRetained.signum() > 0}" th:text="${'Giữ cọc: ' + #numbers.formatInteger(booking.depositRetained,1,'POINT') + ' đ'}"></p>
               <p th:if="${booking.depositRefunded.signum() > 0}" th:text="${'Đã hoàn: ' + #numbers.formatInteger(booking.depositRefunded,1,'POINT') + ' đ'}"></p>
               <p class="staff-action-reason" th:if="${depositPaymentStatus.status == 'REVIEW_REQUIRED'}">Giao dịch chưa được tự động ghi nhận. Cần đối soát với ngân hàng trước khi xác nhận.</p>
-              <p th:if="${booking.depositDemo}" class="staff-badge is-warning" data-payment-demo-label>DEMO · không tính doanh thu thực tế</p>
               <form class="staff-form" th:if="${booking.depositStatus == 'TRANSFER_SUBMITTED' or booking.depositStatus == 'CLOSED_TRANSFER_PENDING'}"
                     th:action="@{${opsBase + '/reservations/{id}/deposit'}(id=${booking.id})}" method="post">
                 <input type="hidden" name="reference" th:value="${booking.depositReference}" />
