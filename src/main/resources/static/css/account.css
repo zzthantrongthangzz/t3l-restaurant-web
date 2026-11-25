@@ -191,6 +191,21 @@
 .account-invoice summary { padding: 12px; cursor: pointer; }
 .account-invoice summary span { margin-inline-start: 8px; color: var(--account-accent); white-space: nowrap; }
 .account-invoice > ul { padding: 0 12px 12px; }
+.account-invoice-details { padding: 0 12px 12px; font-size: var(--text-compact); }
+.account-invoice-details dl { margin: 0; }
+.account-invoice-details dl + dl { margin-top: 10px; }
+.account-invoice-details dl > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 6px 12px;
+  padding: 7px 4px;
+  border-top: 1px solid var(--account-line);
+}
+.account-invoice-details dt { color: var(--account-muted); overflow-wrap: anywhere; }
+.account-invoice-details dd { margin: 0; text-align: end; }
+.account-invoice-totals dd { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.account-invoice-collected :is(dt, dd) { color: var(--account-accent); font-weight: 600; }
 @media (max-width: 760px) {
   .account-area { padding: 109px 16px 46px; }
   .account-content { padding: 21px 17px; }

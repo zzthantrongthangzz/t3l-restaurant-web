@@ -12,14 +12,42 @@
   <body class="home customer-page faq-page">
     <header th:replace="~{web/fragments/restaurant-shell :: header('faq')}"></header>
     <main data-navigation class="page inner-page faq-main">
-      <span class="eyebrow">HỖ TRỢ KHÁCH HÀNG</span>
-      <h1>Câu hỏi thường gặp</h1>
-      <p class="lead">Một số thông tin hữu ích trước khi bạn ghé T3L.</p>
-      <section class="faq-list">
-        <article class="faq-item" th:each="faq : ${faqs}">
-          <h2 th:text="${faq.question}">Câu hỏi</h2>
-          <p th:text="${faq.answer}">Trả lời</p>
-        </article>
+      <div class="faq-heading">
+        <p class="home-eyebrow">HỖ TRỢ KHÁCH HÀNG</p>
+        <h1>Câu hỏi thường gặp</h1>
+        <p class="lead">Một số thông tin hữu ích trước khi bạn ghé T3L.</p>
+        <div class="faq-actions">
+          <a class="home-button" th:href="@{/reservations/new}">Đặt bàn ngay</a>
+          <a class="home-button home-button-outline" th:href="@{/contact}">Liên hệ nhà hàng</a>
+        </div>
+      </div>
+      <section class="faq-content" aria-label="Danh sách câu hỏi thường gặp">
+        <div class="faq-search" th:unless="${#lists.isEmpty(faqs)}" role="search">
+          <label for="faq-search">Tìm câu hỏi</label>
+          <input id="faq-search" type="search" placeholder="Nhập từ khóa" autocomplete="off"
+                 aria-controls="faq-list" oninput="
+            const content = this.closest('.faq-content');
+            const normalize = (text) => text.toLocaleLowerCase('vi').normalize('NFD')
+              .replace(/\p{M}/gu, '').replace(/đ/g, 'd');
+            const query = normalize(this.value.trim());
+            let found = false;
+            for (const item of content.querySelectorAll('.faq-item')) {
+              const matches = [...item.querySelectorAll('summary, p')]
+                .some((part) => normalize(part.textContent).includes(query));
+              item.hidden = !matches;
+              if (!matches) item.open = false;
+              found ||= matches;
+            }
+            content.querySelector('.faq-no-results').textContent = found ? '' : 'Không tìm thấy câu hỏi phù hợp';
+          " />
+        </div>
+        <p class="faq-no-results" th:unless="${#lists.isEmpty(faqs)}" role="status"></p>
+        <div class="faq-list" id="faq-list">
+          <details class="faq-item" name="faq-questions" th:each="faq : ${faqs}">
+            <summary><span th:text="${faq.question}">Câu hỏi</span><span class="faq-indicator" aria-hidden="true"></span></summary>
+            <p th:text="${faq.answer}">Trả lời</p>
+          </details>
+        </div>
         <div class="empty-state" th:if="${#lists.isEmpty(faqs)}">
           Nội dung FAQ chưa được khởi tạo. Hãy chạy script MongoDB trong thư mục
           database/mongodb.

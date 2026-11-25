@@ -14,7 +14,7 @@
           </th:block>
           <ul class="account-list" th:unless="${invoices.isEmpty()}">
             <li th:each="invoice : ${invoices}">
-              <details class="account-invoice">
+              <details class="account-invoice" th:with="payment=${invoicePayments.get(invoice.id)}">
                 <summary>
                   <strong th:text="${invoice.invoiceNumber + ' · ' + invoice.reservation.code}"></strong>
                   <span th:text="${#numbers.formatInteger(invoice.totalAmount, 1, 'POINT') + ' đ'}"></span>
@@ -25,6 +25,44 @@
                     <span th:text="${#numbers.formatInteger(item.amount, 1, 'POINT') + ' đ'}"></span>
                   </li>
                 </ul>
+                <div class="account-invoice-details">
+                  <dl class="account-invoice-totals" aria-label="Bảng tính tiền">
+                    <div>
+                      <dt>Tổng tiền món</dt>
+                      <dd th:text="${#numbers.formatInteger(invoice.currentTotal, 1, 'POINT') + ' đ'}"></dd>
+                    </div>
+                    <div th:if="${invoice.voucherCode != null and !invoice.voucherCode.isBlank()}">
+                      <dt th:text="${'Giảm voucher · ' + invoice.voucherCode}">Giảm voucher</dt>
+                      <dd th:text="${'−' + #numbers.formatInteger(invoice.voucherDiscount, 1, 'POINT') + ' đ'}"></dd>
+                    </div>
+                    <div>
+                      <dt>Tổng sau giảm</dt>
+                      <dd th:text="${#numbers.formatInteger(invoice.totalAmount, 1, 'POINT') + ' đ'}"></dd>
+                    </div>
+                    <div th:if="${payment != null and payment.depositApplied != null and payment.depositApplied.signum() > 0}">
+                      <dt>Cọc đã khấu trừ</dt>
+                      <dd th:text="${'−' + #numbers.formatInteger(payment.depositApplied, 1, 'POINT') + ' đ'}"></dd>
+                    </div>
+                    <div class="account-invoice-collected">
+                      <dt>Số tiền đã thu thêm</dt>
+                      <dd th:text="${payment == null ? '—' : #numbers.formatInteger(payment.amount, 1, 'POINT') + ' đ'}"></dd>
+                    </div>
+                  </dl>
+                  <dl class="account-invoice-payment" aria-label="Thông tin thanh toán">
+                    <div>
+                      <dt>Trạng thái</dt>
+                      <dd th:text="${invoice.statusLabel}">Đã thanh toán</dd>
+                    </div>
+                    <div th:if="${payment != null and payment.paymentMethod != null}">
+                      <dt>Phương thức thanh toán</dt>
+                      <dd th:text="${payment.methodLabel}"></dd>
+                    </div>
+                    <div th:if="${payment != null and payment.paidAt != null}">
+                      <dt>Ngày thanh toán</dt>
+                      <dd><time th:attr="datetime=${payment.paidAt}" th:text="${#temporals.format(payment.paidAt, 'dd/MM/yyyy')}"></time></dd>
+                    </div>
+                  </dl>
+                </div>
               </details>
             </li>
           </ul>

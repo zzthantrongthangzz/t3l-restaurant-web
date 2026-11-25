@@ -5,6 +5,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -18,6 +21,7 @@ import t3l.restaurant.t3l_restaurant.dto.InvoiceCompanyForm;
 import t3l.restaurant.t3l_restaurant.entity.DiningOrder;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.repository.DiningOrderRepository;
+import t3l.restaurant.t3l_restaurant.repository.DiningPaymentRepository;
 import t3l.restaurant.t3l_restaurant.security.GoogleOAuthFlow;
 import t3l.restaurant.t3l_restaurant.service.CustomerAccountService;
 import t3l.restaurant.t3l_restaurant.service.CustomerAccountService.DuplicateEmailException;
@@ -32,14 +36,16 @@ public class CustomerAccountController {
   private final CustomerAccountService customers;
   private final ReservationService reservations;
   private final DiningOrderRepository diningOrders;
+  private final DiningPaymentRepository diningPayments;
   private final GoogleOAuthFlow google;
   private final t3l.restaurant.t3l_restaurant.service.VoucherService vouchers;
 
   public CustomerAccountController(CustomerAccountService customers, ReservationService reservations, DiningOrderRepository diningOrders,
-      GoogleOAuthFlow google,t3l.restaurant.t3l_restaurant.service.VoucherService vouchers) {
+      DiningPaymentRepository diningPayments, GoogleOAuthFlow google,t3l.restaurant.t3l_restaurant.service.VoucherService vouchers) {
     this.customers = customers;
     this.reservations = reservations;
     this.diningOrders = diningOrders;
+    this.diningPayments = diningPayments;
     this.google = google;
     this.vouchers=vouchers;
   }
@@ -167,9 +173,17 @@ public class CustomerAccountController {
   String invoices(@RequestParam(defaultValue = "list") String tab, Authentication authentication, Model model) {
     UserAccount account = customers.signedInCustomer(authentication);
     boolean company = "company".equals(tab);
-    if (company) model.addAttribute("companyForm", customers.companyForm(customers.profile(account)));
-    else model.addAttribute("invoices", diningOrders.findByReservation_CustomerIdAndStatusInOrderByOpenedAtDescIdDesc(
-        account.getId(), List.of(DiningOrder.PAID)));
+    if (company) {
+      model.addAttribute("companyForm", customers.companyForm(customers.profile(account)));
+    } else {
+      var invoices = diningOrders.findByReservation_CustomerIdAndStatusInOrderByOpenedAtDescIdDesc(
+          account.getId(), List.of(DiningOrder.PAID));
+      var invoiceIds = invoices.stream().map(DiningOrder::getId).toList();
+      model.addAttribute("invoices", invoices);
+      model.addAttribute("invoicePayments", invoiceIds.isEmpty() ? Map.of() :
+          diningPayments.findByOrder_IdIn(invoiceIds).stream()
+              .collect(Collectors.toMap(payment -> payment.getOrder().getId(), Function.identity())));
+    }
     return invoicePage(model, company);
   }
 

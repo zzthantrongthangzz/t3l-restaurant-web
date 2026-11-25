@@ -8,6 +8,7 @@ import t3l.restaurant.t3l_restaurant.entity.DiningPayment;
 
 public interface DiningPaymentRepository extends JpaRepository<DiningPayment, Long> {
   Optional<DiningPayment> findByOrder_Id(Long orderId);
+  List<DiningPayment> findByOrder_IdIn(List<Long> orderIds);
   boolean existsByTransferReference(String reference);
 
   @EntityGraph(attributePaths = {"order", "order.reservation"})
