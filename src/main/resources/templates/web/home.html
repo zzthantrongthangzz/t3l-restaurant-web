@@ -6,15 +6,16 @@
     <meta name="description" th:content="${'T3L Restaurant — Hương vị cho những dịp đáng nhớ. Khám phá thực đơn và đặt bàn tại ' + @restaurantInfo.address + '.'}" />
     <meta name="theme-color" content="#171411" />
     <title>T3L Restaurant | Hương vị cho những dịp đáng nhớ</title>
-    <link rel="stylesheet" th:href="@{/css/home.css(v=shared-dish-cards)}" />
-    <link rel="stylesheet" th:href="@{/css/menu.css(v=shared-dish-cards)}" />
+    <th:block th:replace="~{web/fragments/theme :: start}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/home.css}" />
+    <link rel="stylesheet" th:href="@{/css/menu.css}" />
     <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
-    <script defer th:src="@{/js/menu.js(v=quantity-controls)}"></script>
+    <script data-page-script defer th:src="@{/js/menu.js}"></script>
   </head>
   <body class="home">
     <a class="skip-link" href="#main">Chuyển đến nội dung</a>
     <header th:replace="~{web/fragments/restaurant-shell :: header('home')}"></header>
-    <main id="main">
+    <main data-navigation id="main">
       <section class="home-hero" aria-labelledby="hero-title">
         <img class="hero-background" th:src="@{/images/home/dining-room.jpg}" alt="Không gian dùng bữa với nội thất gỗ và ánh đèn ấm — ảnh minh họa" width="1920" height="1280" fetchpriority="high" />
         <div class="hero-shade"></div>
@@ -97,23 +98,6 @@
     <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
     <dialog th:replace="~{web/fragments/dish-cards :: detailDialog}"></dialog>
     <script th:replace="~{web/fragments/restaurant-shell :: navigation}"></script>
-    <script>
-      (() => {
-        if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-          const observer = new IntersectionObserver((entries) => {
-            entries.forEach((entry) => {
-              if (entry.isIntersecting) {
-                entry.target.classList.add('is-visible');
-                observer.unobserve(entry.target);
-              }
-            });
-          }, { threshold: 0.08 });
-          document.querySelectorAll('[data-reveal]').forEach((element) => {
-            element.classList.add('reveal-ready');
-            observer.observe(element);
-          });
-        }
-      })();
-    </script>
+    <script data-page-script defer th:src="@{/js/public-content.js}"></script>
   </body>
 </html>

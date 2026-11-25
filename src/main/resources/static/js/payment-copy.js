@@ -1,4 +1,4 @@
-(() => {
+window.t3lPage.register(() => {
   document.querySelectorAll('[data-copy-payment-code]').forEach((button) => {
     button.addEventListener('click', async () => {
       const panel = button.closest('[data-invoice-payment]');
@@ -19,4 +19,4 @@
       button.textContent = 'Đã sao chép';
     });
   });
-})();
+});

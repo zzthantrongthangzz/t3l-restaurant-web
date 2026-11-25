@@ -37,7 +37,7 @@
       </fieldset>
     </div>
     <div th:fragment="content">
-      <form class="account-form" method="post" th:action="@{/account}" th:object="${profileForm}">
+      <form class="account-form" method="post" data-partial-submit th:action="@{/account}" th:object="${profileForm}">
         <div th:replace="~{account/fragments/profile :: fields(false)}"></div>
         <div class="account-form-actions"><button class="account-button is-primary" type="submit">Lưu thay đổi</button></div>
       </form>

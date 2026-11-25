@@ -3,7 +3,7 @@
   <head th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: head('Ca làm và doanh thu')}"></head>
   <body class="staff-page" th:classappend="${opsBase == '/admin' ? 'admin-page' : ''}">
     <header th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: header('shift')}"></header>
-    <main class="staff-main">
+    <main data-navigation class="staff-main">
       <div class="staff-page-heading">
         <div><h1>Ca làm &amp; doanh thu</h1><p>Theo dõi tiền thu, khách phục vụ và đối soát tiền mặt.</p></div>
         <a class="staff-button is-outline" th:if="${view.selected != view.current}" th:href="@{${opsBase + '/shift'}}">Xem ca của tôi</a>

@@ -6,14 +6,15 @@
     <meta name="description" content="Câu chuyện T3L Restaurant — Một lời mời ngồi lại, thưởng thức món ngon và dành thời gian cho những người bên cạnh." />
     <meta name="theme-color" content="#171411" />
     <title>Giới thiệu | T3L Restaurant</title>
-    <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
-    <link rel="stylesheet" th:href="@{/css/about-contact.css(v=20261120-typography)}" />
+    <th:block th:replace="~{web/fragments/theme :: start}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/home.css}" />
+    <link rel="stylesheet" th:href="@{/css/about-contact.css}" />
     <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
   </head>
   <body class="home about-page">
     <a class="skip-link" href="#main">Chuyển đến nội dung</a>
     <header th:replace="~{web/fragments/restaurant-shell :: header('about')}"></header>
-    <main id="main">
+    <main data-navigation id="main">
       <section class="about-hero" aria-labelledby="about-title">
         <img class="about-hero-image" th:if="${#strings.isEmpty(@restaurantInfo.aboutImageUrl)}" th:src="@{/images/home/dining-room.jpg}" alt="Nội thất nhà hàng với chất liệu gỗ và ánh sáng ấm — ảnh minh họa" width="1920" height="1280" fetchpriority="high" />
         <img class="about-hero-image" th:unless="${#strings.isEmpty(@restaurantInfo.aboutImageUrl)}" th:src="${@restaurantInfo.aboutImageUrl}" alt="Ảnh giới thiệu T3L Restaurant" width="1920" height="1280" fetchpriority="high" referrerpolicy="no-referrer" />
@@ -71,6 +72,6 @@
     </main>
     <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
     <script th:replace="~{web/fragments/restaurant-shell :: navigation}"></script>
-    <script th:replace="~{web/fragments/about-contact :: effects}"></script>
+    <script data-page-script defer th:src="@{/js/public-content.js}"></script>
   </body>
 </html>

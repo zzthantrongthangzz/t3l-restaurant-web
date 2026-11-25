@@ -2,7 +2,7 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{admin/fragments/shell :: head('Quản lý liên hệ')}"></head>
 <body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('contacts')}"></header>
-<main class="staff-main">
+<main data-navigation data-navigation-fragment class="staff-main">
   <div class="staff-page-heading"><div><h1>Liên hệ của khách hàng</h1><p>Tiếp nhận lời nhắn và theo dõi quá trình xử lý.</p></div></div>
   <section class="staff-panel">
     <form class="staff-actions admin-inline-filter" th:action="@{/admin/contacts}" method="get">

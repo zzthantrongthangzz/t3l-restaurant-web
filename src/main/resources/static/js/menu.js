@@ -1,4 +1,4 @@
-(() => {
+window.t3lPage.register(({ signal, state }) => {
   const groups = [...document.querySelectorAll('[data-group]')];
   const filters = [...document.querySelectorAll('[data-category]')];
   const search = document.getElementById('menu-search');
@@ -12,7 +12,11 @@
   const shortcut = document.getElementById('menu-selection-shortcut');
   const formatPrice = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
   const picked = new Map();
-  let category = '';
+  const cards = [...document.querySelectorAll('.menu-card')];
+  const names = new Map(cards.map(card => [card, normalize(card.dataset.name)]));
+  const catalog = groups.map(group => [group, [...group.querySelectorAll('.menu-card')]]);
+  const savedMenu = state.menu;
+  let category = filters.some(button => button.dataset.category === savedMenu?.category) ? savedMenu.category : '';
 
   function normalize(value) {
     return value.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/đ/g, 'd').trim();
@@ -21,10 +25,10 @@
   function filterCards() {
     const query = normalize(search.value);
     let count = 0;
-    groups.forEach(group => {
+    catalog.forEach(([group, cards]) => {
       let groupCount = 0;
-      group.querySelectorAll('.menu-card').forEach(card => {
-        const matches = (!category || group.dataset.group === category) && normalize(card.dataset.name).includes(query);
+      cards.forEach(card => {
+        const matches = (!category || group.dataset.group === category) && names.get(card).includes(query);
         card.hidden = !matches;
         if (matches) groupCount++;
       });
@@ -38,6 +42,9 @@
   if (groups.length) {
     search.closest('.menu-search').hidden = false;
     document.querySelector('.menu-categories').hidden = false;
+    if (savedMenu) search.value = savedMenu.search;
+    filters.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.category === category)));
+    filterCards();
     search.addEventListener('input', filterCards);
     filters.forEach(button => button.addEventListener('click', () => {
       category = button.dataset.category;
@@ -172,14 +179,18 @@
     const selected = !picked.has(id);
     if (selected) picked.set(id, { card, quantity: '1', note: '' });
     else picked.delete(id);
+    setSelected(card, selected);
+    updateSelection();
+  }
+
+  function setSelected(card, selected) {
     const button = card.querySelector('[data-add]');
     button.setAttribute('aria-pressed', String(selected));
     button.setAttribute('aria-label', (selected ? 'Bỏ ' : 'Chọn ') + card.dataset.name);
     button.textContent = selected ? '✓' : '+';
-    updateSelection();
   }
 
-  document.querySelectorAll('.menu-card').forEach(card => {
+  cards.forEach(card => {
     const picture = card.querySelector('img');
     const fallback = () => { picture.src = picture.dataset.fallback; };
     picture.addEventListener('error', fallback, { once: true });
@@ -188,11 +199,16 @@
     const add = card.querySelector('[data-add]');
     if (add && selection) {
       add.hidden = false;
+      const item = savedMenu?.items?.find(item => item.id === card.dataset.id);
+      if (item) {
+        picked.set(item.id, { card, quantity: item.quantity, note: item.note });
+        setSelected(card, true);
+      }
       add.addEventListener('click', () => toggleDish(card));
     }
 
     const detail = card.querySelector('[data-detail]');
-    if (typeof dialog.showModal === 'function') {
+    if (typeof dialog?.showModal === 'function') {
       detail.hidden = false;
       detail.addEventListener('click', () => {
         const preview = document.getElementById('dish-detail-image');
@@ -211,4 +227,13 @@
       });
     }
   });
-})();
+  if (picked.size) updateSelection();
+  if (search) {
+    document.addEventListener('t3l:page-save', event => {
+      event.detail.menu = {
+        search: search.value, category,
+        items: [...picked].map(([id, { quantity, note }]) => ({ id, quantity, note }))
+      };
+    }, { signal });
+  }
+});

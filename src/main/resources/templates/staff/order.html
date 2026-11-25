@@ -3,7 +3,7 @@
   <head th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: head('Đơn và hóa đơn')}"></head>
   <body class="staff-page" th:classappend="${opsBase == '/admin' ? 'admin-page' : ''}">
     <header th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: header('orders')}"></header>
-    <main class="staff-main" th:with="booking=${view.booking},order=${view.order},payment=${view.payment}">
+    <main data-navigation class="staff-main" th:with="booking=${view.booking},order=${view.order},payment=${view.payment}">
       <a class="staff-link staff-back" th:href="@{${opsBase + '/orders'}}">← Các bàn đang phục vụ</a>
       <a class="staff-link staff-back" th:href="@{${opsBase + '/tables'}}">Sơ đồ bàn</a>
       <div class="staff-page-heading">
@@ -38,7 +38,7 @@
                 <td data-label="Số lượng" th:text="${item.quantity}"></td>
                 <td data-label="Thành tiền" th:text="${item.cancelled ? '—' : #numbers.formatInteger(item.amount, 1, 'POINT') + ' đ'}"></td>
                 <td data-label="Thao tác" th:if="${order.status == 'DRAFT' and booking.status == 'SEATED'}">
-                  <form class="staff-actions" th:unless="${item.cancelled}" th:action="@{${opsBase + '/orders/{id}/items/{itemId}'}(id=${booking.id},itemId=${item.id})}" method="post">
+                  <form class="staff-actions" th:unless="${item.cancelled}" th:action="@{${opsBase + '/orders/{id}/items/{itemId}'}(id=${booking.id},itemId=${item.id})}" method="post" data-partial-submit>
                     <input class="staff-quantity" type="number" name="quantity" th:value="${item.quantity}" min="1" max="100"
                         th:attr="aria-label=${'Số lượng ' + item.dishName}" required />
                     <button class="staff-button is-outline" type="submit">Lưu</button>
@@ -48,7 +48,7 @@
               </tr></tbody>
             </table>
           </div>
-          <form class="staff-order-add" th:if="${order.status == 'DRAFT' and booking.status == 'SEATED'}" th:action="@{${opsBase + '/orders/{id}/items'}(id=${booking.id})}" method="post">
+          <form class="staff-order-add" th:if="${order.status == 'DRAFT' and booking.status == 'SEATED'}" th:action="@{${opsBase + '/orders/{id}/items'}(id=${booking.id})}" method="post" data-partial-submit>
             <label class="staff-field">Món ăn <select name="dishId" required><option value="">Chọn món</option>
               <option th:each="dish : ${dishes}" th:value="${dish.id}" th:text="${dish.name + ' · ' + #numbers.formatInteger(dish.price, 1, 'POINT') + ' đ'}"></option>
             </select></label>
@@ -135,21 +135,21 @@
             <div th:if="${payment.transferReference != null}"><dt>Mã giao dịch</dt><dd th:text="${payment.transferReference}"></dd></div>
             <div th:if="${payment.demo}"><dt>Loại giao dịch</dt><dd><span class="staff-badge is-warning">DEMO · không tính doanh thu thực tế</span></dd></div>
           </dl>
-          <form class="staff-actions" th:if="${booking.status == 'SEATED'}" th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
+          <form class="staff-actions" th:if="${booking.status == 'SEATED'}" th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post" data-partial-submit>
             <input type="hidden" name="from" value="order" /><button class="staff-button" name="status" value="COMPLETED">Kết thúc phục vụ</button>
           </form>
         </section>
       </div>
       <section id="checkout" class="staff-panel" th:if="${booking.status == 'SEATED' and (order == null or (order.status == 'DRAFT' and !order.hasItems()))}">
         <h2>Kết thúc bàn không phát sinh món</h2>
-        <form class="staff-actions" th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
+        <form class="staff-actions" th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post" data-partial-submit>
           <input type="hidden" name="from" value="table" />
           <button class="staff-button" name="status" value="COMPLETED" type="submit"
                   data-confirm="Bàn chưa có món cần thanh toán. Kết thúc phục vụ?">Kết thúc phục vụ</button>
         </form>
       </section>
     </main>
-    <script th:src="@{/js/staff-payment-status.js(v=20261124-sepay)}" defer></script>
-    <script th:src="@{/js/payment-copy.js(v=20261124-sepay)}" defer></script>
+    <script data-page-script th:src="@{/js/staff-payment-status.js}" defer></script>
+    <script data-page-script th:src="@{/js/payment-copy.js}" defer></script>
   </body>
 </html>

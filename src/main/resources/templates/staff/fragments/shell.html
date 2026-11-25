@@ -5,15 +5,16 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="robots" content="noindex,nofollow" />
     <title th:text="${title + ' | T3L Restaurant'}">T3L Restaurant</title>
-    <link rel="stylesheet" th:href="@{/css/site.css(v=20261120-typography)}" />
-    <link rel="stylesheet" th:href="@{/css/reservation-requests.css(v=20261120-staff)}" />
-    <link rel="stylesheet" th:href="@{/css/staff.css(v=20261120)}" />
-    <link rel="stylesheet" th:href="@{/css/table-plan.css(v=table-confirm)}" />
-    <script defer th:src="@{/js/staff.js(v=table-operations)}"></script>
+    <th:block th:replace="~{web/fragments/theme :: start}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/site.css}" />
+    <link rel="stylesheet" th:href="@{/css/reservation-requests.css}" />
+    <link rel="stylesheet" th:href="@{/css/staff.css}" />
+    <link rel="stylesheet" th:href="@{/css/table-plan.css}" />
+    <script data-page-script defer th:src="@{/js/staff.js}"></script>
     <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
   </head>
   <body>
-    <header class="staff-header" th:fragment="header(section)">
+    <header class="staff-header" th:fragment="header(section)" data-nav-shell="staff">
       <div class="staff-header-inner">
         <a class="staff-brand" th:href="@{/staff/dashboard}" aria-label="Tổng quan T3L Restaurant">
           <span class="staff-brand-mark">T3L<span>.</span></span>

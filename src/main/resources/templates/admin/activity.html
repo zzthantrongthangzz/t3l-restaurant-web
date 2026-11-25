@@ -2,7 +2,7 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{admin/fragments/shell :: head('Nhật ký quản trị')}"></head>
 <body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('activity')}"></header>
-<main class="staff-main">
+<main data-navigation data-navigation-fragment class="staff-main">
   <div class="staff-page-heading"><div><h1>Nhật ký quản trị</h1><p>Tra cứu các thay đổi tài khoản, danh mục, bàn và cấu hình.</p></div></div>
   <section class="staff-panel">
     <form th:replace="~{admin/fragments/report :: filters('/admin/activity','activity')}"></form>

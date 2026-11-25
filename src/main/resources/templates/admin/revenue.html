@@ -2,7 +2,7 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{admin/fragments/shell :: head('Báo cáo doanh thu')}"></head>
 <body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('revenue')}"></header>
-<main class="staff-main">
+<main data-navigation data-navigation-fragment class="staff-main">
   <div class="staff-page-heading"><div><h1>Báo cáo doanh thu</h1><p>Ghi nhận tiền cọc khi khấu trừ vào hóa đơn hoặc khi giữ cọc theo chính sách.</p></div>
     <a class="staff-button" th:href="@{/admin/revenue.csv(from=${filter.from},to=${filter.to},employee=${filter.employee},method=${filter.method})}">Xuất CSV</a></div>
   <section class="staff-metrics" aria-label="Tổng hợp doanh thu">

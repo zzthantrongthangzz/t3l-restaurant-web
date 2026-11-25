@@ -5,22 +5,23 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="Xem thực đơn T3L Restaurant, tìm món và chọn món ăn cho lịch đặt bàn." />
   <title>Thực đơn | T3L Restaurant</title>
-  <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
-  <link rel="stylesheet" th:href="@{/css/menu.css(v=shared-dish-cards)}" />
+  <th:block th:replace="~{web/fragments/theme :: start}"></th:block>
+  <link rel="stylesheet" th:href="@{/css/home.css}" />
+  <link rel="stylesheet" th:href="@{/css/menu.css}" />
   <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
-  <script defer th:src="@{/js/menu.js(v=quantity-controls)}"></script>
+  <script data-page-script defer th:src="@{/js/menu.js}"></script>
 </head>
 <body class="home menu-page">
   <a class="skip-link" href="#main">Chuyển đến thực đơn</a>
   <header th:replace="~{web/fragments/restaurant-shell :: header('menu')}"></header>
-  <main class="menu-workspace" id="main">
+  <main data-navigation class="menu-workspace" id="main">
     <section class="menu-catalog" aria-labelledby="menu-title">
       <div class="menu-heading">
         <div>
           <h1 id="menu-title">Thực đơn</h1>
           <p class="menu-count" role="status"><span id="menu-result-count" th:text="${dishCount}"></span> món</p>
         </div>
-        <div class="menu-search" role="search" hidden>
+        <div class="menu-search" role="search" hidden th:if="${dishCount > 0}">
           <svg th:replace="~{web/fragments/restaurant-shell :: icon('search')}"></svg>
           <input id="menu-search" type="search" aria-label="Tìm món" placeholder="Nhập tên món…" maxlength="140" />
         </div>
@@ -31,7 +32,7 @@
       </div>
       <p class="menu-message" th:if="${notice != null}" th:text="${notice}" role="status"></p>
       <p class="menu-message is-error" th:if="${error != null}" th:text="${error}" role="alert"></p>
-      <nav class="menu-categories" aria-label="Danh mục món" hidden>
+      <nav class="menu-categories" aria-label="Danh mục món" hidden th:if="${dishCount > 0}">
         <button type="button" data-category="" aria-pressed="true">Tất cả</button>
         <button type="button" th:each="group, state : ${dishGroups}" th:attr="data-category=${state.index}"
                 th:text="${group.key}" aria-pressed="false"></button>

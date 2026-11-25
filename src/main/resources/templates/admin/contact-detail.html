@@ -2,7 +2,7 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{admin/fragments/shell :: head('Chi tiết liên hệ')}"></head>
 <body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('contacts')}"></header>
-<main class="staff-main">
+<main data-navigation class="staff-main">
   <a class="staff-link staff-back" th:href="@{/admin/contacts}">Danh sách liên hệ</a>
   <div class="staff-page-heading"><h1 th:text="${contact.subject}"></h1><span class="staff-badge" th:text="${contact.statusLabel}"></span></div>
   <div th:replace="~{admin/fragments/shell :: messages}"></div>
@@ -13,7 +13,7 @@
       <h2>Nội dung</h2><p class="staff-note" th:text="${contact.message}"></p>
     </section>
     <section class="staff-panel"><h2>Xử lý liên hệ</h2>
-      <form class="staff-form" th:action="@{/admin/contacts/{id}/status(id=${contact.id})}" method="post">
+      <form class="staff-form" th:action="@{/admin/contacts/{id}/status(id=${contact.id})}" method="post" data-partial-submit>
         <input type="hidden" name="version" th:value="${contact.version}" />
         <label class="staff-field">Trạng thái<select name="status">
           <option value="NEW" th:selected="${contact.status == 'NEW'}">Mới tiếp nhận</option>

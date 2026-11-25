@@ -3,14 +3,14 @@
 <body>
 <section th:fragment="editor(items, path, kind, heading, maxLength)" class="staff-panel">
   <h2 th:text="${heading}"></h2>
-  <form class="staff-form admin-section-form" th:action="@{${path}}" method="post">
+  <form class="staff-form admin-section-form" th:action="@{${path}}" method="post" data-partial-submit>
     <label class="staff-field">Tên mới<input name="name" required th:maxlength="${maxLength}" /></label>
     <input type="hidden" name="active" value="true" />
     <button class="staff-button" type="submit" th:text="${kind == 'AREA' ? 'Thêm khu vực' : 'Thêm danh mục'}"></button>
   </form>
   <p class="staff-empty" th:if="${items.isEmpty()}">Chưa có dữ liệu.</p>
   <div class="admin-section-list">
-    <form th:each="item : ${items}" class="admin-section-form" th:action="@{${path}}" method="post">
+    <form th:each="item : ${items}" class="admin-section-form" th:action="@{${path}}" method="post" data-partial-submit>
       <input type="hidden" name="id" th:if="${item.id != null}" th:value="${item.id}" />
       <input type="hidden" name="previous" th:value="${item.name}" />
       <label class="staff-field"><span class="admin-sr-only">Tên</span><input name="name" th:value="${item.name}" required th:maxlength="${maxLength}" /></label>

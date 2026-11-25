@@ -1,6 +1,4 @@
 /* Shared customer shell, design tokens and Home sections. */
-@import url("./fonts.css?v=20261117");
-@import url("./typography.css?v=20261120");
 
 :root {
   color-scheme: dark;

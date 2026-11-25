@@ -2,11 +2,11 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{admin/fragments/shell :: head('Thông tin bàn')}"></head>
 <body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('inventory')}"></header>
-<main class="staff-main">
+<main data-navigation class="staff-main">
   <a class="staff-link staff-back" th:href="@{/admin/inventory}">Danh mục bàn</a>
   <div class="staff-page-heading"><h1 th:text="${tableId == null ? 'Thêm bàn' : 'Sửa thông tin bàn'}"></h1></div>
   <form class="staff-panel staff-form staff-form-narrow" th:object="${form}"
-    th:action="${tableId == null} ? @{/admin/inventory} : @{/admin/inventory/{id}(id=${tableId})}" method="post">
+    th:action="${tableId == null} ? @{/admin/inventory} : @{/admin/inventory/{id}(id=${tableId})}" method="post" data-partial-submit>
     <div th:replace="~{admin/fragments/shell :: errors}"></div>
     <div class="staff-form-grid">
       <label class="staff-field">Mã bàn<input th:field="*{code}" maxlength="32" required /></label>

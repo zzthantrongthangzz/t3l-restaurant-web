@@ -21,7 +21,7 @@
         </div>
         <p class="staff-request-reason" th:if="${request.reason != null and !request.reason.isBlank()}" th:text="${'Lý do: ' + request.reason}"></p>
         <p class="staff-request-blocked" th:if="${item.blockedReason != null}" th:text="${item.blockedReason}"></p>
-        <form class="staff-request-review" th:action="@{${opsBase + '/reservations/requests/{id}/review'}(id=${request.id})}" method="post">
+        <form class="staff-request-review" th:action="@{${opsBase + '/reservations/requests/{id}/review'}(id=${request.id})}" method="post" data-partial-submit>
           <label th:for="${'review-note-' + request.id}">Phản hồi cho khách <small>(bắt buộc khi từ chối)</small></label>
           <textarea th:id="${'review-note-' + request.id}" name="reviewNote" rows="2" maxlength="500" placeholder="Lý do xử lý hoặc ghi chú cho khách…"></textarea>
           <div><button class="button" type="submit" name="decision" value="APPROVE" th:disabled="${item.blockedReason != null}">Duyệt yêu cầu</button><button class="text-button danger" type="submit" name="decision" value="REJECT">Từ chối</button></div>

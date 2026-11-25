@@ -2,7 +2,7 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{admin/fragments/shell :: head('Chi tiết hóa đơn')}"></head>
 <body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('invoices')}"></header>
-<main class="staff-main" th:with="order=${view.order},payment=${view.payment},booking=${view.booking}">
+<main data-navigation class="staff-main" th:with="order=${view.order},payment=${view.payment},booking=${view.booking}">
   <a class="staff-link staff-back" th:href="@{/admin/invoices}">Danh sách hóa đơn</a>
   <div class="staff-page-heading">
     <div><h1 th:text="${order.invoiceNumber}"></h1><p><a class="staff-link" th:href="@{/admin/reservations/{id}(id=${booking.id})}" th:text="${booking.code}"></a>

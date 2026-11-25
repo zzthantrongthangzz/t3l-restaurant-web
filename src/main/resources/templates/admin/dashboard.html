@@ -3,7 +3,7 @@
 <head th:replace="~{admin/fragments/shell :: head('Tổng quan quản trị')}"></head>
 <body class="staff-page admin-page">
 <header th:replace="~{admin/fragments/shell :: header('dashboard')}"></header>
-<main class="staff-main">
+<main data-navigation class="staff-main">
   <div class="staff-page-heading">
     <div><p class="staff-kicker" th:text="${#temporals.format(dashboard.filter.from, 'dd/MM/yyyy') + ' – ' + #temporals.format(dashboard.filter.to, 'dd/MM/yyyy')}"></p><h1>Tổng quan quản trị</h1></div>
     <a class="staff-button is-outline" th:href="@{/admin/revenue(from=${dashboard.filter.from},to=${dashboard.filter.to})}">Xem báo cáo doanh thu</a>

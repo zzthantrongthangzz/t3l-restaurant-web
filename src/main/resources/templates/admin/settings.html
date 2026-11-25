@@ -2,10 +2,10 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{admin/fragments/shell :: head('Cấu hình nhà hàng')}"></head>
 <body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('settings')}"></header>
-<main class="staff-main">
+<main data-navigation class="staff-main">
   <div class="staff-page-heading"><div><h1>Cấu hình nhà hàng</h1><p>Thông tin công khai và quy tắc đặt bàn dùng cho cả website.</p></div></div>
   <div th:replace="~{admin/fragments/shell :: messages}"></div>
-  <form class="staff-stack" th:action="@{/admin/settings}" th:object="${form}" method="post">
+  <form class="staff-stack" th:action="@{/admin/settings}" th:object="${form}" method="post" data-partial-submit>
     <div th:replace="~{admin/fragments/shell :: errors}"></div>
     <section class="staff-panel staff-form">
       <h2>Thông tin và giới thiệu</h2>

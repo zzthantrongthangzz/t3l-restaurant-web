@@ -57,6 +57,7 @@ body { accent-color: var(--accent); }
 .theme-toggle:hover { background: var(--accent-wash); border-color: var(--accent); }
 .theme-toggle:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 3px; }
 .theme-toggle[hidden], .theme-toggle .theme-sun, [data-theme="dark"] .theme-toggle .theme-moon { display: none; }
+html[data-js] body .theme-toggle[hidden] { display: inline-grid !important; visibility: hidden; }
 [data-theme="dark"] .theme-toggle .theme-sun { display: block; }
 .theme-toggle svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; }
 .home .home-header, .home .home-header.is-scrolled, .home .home-header.menu-open,

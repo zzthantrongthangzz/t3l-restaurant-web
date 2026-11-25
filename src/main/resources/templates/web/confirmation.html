@@ -7,8 +7,9 @@
     <meta name="referrer" content="no-referrer" />
     <meta name="theme-color" content="#171411" />
     <title>Xác nhận đặt bàn | T3L Restaurant</title>
-    <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
-    <link rel="stylesheet" th:href="@{/css/confirmation.css(v=item-notes)}" />
+    <th:block th:replace="~{web/fragments/theme :: start}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/home.css}" />
+    <link rel="stylesheet" th:href="@{/css/confirmation.css}" />
     <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
   </head>
   <body class="home confirmation-page">

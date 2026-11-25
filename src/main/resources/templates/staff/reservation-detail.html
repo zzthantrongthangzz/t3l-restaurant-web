@@ -3,7 +3,7 @@
   <head th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: head('Chi tiết đặt bàn')}"></head>
   <body class="staff-page" th:classappend="${opsBase == '/admin' ? 'admin-page' : ''}">
     <header th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: header('reservations')}"></header>
-    <main class="staff-main">
+    <main data-navigation class="staff-main">
       <a class="staff-link staff-back" th:href="@{${opsBase + '/tables'}(date=${booking.status == 'SEATED' ? today : booking.reservationDate})}">← Sơ đồ bàn</a>
       <div class="staff-page-heading">
         <div><p class="staff-kicker" th:text="${booking.code}"></p><h1 th:text="${booking.guestName}"></h1></div>
@@ -84,7 +84,7 @@
             </section>
             <div class="staff-actions" th:if="${actions.complete or order != null}"><a class="staff-button" th:href="@{${opsBase + '/orders/{id}'}(id=${booking.id})}" th:text="${order != null ? 'Xem đơn &amp; hóa đơn' : 'Gọi món'}"></a></div>
             <form class="staff-actions" th:if="${actions.confirm or actions.cancel or actions.receive or actions.complete or actions.noShow}"
-                th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
+                th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post" data-partial-submit>
               <input type="hidden" name="from" value="detail" />
               <button class="staff-button" th:if="${actions.confirm}" th:disabled="${!actions.confirmEnabled}" th:title="${actions.confirmReason}" name="status" value="CONFIRMED">Xác nhận đặt bàn</button>
               <button class="staff-button" th:if="${actions.receiveEnabled}" name="status" value="RECEIVE">Nhận bàn chờ</button>
@@ -98,7 +98,7 @@
           <details id="move-table" class="staff-panel staff-disclosure" th:if="${actions.moveTable}" th:open="${openMove}">
             <summary>Chuyển bàn</summary>
             <p class="staff-empty" th:if="${moveOptions.isEmpty()}">Không có bàn trống cùng loại trong khung giờ này.</p>
-            <form class="staff-form" th:unless="${moveOptions.isEmpty()}" th:action="@{${opsBase + '/reservations/{id}/table'}(id=${booking.id})}" method="post">
+            <form class="staff-form" th:unless="${moveOptions.isEmpty()}" th:action="@{${opsBase + '/reservations/{id}/table'}(id=${booking.id})}" method="post" data-partial-submit>
               <label class="staff-field">Bàn mới <select name="tableId" required><option value="">Chọn bàn</option>
                 <th:block th:replace="~{staff/fragments/shell :: tableOptions(${moveOptions}, ${null})}"></th:block>
               </select></label>
@@ -107,7 +107,7 @@
           </details>
           <details class="staff-panel staff-disclosure" th:if="${actions.reschedule}">
             <summary>Đổi lịch đặt bàn</summary>
-            <form class="staff-form" th:action="@{${opsBase + '/reservations/{id}/reschedule'}(id=${booking.id})}" method="post">
+            <form class="staff-form" th:action="@{${opsBase + '/reservations/{id}/reschedule'}(id=${booking.id})}" method="post" data-partial-submit>
               <div class="staff-form-grid">
                 <label class="staff-field">Ngày mới <input type="date" name="date" th:min="${today}" th:value="${booking.reservationDate}" required /></label>
                 <label class="staff-field">Giờ mới <select name="time" required><option value="">Chọn giờ</option>
@@ -158,6 +158,6 @@
         </div>
       </div>
     </main>
-    <script th:src="@{/js/staff-payment-status.js(v=20261124-sepay)}" defer></script>
+    <script data-page-script th:src="@{/js/staff-payment-status.js}" defer></script>
   </body>
 </html>

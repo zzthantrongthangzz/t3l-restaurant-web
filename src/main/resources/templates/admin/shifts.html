@@ -2,7 +2,7 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{admin/fragments/shell :: head('Ca làm và đối soát')}"></head>
 <body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('shift')}"></header>
-<main class="staff-main">
+<main data-navigation data-navigation-fragment class="staff-main">
   <div class="staff-page-heading"><div><h1>Ca làm &amp; đối soát</h1><p>Tra cứu ca đã mở và kết quả đối soát tiền mặt cuối ca.</p></div>
     <a class="staff-button is-outline" th:href="@{/admin/shift}">Ca của tôi</a></div>
   <section class="staff-panel">

@@ -1,4 +1,4 @@
-(() => {
+window.t3lPage.register(({ signal }) => {
   const containers = [...document.querySelectorAll('[data-payment-status-url]')];
   if (!containers.length) return;
 
@@ -22,6 +22,7 @@
         headers: { Accept: 'application/json' },
         cache: 'no-store',
         credentials: 'same-origin',
+        signal,
       });
       if (!response.ok) return;
       const state = await response.json();
@@ -66,8 +67,8 @@
     }
   };
 
-  containers.forEach((node) => {
-    refresh(node);
-    window.setInterval(() => refresh(node), 5000);
-  });
-})();
+  const poll = () => containers.forEach(refresh);
+  poll();
+  const timer = window.setInterval(poll, 5000);
+  signal.addEventListener('abort', () => window.clearInterval(timer), { once: true });
+});

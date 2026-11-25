@@ -2,7 +2,7 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{admin/fragments/shell :: head('Hóa đơn')}"></head>
 <body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('invoices')}"></header>
-<main class="staff-main">
+<main data-navigation data-navigation-fragment class="staff-main">
   <div class="staff-page-heading"><div><h1>Hóa đơn</h1><p>Lịch sử đơn gọi món và trạng thái thanh toán theo lượt phục vụ.</p></div>
     <a class="staff-button is-outline" th:href="@{/admin/orders}">Đơn đang phục vụ</a></div>
   <section class="staff-panel">

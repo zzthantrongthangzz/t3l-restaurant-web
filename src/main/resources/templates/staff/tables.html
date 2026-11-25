@@ -3,7 +3,7 @@
   <head th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: head('Quản lý đặt bàn')}"></head>
   <body class="staff-page table-plan-page-staff" th:classappend="${opsBase == '/admin' ? 'admin-page' : ''}">
     <header th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: header('tables')}"></header>
-    <main class="staff-main" data-table-board>
+    <main data-navigation data-navigation-fragment class="staff-main" data-table-board>
       <div class="staff-page-heading">
         <h1>Quản lý đặt bàn</h1>
         <a class="staff-link" th:href="@{${opsBase + '/reservations'}}">Danh sách đặt bàn</a>
@@ -58,7 +58,7 @@
             </svg>
           </a>
           <form class="table-board-confirm" th:if="${state == 'PENDING' and item.actions.confirmEnabled}"
-                th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
+                th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post" data-partial-submit>
             <input type="hidden" name="from" value="table" />
             <input type="hidden" name="returnDate" th:value="${selectedDate}" />
             <button class="staff-button" type="submit" name="status" value="CONFIRMED"
@@ -80,7 +80,7 @@
                  th:href="@{${opsBase + '/reservations/new'}(tableId=${table.id},date=${selectedDate},time=${selectedTime},guests=${selectedGuests})}">Đặt bàn chờ</a>
               <th:block th:if="${booking != null}" th:with="actions=${item.actions}">
                 <form th:if="${actions.confirm or actions.cancel or actions.receiveEnabled}"
-                      th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post" class="staff-actions">
+                      th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post" data-partial-submit class="staff-actions">
                   <input type="hidden" name="from" value="table" />
                   <input type="hidden" name="returnDate" th:value="${selectedDate}" />
                   <button class="staff-button" type="submit" th:if="${actions.confirm}" th:disabled="${!actions.confirmEnabled}" name="status" value="CONFIRMED">Xác nhận</button>
@@ -99,7 +99,7 @@
                    th:href="@{${opsBase + '/orders/{id}'}(id=${booking.id})} + '#checkout'">Tính tiền</a>
               </th:block>
               <form th:if="${state == 'INACTIVE' or state == 'FREE'}"
-                    th:action="@{${opsBase + '/tables/{id}/availability'}(id=${table.id})}" method="post">
+                    th:action="@{${opsBase + '/tables/{id}/availability'}(id=${table.id})}" method="post" data-partial-submit>
                 <input type="hidden" name="returnDate" th:value="${selectedDate}" />
                 <button type="submit" class="staff-button is-outline" name="active" th:value="${state == 'INACTIVE'}"
                         th:text="${state == 'INACTIVE' ? 'Mở lại bàn' : 'Tạm ngưng bàn'}"></button>
@@ -130,6 +130,6 @@
         <div data-table-content></div>
       </dialog>
     </main>
-    <script defer th:src="@{/js/table-board.js(v=table-operations)}"></script>
+    <script data-page-script defer th:src="@{/js/table-board.js}"></script>
   </body>
 </html>

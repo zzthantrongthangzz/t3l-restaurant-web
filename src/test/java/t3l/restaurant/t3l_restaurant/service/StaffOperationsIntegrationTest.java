@@ -105,6 +105,20 @@ class StaffOperationsIntegrationTest {
   }
 
   @Test
+  void servesOnlyTheTableBoardForAnAuthorizedFragmentRequest() throws Exception {
+    var board = get("/staff/tables").header("X-T3L-Fragment", "main");
+    mvc.perform(board).andExpect(status().is3xxRedirection())
+        .andExpect(header().doesNotExist("X-T3L-Fragment"));
+    staff(get("/staff/tables")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("data-nav-shell=\"staff\"")));
+    staff(board).andExpect(status().isOk())
+        .andExpect(header().string("X-T3L-Fragment", "main"))
+        .andExpect(header().string("Vary", containsString("X-T3L-Fragment")))
+        .andExpect(content().string(containsString("data-table-board")))
+        .andExpect(content().string(not(containsString("data-nav-shell"))));
+  }
+
+  @Test
   void guestBuyerStaffAndAdminShareAvailabilityForTheSameWindow() throws Exception {
     var guest = new MockHttpSession();
     String draft = (String) mvc.perform(get("/reservations/new").session(guest)

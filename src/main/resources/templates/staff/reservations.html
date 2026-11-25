@@ -3,7 +3,7 @@
   <head th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: head('Quản lý đặt bàn')}"></head>
   <body class="staff-page" th:classappend="${opsBase == '/admin' ? 'admin-page' : ''}">
     <header th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: header('reservations')}"></header>
-    <main class="staff-main">
+    <main data-navigation data-navigation-fragment class="staff-main">
       <div class="staff-page-heading">
         <div><h1>Quản lý đặt bàn</h1><p>Tìm nhanh theo tên, số điện thoại hoặc mã đặt bàn; xử lý trực tiếp tại danh sách.</p></div>
         <a class="staff-button" th:href="@{${opsBase + '/reservations/new'}}">Tạo đặt bàn</a>
@@ -39,12 +39,12 @@
               <td data-label="Thao tác" th:with="actions=${bookingActions.get(booking.id)}">
                 <div class="staff-row-actions">
                   <a class="staff-link" th:href="@{${opsBase + '/reservations/{id}'}(id=${booking.id})}">Chi tiết</a>
-                  <form th:if="${actions.confirm}" th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
+                  <form th:if="${actions.confirm}" th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post" data-partial-submit>
                     <button class="staff-button" name="status" value="CONFIRMED" th:disabled="${!actions.confirmEnabled}"
                         th:title="${actions.confirmReason}">Xác nhận đặt bàn</button>
                     <small class="staff-action-reason" th:if="${!actions.confirmEnabled}" th:text="${actions.confirmReason}"></small>
                   </form>
-                  <form th:if="${actions.receive}" th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
+                  <form th:if="${actions.receive}" th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post" data-partial-submit>
                     <button class="staff-button is-outline" name="status" value="SEATED" th:disabled="${!actions.receiveEnabled}"
                         th:title="${actions.receiveReason}">Nhận khách &amp; bàn</button>
                     <small class="staff-action-reason" th:if="${!actions.receiveEnabled}" th:text="${actions.receiveReason}"></small>
@@ -62,6 +62,6 @@
       </section>
       <section th:replace="~{staff/fragments/reservation-requests :: queue}"></section>
     </main>
-    <script th:src="@{/js/staff-payment-status.js(v=20261124-sepay)}" defer></script>
+    <script data-page-script th:src="@{/js/staff-payment-status.js}" defer></script>
   </body>
 </html>

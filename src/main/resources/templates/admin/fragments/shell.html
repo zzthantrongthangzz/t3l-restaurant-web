@@ -4,17 +4,18 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="robots" content="noindex,nofollow" />
   <title th:text="${title + ' | T3L Restaurant'}">T3L Restaurant</title>
-  <link rel="stylesheet" th:href="@{/css/site.css(v=20261120-typography)}" />
-  <link rel="stylesheet" th:href="@{/css/reservation-requests.css(v=20261120-staff)}" />
-  <link rel="stylesheet" th:href="@{/css/staff.css(v=20261120)}" />
-  <link rel="stylesheet" th:href="@{/css/table-plan.css(v=table-confirm)}" />
-  <link rel="stylesheet" th:href="@{/css/admin.css(v=admin-sidebar)}" />
-  <script defer th:src="@{/js/staff.js(v=table-operations)}"></script>
-  <script defer th:src="@{/js/admin.js(v=admin-sidebar)}"></script>
+  <th:block th:replace="~{web/fragments/theme :: start}"></th:block>
+  <link rel="stylesheet" th:href="@{/css/site.css}" />
+  <link rel="stylesheet" th:href="@{/css/reservation-requests.css}" />
+  <link rel="stylesheet" th:href="@{/css/staff.css}" />
+  <link rel="stylesheet" th:href="@{/css/table-plan.css}" />
+  <link rel="stylesheet" th:href="@{/css/admin.css}" />
+  <script data-page-script defer th:src="@{/js/staff.js}"></script>
+  <script data-page-script defer th:src="@{/js/admin.js}"></script>
   <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
 </head>
 <body>
-<header class="admin-sidebar" th:fragment="header(section)">
+<header class="admin-sidebar" th:fragment="header(section)" data-nav-shell="admin">
   <div class="admin-brand-row">
     <a class="staff-brand" th:href="@{/admin/dashboard}">
       <span class="staff-brand-mark">T3L<span>.</span></span>

@@ -2,7 +2,7 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
   <body>
     <div th:fragment="content">
-      <form class="account-form account-address-form" th:if="${addressForm != null}" method="post"
+      <form class="account-form account-address-form" th:if="${addressForm != null}" method="post" data-partial-submit
           th:action="${addressId == null} ? @{/account/addresses/new} : @{/account/addresses/{id}(id=${addressId})}"
           th:object="${addressForm}">
         <h2 th:text="${addressId == null ? 'Thêm địa chỉ' : 'Chỉnh sửa địa chỉ'}"></h2>
@@ -47,12 +47,12 @@
           </div>
           <div class="account-record-actions">
             <a class="account-text-action" th:href="@{/account/addresses/{id}(id=${address.id})}">Sửa</a>
-            <form th:unless="${address.defaultAddress}" th:action="@{/account/addresses/{id}/default(id=${address.id})}" method="post">
+            <form th:unless="${address.defaultAddress}" th:action="@{/account/addresses/{id}/default(id=${address.id})}" method="post" data-partial-submit>
               <button type="submit" class="account-text-action">Đặt mặc định</button>
             </form>
             <details class="account-delete">
               <summary>Xóa</summary>
-              <form th:action="@{/account/addresses/{id}/delete(id=${address.id})}" method="post">
+              <form th:action="@{/account/addresses/{id}/delete(id=${address.id})}" method="post" data-partial-submit>
                 <button type="submit" class="account-button is-danger">Xác nhận xóa</button>
               </form>
             </details>

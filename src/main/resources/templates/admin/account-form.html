@@ -3,7 +3,7 @@
 <head th:replace="~{admin/fragments/shell :: head('Tài khoản')}"></head>
 <body class="staff-page admin-page">
 <header th:replace="~{admin/fragments/shell :: header('accounts')}"></header>
-<main class="staff-main">
+<main data-navigation class="staff-main">
   <a class="staff-link staff-back" th:href="@{/admin/accounts}">Danh sách tài khoản</a>
   <div class="staff-page-heading"><h1 th:text="${account == null ? 'Thêm nhân viên' : 'Chi tiết tài khoản'}"></h1></div>
   <section class="staff-panel staff-form-narrow" th:if="${account != null and account.customer}">
@@ -13,7 +13,7 @@
     <p class="staff-muted">Hồ sơ và phương thức đăng nhập do khách hàng quản lý.</p>
   </section>
   <form class="staff-panel staff-form staff-form-narrow" th:if="${account == null or !account.customer}" th:object="${form}"
-      th:action="${account == null} ? @{/admin/accounts} : @{/admin/accounts/{id}(id=${account.id})}" method="post">
+      th:action="${account == null} ? @{/admin/accounts} : @{/admin/accounts/{id}(id=${account.id})}" method="post" data-partial-submit>
     <div th:replace="~{admin/fragments/shell :: errors}"></div>
     <div class="staff-form-grid">
       <label class="staff-field">Tên đăng nhập<input th:field="*{username}" th:readonly="${account != null}" required maxlength="80" autocomplete="off" /></label>

@@ -2,7 +2,7 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{admin/fragments/shell :: head('Danh mục bàn')}"></head>
 <body class="staff-page admin-page"><header th:replace="~{admin/fragments/shell :: header('inventory')}"></header>
-<main class="staff-main">
+<main data-navigation data-navigation-fragment class="staff-main">
   <div class="staff-page-heading"><h1>Danh mục bàn</h1>
     <div class="staff-actions"><a class="staff-button is-outline" th:href="@{/admin/tables}">Mở sơ đồ bàn</a>
     <a class="staff-button" th:href="@{/admin/inventory/new}">Thêm bàn</a></div></div>

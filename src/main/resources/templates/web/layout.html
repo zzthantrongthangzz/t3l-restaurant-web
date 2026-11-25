@@ -4,7 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title th:text="${title} + ' | T3L Restaurant'">T3L Restaurant</title>
-    <link rel="stylesheet" th:href="@{/css/site.css(v=20261120-typography)}" />
+    <th:block th:replace="~{web/fragments/theme :: start}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/site.css}" />
     <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
   </head>
   <body>

@@ -6,15 +6,16 @@
     <meta name="description" content="Liên hệ T3L Restaurant. Xem địa chỉ, giờ phục vụ, chỉ đường và gửi lời nhắn cho nhà hàng." />
     <meta name="theme-color" content="#171411" />
     <title>Liên hệ | T3L Restaurant</title>
-    <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
-    <link rel="stylesheet" th:href="@{/css/reservation.css(v=20261120-typography)}" />
-    <link rel="stylesheet" th:href="@{/css/about-contact.css(v=20261120-typography)}" />
+    <th:block th:replace="~{web/fragments/theme :: start}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/home.css}" />
+    <link rel="stylesheet" th:href="@{/css/reservation.css}" />
+    <link rel="stylesheet" th:href="@{/css/about-contact.css}" />
     <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
   </head>
   <body class="home contact-page">
     <a class="skip-link" href="#contact-form">Chuyển đến form liên hệ</a>
     <header th:replace="~{web/fragments/restaurant-shell :: header('contact')}"></header>
-    <main id="main">
+    <main data-navigation id="main">
       <section class="contact-intro home-container" aria-labelledby="contact-title">
         <div><p class="home-eyebrow">T3L RESTAURANT / GET IN TOUCH</p><h1 id="contact-title">Một lời nhắn.<br /><em>Bắt đầu một cuộc hẹn.</em></h1></div>
         <p>Từ một câu hỏi nhỏ đến kế hoạch cho dịp đặc biệt,<br />T3L luôn sẵn lòng lắng nghe bạn.</p>
@@ -37,11 +38,11 @@
           <div class="contact-success" th:if="${contactNotice}" th:text="${contactNotice}" role="status"></div>
           <div class="contact-form-error" tabindex="-1" th:if="${#fields.hasErrors('*')}" role="alert"><strong>Chưa thể gửi lời nhắn.</strong><p>Vui lòng kiểm tra các thông tin bên dưới.</p><p th:each="error : ${#fields.globalErrors()}" th:text="${error}"></p></div>
           <div class="contact-fields">
-            <div class="booking-field"><label for="contact-name">Họ và tên</label><input id="contact-name" type="text" th:field="*{name}" maxlength="120" autocomplete="name" required th:attr="aria-invalid=${#fields.hasErrors('name')},aria-describedby=${#fields.hasErrors('name') ? 'name-error' : null}" /><p id="name-error" class="field-error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></p></div>
-            <div class="booking-field"><label for="contact-phone">Số điện thoại</label><input id="contact-phone" type="tel" th:field="*{phone}" maxlength="30" autocomplete="tel" required th:attr="aria-invalid=${#fields.hasErrors('phone')},aria-describedby=${#fields.hasErrors('phone') ? 'phone-error' : null}" /><p id="phone-error" class="field-error" th:if="${#fields.hasErrors('phone')}" th:errors="*{phone}"></p></div>
-            <div class="booking-field contact-field-wide"><label for="contact-email">Email</label><input id="contact-email" type="email" th:field="*{email}" maxlength="254" autocomplete="email" required th:attr="aria-invalid=${#fields.hasErrors('email')},aria-describedby=${#fields.hasErrors('email') ? 'email-error' : null}" /><p id="email-error" class="field-error" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></p></div>
-            <div class="booking-field contact-field-wide"><label for="contact-subject">Chủ đề</label><input id="contact-subject" type="text" th:field="*{subject}" maxlength="150" placeholder="Bạn muốn trao đổi điều gì với T3L?" required th:attr="aria-invalid=${#fields.hasErrors('subject')},aria-describedby=${#fields.hasErrors('subject') ? 'subject-error' : null}" /><p id="subject-error" class="field-error" th:if="${#fields.hasErrors('subject')}" th:errors="*{subject}"></p></div>
-            <div class="booking-field contact-field-wide"><label for="contact-message">Nội dung</label><textarea id="contact-message" th:field="*{message}" rows="6" minlength="10" maxlength="4000" placeholder="Chia sẻ câu hỏi, góp ý hoặc kế hoạch của bạn…" required th:attr="aria-invalid=${#fields.hasErrors('message')},aria-describedby=${#fields.hasErrors('message') ? 'message-error message-help' : 'message-help'}"></textarea><small id="message-help">Từ 10 đến 4.000 ký tự.</small><p id="message-error" class="field-error" th:if="${#fields.hasErrors('message')}" th:errors="*{message}"></p></div>
+            <div class="booking-field"><label for="contact-name">Họ và tên</label><input id="contact-name" data-navigation-persist type="text" th:field="*{name}" maxlength="120" autocomplete="name" required th:attr="aria-invalid=${#fields.hasErrors('name')},aria-describedby=${#fields.hasErrors('name') ? 'name-error' : null}" /><p id="name-error" class="field-error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></p></div>
+            <div class="booking-field"><label for="contact-phone">Số điện thoại</label><input id="contact-phone" data-navigation-persist type="tel" th:field="*{phone}" maxlength="30" autocomplete="tel" required th:attr="aria-invalid=${#fields.hasErrors('phone')},aria-describedby=${#fields.hasErrors('phone') ? 'phone-error' : null}" /><p id="phone-error" class="field-error" th:if="${#fields.hasErrors('phone')}" th:errors="*{phone}"></p></div>
+            <div class="booking-field contact-field-wide"><label for="contact-email">Email</label><input id="contact-email" data-navigation-persist type="email" th:field="*{email}" maxlength="254" autocomplete="email" required th:attr="aria-invalid=${#fields.hasErrors('email')},aria-describedby=${#fields.hasErrors('email') ? 'email-error' : null}" /><p id="email-error" class="field-error" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></p></div>
+            <div class="booking-field contact-field-wide"><label for="contact-subject">Chủ đề</label><input id="contact-subject" data-navigation-persist type="text" th:field="*{subject}" maxlength="150" placeholder="Bạn muốn trao đổi điều gì với T3L?" required th:attr="aria-invalid=${#fields.hasErrors('subject')},aria-describedby=${#fields.hasErrors('subject') ? 'subject-error' : null}" /><p id="subject-error" class="field-error" th:if="${#fields.hasErrors('subject')}" th:errors="*{subject}"></p></div>
+            <div class="booking-field contact-field-wide"><label for="contact-message">Nội dung</label><textarea id="contact-message" data-navigation-persist th:field="*{message}" rows="6" minlength="10" maxlength="4000" placeholder="Chia sẻ câu hỏi, góp ý hoặc kế hoạch của bạn…" required th:attr="aria-invalid=${#fields.hasErrors('message')},aria-describedby=${#fields.hasErrors('message') ? 'message-error message-help' : 'message-help'}"></textarea><small id="message-help">Từ 10 đến 4.000 ký tự.</small><p id="message-error" class="field-error" th:if="${#fields.hasErrors('message')}" th:errors="*{message}"></p></div>
           </div>
           <button class="home-button" type="submit">Gửi lời nhắn <span aria-hidden="true">↗</span></button>
           <p class="contact-form-note">Lời nhắn được gửi đến bộ phận quản trị T3L. Thông tin liên hệ dùng để phản hồi yêu cầu của bạn; việc gửi form này không tạo hoặc thay đổi đặt bàn.</p>
@@ -57,6 +58,6 @@
     </main>
     <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
     <script th:replace="~{web/fragments/restaurant-shell :: navigation}"></script>
-    <script th:replace="~{web/fragments/about-contact :: effects}"></script>
+    <script data-page-script defer th:src="@{/js/public-content.js}"></script>
   </body>
 </html>

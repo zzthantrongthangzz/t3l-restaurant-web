@@ -118,10 +118,9 @@ public class SecurityConfig {
                 .permitAll()
                 .requestMatchers("/chat/**").access(new org.springframework.security.web.access.expression.WebExpressionAuthorizationManager(
                     "isAnonymous() or hasRole('BUYER')"))
-                .requestMatchers("/js/chatbox.js", "/js/theme.js", "/js/menu.js", "/js/preorder.js",
-                    "/js/payment-status.js", "/js/payment-copy.js").permitAll()
                 .requestMatchers(
-                    "/", "/menu", "/about", "/contact", "/faq", "/reservations/**", "/css/**", "/fonts/**", "/images/**", "/error")
+                    "/", "/menu", "/about", "/contact", "/faq", "/reservations/**",
+                    "/css/**", "/fonts/**", "/images/**", "/js/*.js", "/error")
                 .permitAll()
                 .requestMatchers("/admin", "/admin/**")
                 .hasRole("ADMIN")

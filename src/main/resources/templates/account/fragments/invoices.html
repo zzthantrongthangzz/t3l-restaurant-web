@@ -31,7 +31,7 @@
         </section>
       </div>
       <form class="account-form" th:if="${tab == 'company'}" th:action="@{/account/invoices/company}"
-          th:object="${companyForm}" method="post">
+          th:object="${companyForm}" method="post" data-partial-submit>
         <div class="account-fields">
           <div class="account-field">
             <label for="companyName">Tên công ty</label>

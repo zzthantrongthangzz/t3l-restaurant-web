@@ -6,8 +6,9 @@
     <meta name="robots" content="noindex,nofollow" />
     <meta name="theme-color" content="#171411" />
     <title th:text="${pageTitle + ' | T3L Restaurant'}">Tài khoản | T3L Restaurant</title>
-    <link rel="stylesheet" th:href="@{/css/home.css(v=20261120-typography)}" />
-    <link rel="stylesheet" th:href="@{/css/account.css(v=navigation-groups)}" />
+    <th:block th:replace="~{web/fragments/theme :: start}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/home.css}" />
+    <link rel="stylesheet" th:href="@{/css/account.css}" />
     <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
   </head>
   <body class="home account-page">
@@ -15,7 +16,7 @@
     <header th:replace="~{web/fragments/restaurant-shell :: header('account')}"></header>
     <div class="account-area">
       <div class="account-layout">
-        <main class="account-content" id="main">
+        <main data-navigation data-navigation-fragment class="account-content" id="main">
           <h1 th:text="${pageTitle}"></h1>
           <p class="account-notice" role="status" th:if="${accountNotice}" th:text="${accountNotice}"></p>
           <th:block th:switch="${section}">

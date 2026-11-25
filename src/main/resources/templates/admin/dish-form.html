@@ -3,7 +3,7 @@
 <head th:replace="~{admin/fragments/shell :: head(${heading})}"></head>
 <body class="staff-page admin-page">
 <header th:replace="~{admin/fragments/shell :: header('dishes')}"></header>
-<main class="staff-main dish-editor">
+<main data-navigation class="staff-main dish-editor">
   <div class="staff-page-heading">
     <a class="staff-link staff-back" th:href="@{/menu}">← Về thực đơn</a>
     <h1 th:text="${heading}"></h1>

@@ -3,7 +3,7 @@
 <head th:replace="~{admin/fragments/shell :: head('Quản lý tài khoản')}"></head>
 <body class="staff-page admin-page">
 <header th:replace="~{admin/fragments/shell :: header('accounts')}"></header>
-<main class="staff-main">
+<main data-navigation data-navigation-fragment class="staff-main">
   <div class="staff-page-heading"><div><h1>Quản lý tài khoản</h1><p>Nhân viên, quyền quản trị và trạng thái tài khoản khách hàng.</p></div><a class="staff-button" th:href="@{/admin/accounts/new}">Thêm nhân viên</a></div>
   <div th:replace="~{admin/fragments/shell :: messages}"></div>
   <section class="staff-panel">
@@ -23,7 +23,7 @@
           <td data-label="Vai trò" th:text="${row.roleLabel}"></td>
           <td data-label="Trạng thái"><span class="staff-badge" th:attr="data-status=${row.enabled ? 'OPEN' : 'INACTIVE'}" th:text="${row.enabled ? 'Hoạt động' : 'Đã khóa'}"></span></td>
           <td data-label="Thao tác">
-            <form th:if="${row.username != actor}" th:action="@{/admin/accounts/{id}/availability(id=${row.id})}" method="post">
+            <form th:if="${row.username != actor}" th:action="@{/admin/accounts/{id}/availability(id=${row.id})}" method="post" data-partial-submit>
               <button type="submit" class="staff-button is-outline" name="enabled" th:value="${!row.enabled}" th:text="${row.enabled ? 'Khóa' : 'Mở khóa'}"
                   th:attr="data-confirm=${row.enabled ? 'Khóa tài khoản và kết thúc các phiên đăng nhập hiện tại?' : 'Mở khóa tài khoản này?'}"></button>
             </form>
