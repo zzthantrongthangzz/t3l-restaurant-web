@@ -90,8 +90,11 @@ public class ReservationService {
 
   @PreAuthorize("hasAnyRole('STAFF', 'ADMIN') and #actor == authentication.name")
   @Transactional(isolation = Isolation.READ_COMMITTED)
-  public Reservation createStaffBooking(ReservationForm form, Long tableId, boolean walkIn, String actor) {
-    return createBooking(form, null, actor, tableId, walkIn);
+  public Reservation createStaffBooking(ReservationForm form, Long tableId, boolean walkIn, String actor, UserAccount customer) {
+    form.setGuestName(customer.getFullName());
+    form.setGuestPhone(customer.getPhone());
+    form.setGuestEmail(customer.getEmail());
+    return createBooking(form, customer, actor, tableId, walkIn);
   }
 
   private Reservation createBooking(ReservationForm form, UserAccount customer, String actor, Long tableId, boolean walkIn) {
@@ -103,14 +106,13 @@ public class ReservationService {
     // Validate here as well as in MVC so all callers use the same booking rules.
     validator.validate(form).stream().filter(violation -> {
       String field = violation.getPropertyPath().toString();
-      return !(actor != null && "consentAccepted".equals(field))
-          && !(walkIn && "guestPhone".equals(field) && (form.getGuestPhone() == null || form.getGuestPhone().isBlank()));
+      return !(actor != null && "consentAccepted".equals(field));
     }).findFirst().ifPresent(violation -> {
       throw new BookingException(violation.getPropertyPath().toString(), violation.getMessage());
     });
     List<RestaurantTable> active = tables.lockActiveTables();
-    LocalDateTime end = walkIn ? serviceEnd(form.getDate().atTime(form.getTime())) : schedule.validateAndGetEnd(form);
     LocalDateTime start = LocalDateTime.of(form.getDate(), form.getTime());
+    LocalDateTime end = walkIn ? start.plusMinutes(schedule.getDurationMinutes()) : schedule.validateAndGetEnd(form);
     String preferred = form.getPreferredArea() == null ? "" : form.getPreferredArea().trim();
 
     // Locks are held until the booking commits. Status updates acquire the same locks first.
@@ -157,9 +159,12 @@ public class ReservationService {
 
   public boolean canAddMenuItems(Reservation booking, DiningOrder order, boolean employee) {
     if (order != null && !DiningOrder.DRAFT.equals(order.getStatus())) return false;
-    if (employee) return BLOCKING_STATUSES.contains(booking.getStatus());
-    return booking.isOpenBooking() && booking.getStartsAt().isAfter(now())
-        && !List.of("TRANSFER_SUBMITTED", "PAID").contains(booking.getDepositStatus());
+    if (booking.isOpenBooking()) {
+      var now = now();
+      return booking.getStartsAt().isAfter(now) && !booking.hasExpiredDeposit(now)
+          && !"TRANSFER_SUBMITTED".equals(booking.getDepositStatus());
+    }
+    return employee && List.of(CHECKED_IN, SEATED).contains(booking.getStatus());
   }
 
   @PreAuthorize("#actor == authentication.name and ((#employee and hasAnyRole('STAFF', 'ADMIN')) or "
@@ -178,20 +183,14 @@ public class ReservationService {
       throw new BookingException(null, error.getMessage());
     });
     if (order == null) order = new DiningOrder(booking, actor, now());
-    var currentDishIds = order.getItems().stream().filter(item -> !item.isCancelled())
-        .map(item -> item.getDishId()).collect(java.util.stream.Collectors.toSet());
     for (var item : form.getItems()) {
-      Long dishId = item.getDishId();
-      if (!currentDishIds.add(dishId)) continue;
-      var dish = dishes.findSellable(dishId).orElseThrow(() ->
+      var dish = dishes.findSellable(item.getDishId()).orElseThrow(() ->
           new BookingException(null, "Một món đã ngừng phục vụ. Vui lòng chọn lại."));
       order.addItem(dish, item.getQuantity(), item.getNote(), booking.isOpenBooking());
     }
     orders.save(order);
-    if (booking.isOpenBooking() && (booking.getDepositAmount().signum() > 0 || vouchers.affected(order))) {
-      requireDepositChangeAllowed(booking);
-      repriceDeposit(booking);
-    } else if (!booking.isOpenBooking()) vouchers.reprice(order,order.getCurrentTotal());
+    if (booking.isOpenBooking()) repriceDeposit(booking);
+    else vouchers.reprice(order, order.getCurrentTotal());
   }
 
   public BigDecimal minimumDeposit(RestaurantTable table) {
@@ -380,7 +379,10 @@ public class ReservationService {
           checkIn(booking, now);
         }
         if (!CHECKED_IN.equals(booking.getStatus())) throw new BookingException(null, "Hãy check-in khách trước khi nhận bàn.");
-        if (!inServiceHours(now)) throw new BookingException("time", "Chỉ nhận bàn trong giờ phục vụ của nhà hàng.");
+        if (!booking.getReservationDate().equals(now.toLocalDate())) {
+          throw new BookingException("date", "Chỉ nhận bàn chờ trong ngày đặt.");
+        }
+        if (booking.isDepositOutstanding()) throw new BookingException(null, "Chưa nhận đủ tiền cọc.");
         LocalDateTime end = expectedServiceEnd(booking, now);
         requireTable(active, tableId(booking), now, end, booking.getGuestCount(), id, true);
         booking.seat(shifts.requireOpenShiftForUpdate(actor), now, end);
@@ -418,11 +420,8 @@ public class ReservationService {
     if (booking.isDepositOutstanding()) {
       throw new BookingException(null, "Chưa xác nhận thanh toán cọc cho lượt đặt bàn này.");
     }
-    if (!CONFIRMED.equals(booking.getStatus()) || !booking.getReservationDate().equals(now.toLocalDate())
-        || now.isBefore(booking.getStartsAt().minusMinutes(schedule.getCheckInMinutes()))
-        || !now.isBefore(booking.getStartsAt().plusMinutes(schedule.getNoShowMinutes())) || !inServiceHours(now)) {
-      throw new BookingException(null, "Chỉ nhận lịch đã xác nhận trong giờ phục vụ, từ "
-          + schedule.getCheckInMinutes() + " phút trước giờ đặt.");
+    if (!CONFIRMED.equals(booking.getStatus()) || !booking.getReservationDate().equals(now.toLocalDate())) {
+      throw new BookingException(null, "Chỉ nhận lượt đã xác nhận trong ngày đặt.");
     }
     booking.checkIn(now);
   }
@@ -461,11 +460,35 @@ public class ReservationService {
     if (received && (amount == null || expected.compareTo(amount) != 0)) {
       throw new BookingException(null, "Số tiền đã nhận phải khớp với số tiền yêu cầu đối soát.");
     }
-    if (received) references.claim(booking.getDepositReference(), "DEPOSIT", id);
+    applyDepositVerification(booking, received, expected, expectedReference, actor);
+  }
+
+  @PreAuthorize("hasAnyRole('STAFF', 'ADMIN') and #actor == authentication.name")
+  @Transactional(isolation = Isolation.READ_COMMITTED)
+  public void recordStaffDeposit(Long id, BigDecimal amount, String reference, String actor) {
+    if (paymentIntents.usesQr()) throw new BookingException(null, "Hãy dùng mã QR cọc của lượt đặt này.");
+    String normalized = references.normalize(reference, 4);
+    tables.lockInventory();
+    var booking = lockBooking(id);
+    var now = now();
+    if (!CONFIRMED.equals(booking.getStatus()) || !"WAITING_PAYMENT".equals(booking.getDepositStatus())
+        || booking.hasExpiredDeposit(now)) {
+      throw new BookingException(null, "Lượt đặt này hiện không chờ thanh toán cọc.");
+    }
+    if (amount == null || amount.signum() <= 0 || amount.compareTo(booking.getDepositRemaining()) != 0) {
+      throw new BookingException(null, "Số tiền đã nhận phải bằng số tiền cọc còn thiếu.");
+    }
+    booking.submitDepositReference(normalized, depositPolicy.reviewDeadline(booking, now));
+    applyDepositVerification(booking, true, amount, normalized, actor);
+  }
+
+  private void applyDepositVerification(Reservation booking, boolean received, BigDecimal expected,
+      String reference, String actor) {
+    if (received) references.claim(reference, "DEPOSIT", booking.getId());
     booking.verifyDeposit(received);
     if (!received) expireDeposit(booking, now());
-    var event = record(booking, actor, received ? "Đã nhận cọc " + expected.toPlainString() + " đ · " + expectedReference
-        : "Từ chối giao dịch cọc · " + expectedReference);
+    var event = record(booking, actor, received ? "Đã nhận cọc " + expected.toPlainString() + " đ · " + reference
+        : "Từ chối giao dịch cọc · " + reference);
     emails.enqueue(booking, received ? Kind.DEPOSIT_VERIFIED : Kind.DEPOSIT_REJECTED, event.getId(), null);
   }
 
@@ -662,18 +685,11 @@ public class ReservationService {
 
   private LocalDateTime expectedServiceEnd(Reservation booking, LocalDateTime now) {
     var planned = booking.effectiveEndsAt(schedule.getDurationMinutes());
+    var normalEnd = now.plusMinutes(schedule.getDurationMinutes());
+    if (!inServiceHours(now)) return normalEnd;
     var closing = now.toLocalDate().atTime(schedule.getClosingTime());
-    if (planned.isAfter(now) && !planned.isAfter(closing)) return planned;
-    return serviceEnd(now);
-  }
-
-  private LocalDateTime serviceEnd(LocalDateTime now) {
-    LocalDateTime closing = now.toLocalDate().atTime(schedule.getClosingTime());
-    if (!inServiceHours(now)) {
-      throw new BookingException("time", "Chỉ nhận bàn trực tiếp trong giờ phục vụ của nhà hàng.");
-    }
-    LocalDateTime planned = now.plusMinutes(schedule.getDurationMinutes());
-    return planned.isBefore(closing) ? planned : closing;
+    if (planned.isAfter(now) && !planned.isAfter(normalEnd) && !planned.isAfter(closing)) return planned;
+    return normalEnd.isBefore(closing) ? normalEnd : closing;
   }
 
   private boolean inServiceHours(LocalDateTime now) {

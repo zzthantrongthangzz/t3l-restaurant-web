@@ -71,7 +71,7 @@ public class AdminManagementController {
       try {
         accounts.save(id, form);
         redirect.addFlashAttribute("notice", "Đã lưu tài khoản.");
-        return "redirect:/admin/accounts";
+        return "redirect:" + accountList(id);
       } catch (IllegalArgumentException exception) {
         errors.reject("account.invalid", exception.getMessage());
       } catch (DataIntegrityViolationException exception) {
@@ -87,8 +87,12 @@ public class AdminManagementController {
 
   @PostMapping("/accounts/{id}/availability")
   public String accountAvailability(@PathVariable Long id, @RequestParam boolean enabled, RedirectAttributes redirect) {
-    return apply("/admin/accounts", enabled ? "Đã mở khóa tài khoản." : "Đã khóa tài khoản.",
+    return apply(accountList(id), enabled ? "Đã mở khóa tài khoản." : "Đã khóa tài khoản.",
         () -> accounts.setEnabled(id, enabled), redirect);
+  }
+
+  private String accountList(Long id) {
+    return id != null && accounts.detail(id).isCustomer() ? "/admin/accounts?role=CUSTOMER" : "/admin/accounts";
   }
 
   @GetMapping("/inventory")

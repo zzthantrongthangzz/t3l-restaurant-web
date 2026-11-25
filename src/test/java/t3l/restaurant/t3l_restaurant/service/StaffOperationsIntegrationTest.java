@@ -124,6 +124,102 @@ class StaffOperationsIntegrationTest {
   }
 
   @Test
+  void boardConfirmationKeepsIsoDateTimeAndGuestFilters() throws Exception {
+    long booking = publicBooking("Khách chờ duyệt", "14:00");
+    staff(post("/staff/reservations/" + booking + "/status").param("status", "CONFIRMED")
+        .param("from", "table").param("returnDate", TODAY.toString()).param("returnTime", "14:00")
+        .param("returnGuests", "3"))
+        .andExpect(redirectedUrl("/staff/tables?date=" + TODAY + "&time=14%3A00&guests=3"))
+        .andExpect(flash().attributeExists("notice"));
+    assertEquals("CONFIRMED", reservations.findOneById(booking).orElseThrow().getStatus());
+  }
+
+  @Test
+  void receiveAllowsEarlyArrivalTodayWithWarningButRejectsAnotherDate() throws Exception {
+    long booking = createPhone("Khách đến trước giờ", "16:00", tableOne, 3);
+    staff(post("/staff/shift/open").param("openingCash", "0")).andExpect(flash().attributeExists("notice"));
+    clock.at(TODAY.minusDays(1).atTime(18, 0));
+    step(booking, "RECEIVE").andExpect(flash().attributeExists("error"));
+    assertEquals("CONFIRMED", reservations.findOneById(booking).orElseThrow().getStatus());
+
+    clock.at(TODAY.atTime(9, 0));
+    staff(get("/staff/reservations/" + booking + "/payment-status"))
+        .andExpect(jsonPath("$.receiveEnabled").value(true))
+        .andExpect(jsonPath("$.receiveReason").value(containsString("16:00")));
+    step(booking, "RECEIVE").andExpect(flash().attributeExists("notice"));
+    assertEquals("SEATED", reservations.findOneById(booking).orElseThrow().getStatus());
+  }
+
+  @Test
+  void showsMorningServiceAndEveningReservationOnTheSameTableAndBlocksOverruns() throws Exception {
+    clock.at(TODAY.atTime(7, 0));
+    long evening = createPhone("Khách hẹn buổi tối", "18:00", tableOne, 3);
+    staff(get("/staff/tables")).andExpect(content().string(containsString("Trống hiện tại")))
+        .andExpect(content().string(containsString("Cần trả bàn trước lịch 18:00")));
+    staff(post("/staff/shift/open").param("openingCash", "0")).andExpect(flash().attributeExists("notice"));
+    long morning = walkIn("Khách ăn buổi sáng", tableOne);
+    staff(get("/staff/tables")).andExpect(content().string(containsString("Lịch tiếp theo 18:00")))
+        .andExpect(content().string(containsString("Dự kiến trả bàn 09:00")));
+    clock.at(TODAY.atTime(18, 0));
+    staff(get("/staff/tables")).andExpect(content().string(containsString("Bàn sắp đến giờ hẹn tiếp theo")));
+    step(evening, "RECEIVE").andExpect(flash().attributeExists("error"));
+    assertEquals("CONFIRMED", reservations.findOneById(evening).orElseThrow().getStatus());
+    step(morning, "COMPLETED").andExpect(flash().attributeExists("notice"));
+    step(evening, "RECEIVE").andExpect(flash().attributeExists("notice"));
+  }
+
+  @Test
+  void acceptsEveningOnlineRequestWhileMorningTableIsServing() throws Exception {
+    clock.at(TODAY.atTime(9, 0));
+    staff(post("/staff/shift/open").param("openingCash", "0")).andExpect(flash().attributeExists("notice"));
+    long morning = walkIn("Khách đến trực tiếp", tableOne);
+    var request = new ReservationForm();
+    request.setTableId(tableOne);
+    request.setDate(TODAY);
+    request.setTime(LocalTime.of(10, 30));
+    request.setGuests(3);
+    request.setGuestName("Khách đặt trực tuyến");
+    request.setGuestPhone("0901234567");
+    request.setConsentAccepted(true);
+    assertThrows(BookingException.class, () -> bookings.create(request));
+    request.setTime(LocalTime.of(19, 0));
+    var evening = bookings.create(request);
+    assertEquals("PENDING_CONFIRMATION", evening.getStatus());
+    assertEquals("SEATED", reservations.findOneById(morning).orElseThrow().getStatus());
+    staff(get("/staff/tables")).andExpect(content().string(containsString("Lịch tiếp theo 19:00")));
+    mvc.perform(get("/reservations/new").param("date", TODAY.toString()).param("time", "19:00"))
+        .andExpect(content().string(containsString("Đã có người đặt")))
+        .andExpect(content().string(not(containsString("Khách đặt trực tuyến"))));
+  }
+
+  @Test
+  void staffBookingLooksUpCreatesAndUsesTheSavedCustomerProfile() throws Exception {
+    String phone = "0999999541";
+    staff(post("/staff/reservations/customer/lookup").param("phone", phone)
+        .param("tableId", tableOne.toString()).param("popup", "true"))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Lưu hồ sơ và tiếp tục")));
+    staff(post("/staff/reservations/customer").param("phone", phone).param("fullName", "Lê Minh Tú")
+        .param("email", "minh.tu@example.test").param("tableId", tableOne.toString()).param("popup", "true"))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Lê Minh Tú")));
+    var customer = accounts.findByUsername("desk:" + phone).orElseThrow();
+    staff(post("/staff/reservations/customer/lookup").param("phone", "+84 999 999 541")
+        .param("tableId", tableOne.toString()).param("popup", "true"))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("minh.tu@example.test")))
+        .andExpect(content().string(not(containsString("Lưu hồ sơ và tiếp tục"))));
+
+    clock.at(TODAY.atTime(8, 0));
+    staff(post("/staff/shift/open").param("openingCash", "0")).andExpect(flash().attributeExists("notice"));
+    staff(post("/staff/reservations").param("customerId", customer.getId().toString()).param("walkIn", "true")
+        .param("guestName", "Tên sửa từ trình duyệt").param("tableId", tableOne.toString()).param("guests", "2")
+        .param("popup", "true").param("returnDate", TODAY.toString()))
+        .andExpect(redirectedUrl("/staff/tables?date=" + TODAY));
+    var result = reservations.findOneById(id("select id from reservations")).orElseThrow();
+    assertEquals("Lê Minh Tú", result.getGuestName());
+    assertEquals(customer.getId(), result.getCustomer().getId());
+    assertEquals("SEATED", result.getStatus());
+  }
+
+  @Test
   void guestBuyerStaffAndAdminShareAvailabilityForTheSameWindow() throws Exception {
     var guest = new MockHttpSession();
     String draft = (String) mvc.perform(get("/reservations/new").session(guest)
@@ -317,7 +413,8 @@ class StaffOperationsIntegrationTest {
     long booking = depositGuest(tableOne, "14:00", "QA-CANCEL-CREDIT");
     var cancel = new ReservationCancellationForm();
     cancel.setReason("Đổi kế hoạch");
-    var requested = changes.requestCancellation(reservations.findOneById(booking).orElseThrow().getCode(), cancel);
+    var reservation = reservations.findOneById(booking).orElseThrow();
+    var requested = changes.requestCancellation(reservation.getCode(), cancel, reservation.getCustomer().getId());
     staff(post("/staff/reservations/requests/" + requested.getId() + "/review").param("decision", "APPROVE"))
         .andExpect(flash().attributeExists("notice"));
     var saved = reservations.findOneById(booking).orElseThrow();
@@ -331,7 +428,8 @@ class StaffOperationsIntegrationTest {
     jdbc.update("update restaurant_tables set table_type='Bàn lớn' where id=?", tableOne);
     jdbc.update("update restaurant_tables set table_type='Phòng VIP' where id=?", tableTwo);
     long booking = createPhone("Khách đổi bàn QA", "14:00", tableOne, 3);
-    bookings.submitDepositReference(booking, null, "QA-INITIAL-CREDIT");
+    Long ownerId = reservations.findOneById(booking).orElseThrow().getCustomer().getId();
+    bookings.submitDepositReference(booking, ownerId, "QA-INITIAL-CREDIT");
     verifyDeposit(booking, "QA-INITIAL-CREDIT", "300000", true).andExpect(flash().attributeExists("notice"));
     staff(post("/staff/reservations/" + booking + "/table").param("tableId", tableTwo.toString()))
         .andExpect(flash().attributeExists("error"));
@@ -340,8 +438,8 @@ class StaffOperationsIntegrationTest {
         .andExpect(flash().attributeExists("notice"));
     var moved = reservations.findOneById(booking).orElseThrow();
     assertEquals(new BigDecimal("200000"), moved.getDepositRemaining());
-    assertThrows(BookingException.class, () -> bookings.submitDepositReference(booking, null, "qa-initial-credit"));
-    bookings.submitDepositReference(booking, null, "QA-TOPUP-CREDIT");
+    assertThrows(BookingException.class, () -> bookings.submitDepositReference(booking, ownerId, "qa-initial-credit"));
+    bookings.submitDepositReference(booking, ownerId, "QA-TOPUP-CREDIT");
     verifyDeposit(booking, "QA-INITIAL-CREDIT", "200000", true).andExpect(flash().attributeExists("error"));
     verifyDeposit(booking, "QA-TOPUP-CREDIT", "200000", true).andExpect(flash().attributeExists("notice"));
     clock.at(TODAY.atTime(14, 20));
@@ -627,7 +725,7 @@ class StaffOperationsIntegrationTest {
 
   private long depositGuest(Long table, String time, String reference) throws Exception {
     long booking = createPhone("Khách trả cọc QA", time, table, 3);
-    bookings.submitDepositReference(booking, null, reference);
+    bookings.submitDepositReference(booking, reservations.findOneById(booking).orElseThrow().getCustomer().getId(), reference);
     verifyDeposit(booking, reference, "500000", true).andExpect(flash().attributeExists("notice"));
     return booking;
   }
@@ -647,7 +745,6 @@ class StaffOperationsIntegrationTest {
         .param("phone", "090 123 4567").param("status", "CONFIRMED"))
         .andExpect(status().isOk()).andExpect(content().string(containsString("Nguyễn Thu Linh")));
     staff(get(detail)).andExpect(status().isOk()).andExpect(content().string(containsString("Lịch sử xử lý")));
-    step(booking, "SEATED").andExpect(flash().attributeExists("error"));
     step(booking, "RECEIVE").andExpect(flash().attributeExists("notice"));
     var seated = reservations.findOneById(booking).orElseThrow();
     assertEquals("SEATED", seated.getStatus());
@@ -733,7 +830,9 @@ class StaffOperationsIntegrationTest {
     changed.setDate(TODAY.plusDays(1));
     changed.setTime(LocalTime.of(17, 0));
     changed.setGuests(3);
-    var request = changes.requestChange(reservations.findOneById(first).orElseThrow().getCode(), changed);
+    var original = reservations.findOneById(first).orElseThrow();
+    Long ownerId = original.getCustomer().getId();
+    var request = changes.requestChange(original.getCode(), changed, ownerId);
     staff(get("/staff/reservations")).andExpect(status().isOk()).andExpect(content().string(containsString("Duyệt yêu cầu")));
     staff(post("/staff/reservations/requests/" + request.getId() + "/review").param("decision", "APPROVE"))
         .andExpect(flash().attributeExists("notice"));
@@ -745,12 +844,12 @@ class StaffOperationsIntegrationTest {
         .andExpect(content().string(containsString("Đổi lịch:"))).andExpect(content().string(containsString("Đã duyệt")));
     var cancel = new ReservationCancellationForm();
     cancel.setReason("Dời kế hoạch.");
-    var cancelRequest = changes.requestCancellation(reservations.findOneById(first).orElseThrow().getCode(), cancel);
+    var cancelRequest = changes.requestCancellation(original.getCode(), cancel, ownerId);
     staff(post("/staff/reservations/requests/" + cancelRequest.getId() + "/review").param("decision", "REJECT"))
         .andExpect(flash().attributeExists("error"));
     staff(post("/staff/reservations/requests/" + cancelRequest.getId() + "/review").param("decision", "REJECT")
         .param("reviewNote", "Đã trao đổi với khách.")).andExpect(flash().attributeExists("notice"));
-    var another = changes.requestCancellation(reservations.findOneById(first).orElseThrow().getCode(), cancel);
+    var another = changes.requestCancellation(original.getCode(), cancel, ownerId);
     staff(post("/staff/reservations/requests/" + another.getId() + "/review").param("decision", "APPROVE"))
         .andExpect(flash().attributeExists("notice"));
     assertEquals("CANCELLED", reservations.findOneById(first).orElseThrow().getStatus());
@@ -775,8 +874,33 @@ class StaffOperationsIntegrationTest {
           .andExpect(content().string(containsString("Ghi chú: Ít cay")));
       staff(get(details)).andExpect(content().string(containsString("2 × Bít tết")));
     }
+
+    var waiting = reservations.findOneById(reserved).orElseThrow();
+    assertEquals(new BigDecimal("350000"), waiting.getDepositRemaining());
+    assertEquals(BigDecimal.ZERO.setScale(0), reservations.findOneById(arrived).orElseThrow().getDepositRemaining());
+    String deposit = "/staff/reservations/" + reserved + "/deposit/record";
+    staff(post(deposit).param("amount", "350000").param("reference", "QA-STAFF-DEPOSIT"))
+        .andExpect(flash().attributeExists("notice"));
+    for (long id : List.of(reserved, arrived)) {
+      String code = reservations.findOneById(id).orElseThrow().getCode();
+      staff(get("/menu").param("booking", code)).andExpect(content().string(containsString("data-add")));
+      staff(post("/reservations/" + code + "/preorder").param("items[0].dishId", dishId.toString())
+          .param("items[0].quantity", "1").param("items[0].note", "Không hành"))
+          .andExpect(redirectedUrl("/staff/reservations/" + id));
+      assertEquals(new BigDecimal("750000"), preorders.order(id).getCurrentTotal());
+    }
+    waiting = reservations.findOneById(reserved).orElseThrow();
+    assertEquals(new BigDecimal("350000"), waiting.getDepositPaid());
+    assertEquals(new BigDecimal("175000"), waiting.getDepositRemaining());
+    staff(get("/staff/reservations/" + reserved + "/payment-status"))
+        .andExpect(jsonPath("$.receiveEnabled").value(false))
+        .andExpect(jsonPath("$.receiveReason").value(containsString("tiền cọc")));
+    staff(post(deposit).param("amount", "175000").param("reference", "QA-STAFF-TOPUP"))
+        .andExpect(flash().attributeExists("notice"));
+    assertEquals(0, reservations.findOneById(reserved).orElseThrow().getDepositRemaining().signum());
+    assertEquals(0, reservations.findOneById(arrived).orElseThrow().getDepositRemaining().signum());
     assertEquals(2L, id("select count(distinct reservation_id) from dining_orders where status='DRAFT'"));
-    assertEquals(2L, id("select count(*) from dining_order_items"));
+    assertEquals(4L, id("select count(*) from dining_order_items"));
   }
 
   @Test
@@ -801,15 +925,15 @@ class StaffOperationsIntegrationTest {
         jdbc.queryForList("select kind from reservation_emails where reservation_id=? order by id", String.class, rejected));
 
     staff(get("/staff/reservations/new").param("walkIn", "true")).andExpect(status().isOk())
-        .andExpect(content().string(containsString("Khách đến trực tiếp")));
-    staff(post("/staff/reservations").param("walkIn", "true").param("guestName", "Khách tại chỗ")
+        .andExpect(content().string(containsString("Tra cứu khách hàng")));
+    staff(post("/staff/reservations").param("walkIn", "true").param("customerId", customerId("Khách tại chỗ"))
         .param("tableId", tableOne.toString()).param("guests", "3")).andExpect(status().isOk())
         .andExpect(content().string(containsString("Hãy mở ca làm việc")));
     assertEquals(0L, id("select count(*) from reservations where guest_name='Khách tại chỗ'"));
     staff(post("/staff/shift/open").param("openingCash", "0")).andExpect(flash().attributeExists("notice"));
     long first = walkIn("Khách tại chỗ", tableOne);
     assertEquals("SEATED", reservations.findOneById(first).orElseThrow().getStatus());
-    staff(post("/staff/reservations").param("walkIn", "true").param("guestName", "Khách mới")
+    staff(post("/staff/reservations").param("walkIn", "true").param("customerId", customerId("Khách mới"))
         .param("guests", "3").param("tableId", tableOne.toString())).andExpect(status().isOk())
         .andExpect(content().string(containsString("Bàn đang phục vụ")));
     long second = walkIn("Khách thanh toán sau", tableTwo);
@@ -868,8 +992,8 @@ class StaffOperationsIntegrationTest {
   }
 
   private MockHttpServletRequestBuilder phone(String guest, String time, Long tableId, int guests) {
-    return post("/staff/reservations").param("guestName", guest).param("guestPhone", "+84 90 123 4567")
-        .param("guestEmail", "guest@example.test").param("date", TODAY.toString()).param("time", time)
+    return post("/staff/reservations").param("customerId", customerId(guest))
+        .param("date", TODAY.toString()).param("time", time)
         .param("guests", Integer.toString(guests)).param("tableId", tableId.toString());
   }
 
@@ -878,8 +1002,14 @@ class StaffOperationsIntegrationTest {
   }
 
   private long walkIn(String guest, Long tableId) throws Exception {
-    return bookingId(staff(post("/staff/reservations").param("walkIn", "true").param("guestName", guest)
+    return bookingId(staff(post("/staff/reservations").param("walkIn", "true").param("customerId", customerId(guest))
         .param("tableId", tableId.toString()).param("guests", "3")));
+  }
+
+  private String customerId(String guest) {
+    String username = "qa-desk-" + java.util.UUID.randomUUID();
+    return accounts.save(UserAccount.customer(guest, username + "@example.test", "0901234567", username, "unused"))
+        .getId().toString();
   }
 
   private long bookingId(ResultActions result) throws Exception {

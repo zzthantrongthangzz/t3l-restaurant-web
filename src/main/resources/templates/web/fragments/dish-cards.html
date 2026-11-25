@@ -24,7 +24,7 @@
         <strong th:text="${#numbers.formatInteger(dish.price,1,'POINT') + ' ₫'}"></strong>
         <button type="button" class="menu-detail" data-detail th:aria-label="${'Xem chi tiết ' + dish.name}" hidden>Chi tiết</button>
         <span class="menu-ordered" th:if="${orderMode and ordered}">Đã đặt</span>
-        <button th:if="${orderMode and !ordered}" type="button" class="menu-add" data-add
+        <button th:if="${orderMode}" type="button" class="menu-add" data-add
                 th:aria-label="${'Chọn ' + dish.name}" aria-pressed="false" hidden>+</button>
       </div>
     </div>

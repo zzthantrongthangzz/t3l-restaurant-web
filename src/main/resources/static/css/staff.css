@@ -107,6 +107,15 @@ body.staff-page {
 }
 .staff-stack { display: grid; gap: 16px; min-width: 0; align-content: start; }
 .staff-split { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.staff-main.staff-reservation-detail { padding-block-start: clamp(16px, 2vw, 28px); }
+.staff-detail-header { display: grid; gap: 8px; margin-bottom: 16px; }
+.staff-detail-header > a { justify-self: start; }
+.staff-detail-heading, .staff-detail-identity { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.staff-detail-heading { justify-content: space-between; }
+.staff-detail-heading .staff-actions { margin-block: 0; }
+.staff-detail-heading .staff-kicker { margin-bottom: 3px; }
+.staff-detail-heading h1 { font: 700 clamp(1.65rem, 3vw, 2.15rem)/1.2 var(--font-sans); overflow-wrap: anywhere; }
+.staff-reservation-detail .staff-panel { padding: clamp(14px, 1.6vw, 20px); }
 .staff-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 155px), 1fr));
@@ -286,6 +295,7 @@ a.staff-metric:hover { border-color: #a1744b; background: #fffaf1; }
 .staff-row-actions { min-width: 180px; }
 .staff-dashboard-action { justify-items: start; }
 .staff-action-reason, .staff-dashboard-action small { display: block; color: var(--staff-muted, #6b6d72); max-width: 28rem; }
+.staff-action-reason[hidden] { display: none; }
 .staff-button:disabled { opacity: .48; cursor: not-allowed; filter: grayscale(.3); }
 .staff-badge.is-warning { background: #fff0dc; color: #8b4c13; }
 .staff-payment-options { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); align-items: start; }

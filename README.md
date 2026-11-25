@@ -88,7 +88,13 @@ Script 17 đồng bộ link ảnh theo tên món mẫu. Có thể bỏ qua scrip
 
 Mỗi thành viên dùng `.env` riêng. Các giá trị MySQL trong file đó được dùng cho cả Docker Compose và Spring Boot. Đặt mật khẩu demo của nhân viên/admin qua `APP_STAFF_PASSWORD` và `APP_ADMIN_PASSWORD`, rồi đăng nhập tại `/staff/login`. Khi cần thử Buyer trên máy cá nhân, bật `SMS_OTP_LOCAL_ENABLED=true` và dùng số ở `SMS_OTP_LOCAL_PHONE`. Với bản chạy dùng chung, thay `APP_JWT_SECRET` bằng khóa ngẫu nhiên tối thiểu 32 byte, mã hóa Base64.
 
-Nếu cần cùng nhìn thấy các lượt đặt và thay đổi thực đơn mới phát sinh, dùng MySQL và MongoDB dành riêng cho nhóm. Chia sẻ trực tiếp `MYSQL_URL`, `MYSQL_USER`, `MYSQL_PASSWORD` và `MONGODB_URI` qua kênh riêng. Để các thành viên khởi tạo cùng một bản dữ liệu trên máy riêng, có thể gửi bản backup demo đã lọc thông tin khách hàng. Chỉ đưa `.env.example` và dữ liệu mẫu vào Git.
+Nếu cần cùng nhìn thấy các lượt đặt và thay đổi thực đơn mới phát sinh, dùng MySQL và MongoDB dành riêng cho nhóm. Chia sẻ trực tiếp `MYSQL_URL`, `MYSQL_USER`, `MYSQL_PASSWORD` và `MONGODB_URI` qua kênh riêng. Chỉ đưa `.env.example` và dữ liệu giả định vào Git.
+
+MySQL mới tạo bằng Docker Compose tự nạp `database/mysql/23_operating_data.sql` và `database/mysql/25_operating_examples.sql`. Dữ liệu giả định gồm bàn đang phục vụ có lịch tiếp theo, các trạng thái đặt bàn, món và cọc, hóa đơn có voucher, ca đã đối soát, bán lẻ, liên hệ, hồ sơ khách, yêu cầu đổi lịch và lịch sử truy cập. MongoDB mới tự nạp FAQ từ `database/mongodb/01_faq_seed.js`. Giờ phục vụ và ngày báo cáo tính từ lần nạp đầu tiên. Chạy lại giữ các lượt đã sinh, mật khẩu, voucher và câu hỏi đã chỉnh. Admin có thể cấp mật khẩu cho nhân viên bổ sung khi cần.
+
+Với MySQL đã chạy trước đây, sao lưu rồi nạp `23_operating_data.sql` và `25_operating_examples.sql` theo thứ tự. Nếu phiên bản cũ từng tạo sáu bàn thử, chạy `24_consolidate_legacy_inventory.sql` trước để chuyển các lượt cũ về bàn đúng loại. Script dừng nếu bàn nhận thiếu hoặc đang có lịch mở có thể xung đột. Với MongoDB đang có dữ liệu, chạy lại script FAQ để thêm câu hỏi mới.
+
+Sơ đồ nội bộ ngày hiện tại ưu tiên lượt đang phục vụ và hiển thị thêm giờ đặt kế tiếp. Nhân viên vẫn có thể nhận lượt vãng lai nếu toàn bộ thời lượng phục vụ dự kiến kết thúc trước hoặc đúng giờ hẹn. Khách đặt online xem tình trạng theo giờ họ chọn.
 
 ### AI ChatBox
 

@@ -29,7 +29,7 @@ public class AdminAccountService {
 
   public record AccountView(Long id, String username, String fullName, String email, String phone, String role, boolean enabled) {
     public boolean isCustomer() { return "BUYER".equals(role); }
-    public String getRoleLabel() { return isCustomer() ? "CUSTOMER" : role; }
+    public String getRoleLabel() { return isCustomer() ? "Khách hàng" : "ADMIN".equals(role) ? "Quản trị viên" : "Nhân viên"; }
   }
 
   @Transactional(readOnly = true)

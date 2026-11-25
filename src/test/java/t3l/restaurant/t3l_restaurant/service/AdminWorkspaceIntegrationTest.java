@@ -157,14 +157,15 @@ class AdminWorkspaceIntegrationTest {
     }
     assertEquals(code, jdbc.queryForObject(
         "select reservations.code from dining_orders join reservations on reservation_id = reservations.id", String.class));
-    assertEquals(1, jdbc.queryForObject("select count(*) from dining_order_items", Integer.class));
-    assertEquals(3, jdbc.queryForObject("select quantity from dining_order_items", Integer.class));
-    assertEquals("Không bỏ hành", jdbc.queryForObject("select note from dining_order_items", String.class));
+    assertEquals(2, jdbc.queryForObject("select count(*) from dining_order_items", Integer.class));
+    assertEquals(6, jdbc.queryForObject("select sum(quantity) from dining_order_items", Integer.class));
+    assertEquals("Không bỏ hành", jdbc.queryForObject("select distinct note from dining_order_items", String.class));
+    assertEquals(840000L, jdbc.queryForObject("select deposit_amount from reservations", Long.class));
     mvc.perform(get(receipt).session(session).with(buyer))
         .andExpect(content().string(containsString("Bít tết QA × 3 · 600.000 đ")))
         .andExpect(content().string(containsString("Không bỏ hành")));
     mvc.perform(get("/reservations/new").param("date", date.toString()).param("time", "18:00"))
-        .andExpect(content().string(containsString("Đang chờ xác nhận")))
+        .andExpect(content().string(containsString("Đã có người đặt")))
         .andExpect(content().string(not(containsString("Chọn bàn A01"))));
     mvc.perform(get("/reservations/new").param("date", date.toString()).param("time", "12:00"))
         .andExpect(content().string(containsString("Chọn bàn A01")));
@@ -181,7 +182,10 @@ class AdminWorkspaceIntegrationTest {
         .andExpect(content().string(not(containsString("Bạn có muốn đặt kèm món không?"))));
     assertEquals("PENDING_CONFIRMATION", jdbc.queryForObject(
         "select status from reservations where guest_phone='0907654321'", String.class));
-    assertEquals(1, jdbc.queryForObject("select count(*) from dining_order_items", Integer.class));
+    assertEquals(0, jdbc.queryForObject("""
+        select count(*) from dining_orders o join reservations r on o.reservation_id = r.id
+        where r.guest_phone = '0907654321'
+        """, Integer.class));
   }
 
   @Test

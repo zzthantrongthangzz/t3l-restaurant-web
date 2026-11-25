@@ -56,7 +56,8 @@ public class StaffWorkspaceService {
   }
 
   public record TableView(RestaurantTable table, TableState state, Reservation current,
-                          List<Reservation> otherBookings, BookingActions actions, boolean canOrder) {}
+                          List<Reservation> otherBookings, BookingActions actions, boolean canOrder, boolean canWalkIn,
+                          Reservation nextBooking, LocalDateTime servingUntil, boolean serviceAtRisk) {}
   public record Dashboard(LocalDate date, long bookingsToday, long pending, long guestsArrived, long serving,
                           long free, long changeRequests, long awaitingPayment, List<Reservation> upcoming, List<Reservation> toConfirm,
                           List<Reservation> checkedIn) {}
@@ -107,11 +108,15 @@ public class StaffWorkspaceService {
         ? reservations.findByStatusInAndTableIsNotNull(List.of(SEATED, CHECKED_IN)).stream()
             .collect(Collectors.groupingBy(booking -> booking.getTable().getId()))
         : Map.<Long, List<Reservation>>of();
+    var walkInEnd = now.plusMinutes(schedule.getDurationMinutes());
+    var walkInBlocks = date.equals(now.toLocalDate())
+        ? bookings.blockingByTable(now, walkInEnd)
+        : Map.<Long, Reservation>of();
     var bookingIds = Stream.concat(scheduledByTable.values().stream(), arrivedByTable.values().stream())
         .flatMap(List::stream).map(Reservation::getId).distinct().toList();
-    var lockedOrders = bookingIds.isEmpty() ? java.util.Set.<Long>of()
-        : orders.findByReservation_IdIn(bookingIds).stream().filter(order -> !DiningOrder.DRAFT.equals(order.getStatus()))
-            .map(order -> order.getReservation().getId()).collect(Collectors.toSet());
+    var boardOrders = bookingIds.isEmpty() ? Map.<Long, DiningOrder>of()
+        : orders.findByReservation_IdIn(bookingIds).stream()
+            .collect(Collectors.toMap(order -> order.getReservation().getId(), order -> order));
     List<TableView> board = new ArrayList<>();
     var activeIds = new java.util.HashSet<>(tables.activeIds());
     var inventory = tables.findAllByOrderByTableTypeAscCodeAsc().stream()
@@ -122,7 +127,7 @@ public class StaffWorkspaceService {
       Reservation current = arrived.stream().min(Comparator.comparing(booking -> !SEATED.equals(booking.getStatus())))
           .orElseGet(() -> scheduled.stream()
               .filter(booking -> !booking.getStartsAt().isBefore(now) || booking.effectiveEndsAt(schedule.getDurationMinutes()).isAfter(now))
-              .findFirst().orElseGet(() -> scheduled.isEmpty() ? null : scheduled.getFirst()));
+              .findFirst().orElse(null));
       if (time != null) current = blocked.get(table.getId());
       Reservation selected = current;
       var others = scheduled.stream().filter(booking -> selected == null || !Objects.equals(booking.getId(), selected.getId())).toList();
@@ -132,8 +137,16 @@ public class StaffWorkspaceService {
             case PENDING -> TableState.PENDING;
             default -> TableState.RESERVED;
           };
+      boolean canWalkIn = date.equals(now.toLocalDate()) && activeIds.contains(table.getId())
+          && table.getCapacity() >= guests && arrived.isEmpty() && !walkInBlocks.containsKey(table.getId());
+      var next = scheduled.stream().filter(booking -> SCHEDULED.contains(booking.getStatus())
+          && booking.effectiveEndsAt(schedule.getDurationMinutes()).isAfter(now)).findFirst().orElse(null);
+      LocalDateTime servingUntil = state == TableState.OCCUPIED ? current.effectiveEndsAt(schedule.getDurationMinutes()) : null;
+      boolean serviceAtRisk = servingUntil != null && next != null
+          && (servingUntil.isAfter(next.getStartsAt()) || !now.plusMinutes(schedule.getSlotMinutes()).isBefore(next.getStartsAt()));
       board.add(new TableView(table, state, current, others, current == null ? null : actions(current, now, shiftOpen),
-          current != null && !lockedOrders.contains(current.getId())));
+          current != null && bookings.canAddMenuItems(current, boardOrders.get(current.getId()), true), canWalkIn,
+          next, servingUntil, serviceAtRisk));
     }
     return board;
   }
@@ -216,13 +229,17 @@ public class StaffWorkspaceService {
     boolean confirmEnabled = confirm && (!paymentIntents.usesQr() || !booking.isDepositOutstanding());
     String confirmReason = paymentIntents.usesQr() && booking.isDepositOutstanding() ? "Chưa xác minh đủ tiền cọc."
         : !confirm ? "Đã qua thời hạn xác nhận của lượt đặt này." : "";
-    boolean receive = (confirmed || checkedIn) && booking.getReservationDate().equals(now.toLocalDate());
-    boolean earlyWindow = !now.isBefore(booking.getStartsAt().minusMinutes(schedule.getCheckInMinutes())) && insideNoShow;
-    boolean receiveEnabled = receive && !booking.isDepositOutstanding() && serviceHours && earlyWindow && shiftOpen;
-    String receiveReason = !shiftOpen ? "Cần mở ca làm trước khi nhận khách."
+    boolean receive = confirmed || checkedIn;
+    boolean sameDay = booking.getReservationDate().equals(now.toLocalDate());
+    var checkInAt = booking.getStartsAt().minusMinutes(schedule.getCheckInMinutes());
+    boolean outsideWindow = now.isBefore(checkInAt) || !insideNoShow || !serviceHours;
+    boolean receiveEnabled = receive && sameDay && !booking.isDepositOutstanding() && shiftOpen;
+    String receiveReason = !sameDay ? "Chỉ nhận bàn trong ngày đặt."
+        : !shiftOpen ? "Cần mở ca làm trước khi nhận khách."
         : booking.isDepositOutstanding() ? "Chưa xác minh đủ tiền cọc."
-        : !serviceHours ? "Ngoài giờ phục vụ."
-        : !earlyWindow ? "Chỉ nhận khách từ " + schedule.getCheckInMinutes() + " phút trước giờ đặt đến hết thời gian chờ khách." : "";
+        : outsideWindow ? "Ngoài khung giờ nhận dự kiến. Khách đặt lúc "
+            + booking.getStartsAt().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+            + ". Bạn có muốn nhận bàn ngay?" : "";
     boolean late = (pending || confirmed) && booking.getStartsAt().isBefore(now);
     return new BookingActions(confirm, confirmEnabled, confirmReason, pending || confirmed || checkedIn,
         receive, receiveEnabled, receiveReason, serving, confirmed && !insideNoShow, late,

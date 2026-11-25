@@ -179,9 +179,17 @@ window.t3lPage.register(({ signal, state }) => {
     updateTotal();
   }
 
-  selection?.closest('form').addEventListener('submit', () => {
+  selection?.closest('form').addEventListener('submit', event => {
+    if (submit.disabled) {
+      event.preventDefault();
+      return;
+    }
+    submit.disabled = true;
     selection.querySelectorAll('.menu-item-quantity').forEach(input => { input.value = input.valueAsNumber; });
   });
+  if (selection) window.addEventListener('pageshow', event => {
+    if (event.persisted) updateTotal();
+  }, { signal });
 
   function toggleDish(card) {
     const id = card.dataset.id;

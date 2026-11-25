@@ -8,8 +8,8 @@
   <link rel="stylesheet" th:href="@{/css/site.css}" />
   <link rel="stylesheet" th:href="@{/css/reservation-requests.css}" />
   <link rel="stylesheet" th:href="@{/css/staff.css(v=3)}" />
-  <link rel="stylesheet" th:href="@{/css/table-plan.css}" />
-  <link rel="stylesheet" th:href="@{/css/admin.css}" />
+  <link rel="stylesheet" th:href="@{/css/table-plan.css(v=table-commands)}" />
+  <link rel="stylesheet" th:href="@{/css/admin.css(v=analytics-sans)}" />
   <script data-page-script defer th:src="@{/js/staff.js}"></script>
   <script data-page-script defer th:src="@{/js/staff-pending-bookings.js}"></script>
   <script data-page-script defer th:src="@{/js/admin.js}"></script>
@@ -29,7 +29,8 @@
   <div class="admin-navigation" id="admin-navigation">
     <nav aria-label="Điều hướng quản trị">
       <a th:href="@{/admin/dashboard}" th:attr="aria-current=${section == 'dashboard' ? 'page' : null}">Tổng quan</a>
-      <span class="admin-nav-label">Vận hành</span>
+      <section class="admin-nav-group" aria-labelledby="admin-nav-operations">
+      <h2 id="admin-nav-operations" class="admin-nav-label">Vận hành</h2>
       <a th:href="@{/admin/tables}" th:attr="aria-current=${section == 'tables' ? 'page' : null}">Quản lý đặt bàn</a>
       <a th:href="@{/admin/reservations}" th:attr="aria-current=${section == 'reservations' ? 'page' : null}">Danh sách &amp; duyệt đặt bàn</a>
       <a th:href="@{/admin/orders}" th:attr="aria-current=${section == 'orders' ? 'page' : null}">Đơn đang phục vụ</a>
@@ -37,7 +38,9 @@
       <a th:href="@{/admin/revenue}" th:attr="aria-current=${section == 'revenue' ? 'page' : null}">Doanh thu</a>
       <a th:href="@{/admin/analytics}" th:attr="aria-current=${section == 'analytics' ? 'page' : null}">Phân tích hành vi</a>
       <a th:href="@{/admin/shifts}" th:attr="aria-current=${section == 'shift' ? 'page' : null}">Ca làm &amp; đối soát</a>
-      <span class="admin-nav-label">Quản lý</span>
+      </section>
+      <section class="admin-nav-group" aria-labelledby="admin-nav-management">
+      <h2 id="admin-nav-management" class="admin-nav-label">Quản lý</h2>
       <a th:href="@{/admin/vouchers}" th:attr="aria-current=${section == 'vouchers' ? 'page' : null}">Voucher &amp; khuyến mãi</a>
       <a th:href="@{/admin/accounts}" th:attr="aria-current=${section == 'accounts' ? 'page' : null}">Tài khoản</a>
       <a th:href="@{/admin/inventory}" th:attr="aria-current=${section == 'inventory' ? 'page' : null}">Danh mục bàn</a>
@@ -46,6 +49,7 @@
       <a th:href="@{/admin/faqs}" th:attr="aria-current=${section == 'faqs' ? 'page' : null}">Quản lý FAQ</a>
       <a th:href="@{/admin/settings}" th:attr="aria-current=${section == 'settings' ? 'page' : null}">Cấu hình</a>
       <a th:href="@{/admin/activity}" th:attr="aria-current=${section == 'activity' ? 'page' : null}">Nhật ký quản trị</a>
+      </section>
     </nav>
   </div>
   <div class="admin-nav-actions">

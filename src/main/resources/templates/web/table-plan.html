@@ -42,20 +42,19 @@
       <p class="plan-dialog-note" th:if="${selectedTime == null}" role="status">Ngày đã chọn không còn khung giờ đặt bàn. Vui lòng chọn ngày khác.</p>
       <p class="plan-dialog-note" th:if="${selectedTime != null and tables.isEmpty()}" role="status">Hiện chưa có bàn đang phục vụ.</p>
       <ul class="table-plan-legend" aria-label="Trạng thái bàn">
-        <li><span class="plan-dot is-free"></span>Trống</li><li><span class="plan-dot is-pending"></span>Đang chờ xác nhận</li><li><span class="plan-dot is-booked"></span>Đã đặt</li>
-        <li><span class="plan-dot is-serving"></span>Đang phục vụ</li><li><span class="plan-dot is-too-small"></span>Không đủ chỗ</li>
+        <li><span class="plan-dot is-free"></span>Trống</li><li><span class="plan-dot is-booked"></span>Đã có người đặt</li>
       </ul>
       <div class="table-plan-grid">
-        <article class="plan-table-card" th:each="item : ${tables}"
-            th:with="prefix=${item.state == 'OCCUPIED' ? 'banDo' : (item.state == 'PENDING' or item.state == 'RESERVED' ? 'banVang' : 'banXam')},
+        <article class="plan-table-card" th:each="item : ${tables}" th:if="${item.table.capacity >= selectedGuests}"
+            th:with="booked=${item.state != 'FREE'},prefix=${booked ? 'banDo' : 'banXam'},
               tableImage=${prefix + (item.vip ? '_vip.png' : '_thuong.png')}"
-            th:classappend="${item.state == 'OCCUPIED' ? 'is-serving' : (item.state == 'RESERVED' ? 'is-booked' : (item.state == 'TOO_SMALL' ? 'is-too-small' : 'is-' + #strings.toLowerCase(item.state)))}">
+            th:classappend="${booked ? 'is-booked' : 'is-free'}">
           <a th:if="${item.state == 'FREE'}" class="plan-table-hit"
               th:href="@{/reservations/new(date=${selectedDate},time=${selectedTime},guests=${selectedGuests},tableId=${item.table.id},draft=${bookingDraft})}"
               th:aria-label="${'Chọn bàn ' + item.table.code + ', ' + item.label}"></a>
           <img class="plan-table-image" th:src="@{/images/tables/{image}(image=${tableImage})}" alt="" width="120" height="84" />
           <h2 th:text="${item.table.code}"></h2><p class="plan-table-meta" th:text="${item.table.capacity + ' chỗ · ' + item.table.kind.label}"></p>
-          <span class="plan-table-state" th:text="${item.label}"></span>
+          <span class="plan-table-state" th:text="${booked ? 'Đã có người đặt' : item.label}"></span>
         </article>
       </div>
       <p class="table-plan-privacy">Thông tin khách đặt chỉ hiển thị với nhân viên và quản lý nhà hàng.</p>

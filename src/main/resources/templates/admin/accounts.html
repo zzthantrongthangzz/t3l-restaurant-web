@@ -4,14 +4,26 @@
 <body class="staff-page admin-page">
 <header th:replace="~{admin/fragments/shell :: header('accounts')}"></header>
 <main data-navigation data-navigation-fragment class="staff-main">
-  <div class="staff-page-heading"><div><h1>Quản lý tài khoản</h1><p>Nhân viên, quyền quản trị và trạng thái tài khoản khách hàng.</p></div><a class="staff-button" th:href="@{/admin/accounts/new}">Thêm nhân viên</a></div>
+  <div class="staff-page-heading"><h1>Quản lý tài khoản</h1>
+    <a class="staff-button" th:unless="${role == 'CUSTOMER'}" th:href="@{/admin/accounts/new}">Thêm tài khoản nội bộ</a>
+  </div>
   <div th:replace="~{admin/fragments/shell :: messages}"></div>
   <section class="staff-panel">
+    <nav class="admin-segments admin-account-groups" aria-label="Nhóm tài khoản">
+      <a th:href="@{/admin/accounts}" th:attr="aria-current=${role != 'CUSTOMER' ? 'page' : null}">Nội bộ</a>
+      <a th:href="@{/admin/accounts(role='CUSTOMER')}" th:attr="aria-current=${role == 'CUSTOMER' ? 'page' : null}">Khách hàng</a>
+    </nav>
     <form class="staff-filters" th:action="@{/admin/accounts}" method="get">
       <label class="staff-field">Tìm tài khoản<input name="q" th:value="${q}" maxlength="120" placeholder="Tên, email hoặc điện thoại" /></label>
-      <label class="staff-field">Vai trò<select name="role"><option value="">Tất cả</option><option th:each="item : ${ {'CUSTOMER','STAFF','ADMIN'} }" th:text="${item}" th:selected="${item == role}"></option></select></label>
+      <input th:if="${role == 'CUSTOMER'}" type="hidden" name="role" value="CUSTOMER" />
+      <label th:unless="${role == 'CUSTOMER'}" class="staff-field">Vai trò
+        <select name="role"><option value="">Tất cả</option>
+          <option value="STAFF" th:selected="${role == 'STAFF'}">Nhân viên</option>
+          <option value="ADMIN" th:selected="${role == 'ADMIN'}">Quản trị viên</option>
+        </select>
+      </label>
       <label class="staff-field">Trạng thái<select name="enabled"><option value="">Tất cả</option><option value="true" th:selected="${enabled == true}">Hoạt động</option><option value="false" th:selected="${enabled == false}">Đã khóa</option></select></label>
-      <div class="staff-actions"><button class="staff-button">Tìm kiếm</button><a class="staff-link" th:href="@{/admin/accounts}">Bỏ lọc</a></div>
+      <div class="staff-actions"><button class="staff-button">Tìm kiếm</button><a class="staff-link" th:href="@{/admin/accounts(role=${role == 'CUSTOMER' ? 'CUSTOMER' : null})}">Bỏ lọc</a></div>
     </form>
     <p th:text="${rows.totalElements + ' tài khoản'}" class="staff-muted"></p>
     <p class="staff-empty" th:if="${rows.empty}">Không có tài khoản phù hợp.</p>

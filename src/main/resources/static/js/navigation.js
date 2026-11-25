@@ -31,6 +31,12 @@
   window.t3lPage = {
     register(initializer) {
       initializers.set(document.currentScript.src, initializer);
+    },
+    recordInline(url) {
+      remember();
+      entry = ++nextEntry;
+      history.pushState({ ...history.state, t3lPage: entry }, '', url);
+      shownUrl = url;
     }
   };
 
@@ -361,6 +367,12 @@
     const url = new URL(location.href);
     const targetEntry = history.state?.t3lPage;
     if (samePage(url, shownUrl) && (targetEntry == null || targetEntry === entry)) return;
+    if (url.pathname === shownUrl.pathname && document.querySelector('main[data-table-board]')) {
+      shownUrl = url;
+      entry = targetEntry ?? entry;
+      window.dispatchEvent(new Event('t3l:inline-pop'));
+      return;
+    }
     if (submitting || !canVisit(url)) {
       location.reload();
       return;

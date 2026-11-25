@@ -1,0 +1,81 @@
+<section xmlns:th="http://www.thymeleaf.org" th:fragment="flow" data-booking-flow
+         th:classappend="${popup ? '' : 'staff-panel staff-form-narrow'}">
+  <form th:if="${customerPhone == null and bookingCustomer == null}" class="staff-form"
+        th:action="@{${opsBase + '/reservations/customer/lookup'}}" method="post" data-booking-step>
+    <p class="staff-notice is-error" th:if="${lookupError}" role="alert" th:text="${lookupError}"></p>
+    <th:block th:replace="~{staff/fragments/booking-form :: context(${popup})}"></th:block>
+    <label class="staff-field">Số điện thoại khách hàng
+      <input name="phone" type="tel" inputmode="tel" maxlength="30" autocomplete="tel"
+             th:value="${lookupInput}" data-booking-focus required />
+    </label>
+    <label class="staff-field" th:unless="${popup}">Hình thức
+      <select name="walkIn">
+        <option value="false" th:selected="${!walkIn}">Đặt trước</option>
+        <option value="true" th:selected="${walkIn}">Khách đến trực tiếp</option>
+      </select>
+    </label>
+    <div class="staff-actions">
+      <button class="staff-button" type="submit">Tra cứu khách hàng</button>
+    </div>
+  </form>
+
+  <form th:if="${customerPhone != null and (bookingCustomer == null or !bookingCustomer.complete())}"
+        class="staff-form" th:action="@{${opsBase + '/reservations/customer'}}" method="post" data-booking-step>
+    <p th:text="${bookingCustomer == null ? 'Chưa có hồ sơ cho số này. Hãy thêm khách hàng trước khi đặt bàn.' : 'Hồ sơ khách hàng còn thiếu họ tên.'}"></p>
+    <p class="staff-notice is-error" th:if="${customerError}" role="alert" th:text="${customerError}"></p>
+    <th:block th:replace="~{staff/fragments/booking-form :: context(true)}"></th:block>
+    <label class="staff-field">Số điện thoại <input type="tel" name="phone" th:value="${customerPhone}" readonly /></label>
+    <label class="staff-field">Họ và tên <input name="fullName" th:value="${draftName}" maxlength="120" data-booking-focus required /></label>
+    <label class="staff-field">Email (tùy chọn)
+      <input name="email" type="email" th:value="${bookingCustomer?.email() ?: draftEmail}"
+             th:readonly="${bookingCustomer?.email() != null}" maxlength="254" />
+    </label>
+    <div class="staff-actions"><button class="staff-button" type="submit">Lưu hồ sơ và tiếp tục</button></div>
+  </form>
+
+  <form th:if="${bookingCustomer != null and bookingCustomer.complete()}" class="staff-form"
+        th:action="@{${opsBase + '/reservations'}}" th:object="${bookingForm}" method="post" data-booking-step data-booking-save>
+    <div class="staff-notice is-error" th:if="${#fields.hasAnyErrors()}" role="alert">
+      <ul><li th:each="message : ${#fields.allErrors()}" th:text="${message}"></li></ul>
+    </div>
+    <div class="staff-notice" th:if="${shiftRequired}">
+      Hãy mở ca trước khi nhận bàn.
+      <a class="staff-link" th:href="@{${opsBase + '/shift'}}">Mở ca làm việc</a>
+    </div>
+    <input type="hidden" name="popup" th:value="${popup}" />
+    <input type="hidden" name="walkIn" th:value="${walkIn}" />
+    <input type="hidden" name="customerId" th:value="${bookingCustomer.id}" />
+    <div class="staff-form-grid">
+      <p class="staff-field">Họ và tên khách <strong th:text="${bookingCustomer.fullName}"></strong></p>
+      <p class="staff-field">Số điện thoại <strong th:text="${bookingCustomer.phone}"></strong></p>
+      <p class="staff-field">Email <strong th:text="${bookingCustomer.email ?: 'Chưa có email'}"></strong></p>
+      <p th:if="${selectedTable != null}" class="staff-field">Bàn <strong th:text="${selectedTableName}"></strong></p>
+      <input th:if="${selectedTable != null}" type="hidden" name="tableId" th:value="${selectedTable}" />
+      <label th:if="${selectedTable == null}" class="staff-field">Bàn
+        <select name="tableId"><option value="">Tự động chọn bàn phù hợp</option><th:block th:replace="~{staff/fragments/shell :: tableOptions(${tableOptions}, ${null})}"></th:block></select>
+      </label>
+      <label class="staff-field">Số khách <input type="number" th:field="*{guests}" min="1" max="20" data-booking-focus required /></label>
+      <label th:unless="${walkIn}" class="staff-field">Ngày đến <input type="date" th:field="*{date}" th:min="${today}" required /></label>
+      <label th:unless="${walkIn}" class="staff-field">Giờ đến
+        <select th:field="*{time}" required><option value="">Chọn giờ</option><option th:each="slot : ${timeSlots}" th:value="${#temporals.format(slot, 'HH:mm')}" th:text="${#temporals.format(slot, 'HH:mm')}"></option></select>
+      </label>
+      <label class="staff-field staff-full">Ghi chú <textarea th:field="*{note}" rows="3" maxlength="500"></textarea></label>
+    </div>
+    <label class="staff-checkbox"><input type="checkbox" th:field="*{consentAccepted}" /> Khách đồng ý với chính sách đặt bàn và quyền riêng tư.</label>
+    <div class="staff-actions"><button class="staff-button" type="submit" th:disabled="${shiftRequired}">Lưu đặt bàn</button></div>
+  </form>
+
+  <div class="staff-actions" th:if="${customerPhone != null or bookingCustomer != null}">
+    <a th:if="${customerPhone != null or bookingCustomer != null}" class="staff-button is-outline" data-booking-reset
+       th:href="@{${opsBase + '/reservations/new'}(tableId=${selectedTable},date=${bookingForm.date?.toString()},time=${bookingForm.time?.toString()},guests=${bookingForm.guests},walkIn=${walkIn})}">Đổi số điện thoại</a>
+  </div>
+</section>
+
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="context(keepMode)">
+  <input type="hidden" name="popup" th:value="${popup}" />
+  <input th:if="${keepMode}" type="hidden" name="walkIn" th:value="${walkIn}" />
+  <input type="hidden" name="tableId" th:value="${selectedTable}" />
+  <input type="hidden" name="date" th:value="${bookingForm.date?.toString()}" />
+  <input type="hidden" name="time" th:value="${bookingForm.time?.toString()}" />
+  <input type="hidden" name="guests" th:value="${bookingForm.guests}" />
+</th:block>

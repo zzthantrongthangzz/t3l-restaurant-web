@@ -46,8 +46,8 @@
                 <span class="staff-badge is-warning" th:if="${actions.late}">Đến trễ</span>
                 <span class="staff-badge staff-deposit-state" th:if="${booking.depositAmount.signum() > 0}" th:text="${booking.depositStatusLabel}"></span></div>
               <form class="staff-dashboard-action" th:if="${actions.receive}" th:action="@{/staff/reservations/{id}/status(id=${booking.id})}" method="post" data-partial-submit>
-                <button class="staff-button" name="status" value="RECEIVE" th:disabled="${!actions.receiveEnabled}" th:title="${actions.receiveReason}">Nhận khách &amp; bàn</button>
-                <small th:if="${!actions.receiveEnabled}" th:text="${actions.receiveReason}"></small>
+                <button class="staff-button" name="status" value="RECEIVE" th:disabled="${!actions.receiveEnabled}" th:title="${actions.receiveEnabled ? null : actions.receiveReason}"
+                        th:attr="data-confirm=${actions.receiveEnabled and !#strings.isEmpty(actions.receiveReason) ? actions.receiveReason : null}">Nhận khách &amp; bàn</button>
               </form>
               <a class="staff-link" th:unless="${actions.receive}" th:href="@{/staff/reservations/{id}(id=${booking.id})}">Chi tiết</a>
             </li>

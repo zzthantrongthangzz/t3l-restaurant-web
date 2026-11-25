@@ -1,0 +1,20 @@
+<div xmlns:th="http://www.thymeleaf.org" th:fragment="options(fromBoard)" data-move-table-panel>
+  <p class="table-board-dialog-meta"
+     th:text="${'Bàn hiện tại ' + (booking.table == null ? '—' : booking.table.code) + ' · ' + booking.guestCount + ' khách'}"></p>
+  <p class="staff-empty" th:if="${moveOptions.isEmpty()}">Không có bàn trống cùng loại trong khung giờ này.</p>
+  <form class="staff-form" th:unless="${moveOptions.isEmpty()}"
+        th:action="@{${opsBase + '/reservations/{id}/table'}(id=${booking.id})}" method="post"
+        th:attr="data-board-write=${fromBoard ? 'true' : null},data-partial-submit=${fromBoard ? null : 'true'}">
+    <input th:if="${fromBoard}" type="hidden" name="fromBoard" value="true" />
+    <fieldset class="move-table-options">
+      <legend>Chọn bàn mới</legend>
+      <label th:each="table : ${moveOptions}">
+        <input type="radio" name="tableId" th:value="${table.id}" required />
+        <span><strong th:text="${table.code}"></strong>
+          <small th:text="${table.kind.label + ' · ' + table.capacity + ' chỗ'}"></small></span>
+      </label>
+    </fieldset>
+    <button class="staff-button" autofocus type="submit">Xác nhận chuyển</button>
+  </form>
+  <button th:if="${fromBoard}" class="staff-button is-outline" type="button" data-table-dialog-back="move">Quay lại thao tác bàn</button>
+</div>

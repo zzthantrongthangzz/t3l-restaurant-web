@@ -6,21 +6,13 @@
     <main data-navigation data-navigation-fragment class="staff-main" data-table-board>
       <div class="staff-page-heading">
         <h1>Quản lý đặt bàn</h1>
-        <a class="staff-link" th:href="@{${opsBase + '/reservations'}}">Danh sách đặt bàn</a>
-      </div>
-      <div th:replace="~{staff/fragments/shell :: messages}"></div>
-      <div class="table-board-tools">
-        <div class="table-board-actions" role="group" aria-label="Thao tác với bàn đã chọn">
-          <button type="button" data-board-command="walk-in" disabled>Đặt bàn ngay <kbd>F4</kbd></button>
-          <button type="button" data-board-command="reserve" disabled>Đặt bàn chờ <kbd>F5</kbd></button>
-          <button type="button" data-board-command="receive" disabled>Nhận bàn chờ <kbd>F6</kbd></button>
-          <button type="button" data-board-command="cancel" disabled>Hủy bàn chờ <kbd>F7</kbd></button>
-          <button type="button" data-board-command="details" disabled>Xem chi tiết <kbd>F8</kbd></button>
-          <button type="button" data-board-command="move" disabled>Chuyển bàn <kbd>F9</kbd></button>
-          <button type="button" data-board-command="order" disabled>Đặt món <kbd>F10</kbd></button>
-          <button type="button" data-board-command="checkout" disabled>Tính tiền <kbd>F11</kbd></button>
+        <div class="staff-actions">
+          <a class="staff-button is-outline" th:unless="${shiftOpen}" th:href="@{${opsBase + '/shift'}}">Mở ca làm việc</a>
+          <a class="staff-link" th:href="@{${opsBase + '/reservations'}}">Danh sách đặt bàn</a>
         </div>
-        <form class="table-board-filters" method="get" th:action="@{${opsBase + '/tables'}}">
+      </div>
+      <div class="table-board-tools">
+        <form class="table-board-filters" method="get" th:action="@{${opsBase + '/tables'}}" data-board-filters>
           <label class="staff-field">Tìm bàn <input type="search" placeholder="Mã hoặc tên bàn" data-filter-table /></label>
           <label class="staff-field">Tìm khách <input type="search" placeholder="Tên hoặc số điện thoại" data-filter-guest /></label>
           <label class="staff-field">Loại bàn
@@ -28,28 +20,34 @@
               <option th:each="kind : ${tableKinds}" th:value="${kind.name()}" th:text="${kind.label}"></option>
             </select>
           </label>
-          <label class="staff-field">Ngày xem <input type="date" name="date" th:value="${selectedDate}" data-board-date required /></label>
+          <label class="staff-field">Ngày xem <input type="date" name="date" th:value="${selectedDate.toString()}" data-board-date required /></label>
           <label class="staff-field">Giờ đến
             <select name="time"><option value="">Cả ngày</option>
               <option th:each="slot : ${timeSlots}" th:value="${slot}" th:selected="${slot == selectedTime}" th:text="${#temporals.format(slot, 'HH:mm')}"></option>
             </select>
           </label>
           <label class="staff-field">Số khách <input type="number" name="guests" min="1" max="20" th:value="${selectedGuests}" /></label>
-          <button class="staff-button is-outline" type="submit">Làm mới</button>
+          <a class="staff-button is-outline" th:href="@{${opsBase + '/tables'}}" data-board-today>Làm mới</a>
         </form>
       </div>
+      <div data-board-messages aria-live="polite"><div th:replace="~{staff/fragments/shell :: messages}"></div></div>
       <p class="staff-empty" data-board-empty th:hidden="${!board.isEmpty()}">Không có bàn phù hợp.</p>
-      <div class="table-plan-grid table-board-grid">
+      <div class="table-plan-grid table-board-grid" data-board-grid>
         <article class="table-board-card" th:each="item : ${board}" th:with="table=${item.table},booking=${item.current},
             state=${item.state.name()},tone=${state == 'OCCUPIED' ? 'Do' : ((state == 'PENDING' or state == 'RESERVED') ? 'Vang' : 'Xam')},
             image=${'ban' + tone + (table.kind.name() == 'VIP' ? '_vip.png' : '_thuong.png')}"
             th:attr="data-state=${state},data-kind=${table.kind.name()},data-label=${table.code},data-search=${table.code + ' ' + table.kind.label}">
           <button class="table-board-select" type="button" aria-pressed="false" aria-haspopup="dialog" data-select-table>
             <img th:src="@{/images/tables/{image}(image=${image})}" alt="" width="120" height="84" />
-            <strong th:text="${table.code}"></strong>
+            <strong class="table-board-name" th:text="${table.code}"></strong>
             <small th:text="${table.kind.label + ' · ' + table.capacity + ' chỗ'}"></small>
             <span class="table-board-state" th:text="${item.state.label}"></span>
-            <span th:if="${booking != null}" th:text="${booking.guestName + ' · ' + #temporals.format(booking.startsAt, 'HH:mm')}"></span>
+            <span class="table-board-guest-line" th:if="${booking != null}"
+                  th:title="${booking.guestName}" th:text="${booking.guestName + ' · ' + #temporals.format(booking.startsAt, 'HH:mm')}"></span>
+            <span class="table-board-schedule" th:if="${item.nextBooking != null and (state == 'OCCUPIED' or booking == null)}"
+                  th:classappend="${item.serviceAtRisk ? ' is-at-risk' : ''}"
+                  th:text="${'Lịch tiếp theo ' + #temporals.format(item.nextBooking.startsAt, 'HH:mm')}"></span>
+            <span class="table-board-schedule" th:if="${item.canWalkIn and item.nextBooking != null and booking != null and state != 'OCCUPIED'}">Trống hiện tại</span>
           </button>
           <a class="table-board-edit" th:if="${opsBase == '/admin'}" th:href="@{/admin/inventory/{id}/edit(id=${table.id})}"
              th:aria-label="${'Sửa thông tin ' + table.code}" title="Sửa thông tin bàn">
@@ -57,10 +55,12 @@
               <path d="m15 5 4 4M4 20l4.5-1 11-11a2.8 2.8 0 0 0-4-4l-11 11L4 20z"/>
             </svg>
           </a>
-          <form class="table-board-confirm" th:if="${state == 'PENDING' and item.actions.confirmEnabled}"
-                th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post" data-partial-submit>
+          <form class="table-board-confirm" data-board-write th:if="${state == 'PENDING' and item.actions.confirmEnabled}"
+                th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post">
             <input type="hidden" name="from" value="table" />
-            <input type="hidden" name="returnDate" th:value="${selectedDate}" />
+            <input type="hidden" name="returnDate" th:value="${selectedDate.toString()}" />
+            <input type="hidden" name="returnTime" th:value="${selectedTime?.toString()}" />
+            <input type="hidden" name="returnGuests" th:value="${selectedGuests}" />
             <button class="staff-button" type="submit" name="status" value="CONFIRMED"
                     th:aria-label="${'Xác nhận ' + table.code}">Xác nhận</button>
           </form>
@@ -72,35 +72,53 @@
               <span th:if="${item.actions.confirm and !#strings.isEmpty(booking.guestPhone)}"
                     th:text="${'Liên hệ khách trước khi xác nhận: ' + booking.guestPhone}"></span>
               <span th:if="${booking.status == 'CHECKED_IN'}">Khách đã check-in</span>
+              <span th:if="${item.servingUntil != null}" th:text="${'Dự kiến trả bàn ' + #temporals.format(item.servingUntil, 'HH:mm')}"></span>
             </div>
-            <div class="staff-actions">
-              <a class="staff-button" data-table-action="walk-in" th:if="${state == 'FREE' and selectedDate == today}"
-                 th:href="@{${opsBase + '/reservations/new'}(tableId=${table.id},walkIn=true)}">Đặt bàn ngay</a>
+            <p class="table-arrival-warning" th:if="${state == 'OCCUPIED' and item.nextBooking != null}">
+              <a class="staff-link" th:href="@{${opsBase + '/reservations/{id}'}(id=${item.nextBooking.id})}"
+                 th:text="${'Lịch tiếp theo ' + #temporals.format(item.nextBooking.startsAt, 'HH:mm') + ' · ' + item.nextBooking.statusLabel}"></a>
+              <small th:if="${item.serviceAtRisk}">Bàn sắp đến giờ hẹn tiếp theo. Kiểm tra khách đang ngồi và chuẩn bị chuyển bàn nếu cần.</small>
+            </p>
+            <p class="table-board-timing" th:if="${item.canWalkIn and item.nextBooking != null}"
+               th:text="${'Có thể phục vụ ngay trong ' + duration + ' phút. Cần trả bàn trước lịch ' + #temporals.format(item.nextBooking.startsAt, 'HH:mm') + '.'}"></p>
+            <div class="table-board-commands">
+              <a class="staff-button" data-table-action="walk-in" th:if="${item.canWalkIn}"
+                 th:href="@{${opsBase + '/reservations/new'}(tableId=${table.id},guests=${selectedGuests},walkIn=true)}">Đặt bàn ngay</a>
               <a class="staff-button is-outline" data-table-action="reserve" th:if="${state != 'INACTIVE' and state != 'TOO_SMALL' and !selectedDate.isBefore(today)}"
-                 th:href="@{${opsBase + '/reservations/new'}(tableId=${table.id},date=${selectedDate},time=${selectedTime},guests=${selectedGuests})}">Đặt bàn chờ</a>
+                 th:href="@{${opsBase + '/reservations/new'}(tableId=${table.id},date=${selectedDate.toString()},time=${selectedTime?.toString()},guests=${selectedGuests})}">Đặt bàn chờ</a>
               <th:block th:if="${booking != null}" th:with="actions=${item.actions}">
-                <form th:if="${actions.confirm or actions.cancel or actions.receiveEnabled}"
-                      th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post" data-partial-submit class="staff-actions">
+                <form id="table-board-status" data-board-write th:if="${actions.confirm or actions.cancel or actions.receive}"
+                      th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post" hidden>
                   <input type="hidden" name="from" value="table" />
-                  <input type="hidden" name="returnDate" th:value="${selectedDate}" />
-                  <button class="staff-button" type="submit" th:if="${actions.confirm}" th:disabled="${!actions.confirmEnabled}" name="status" value="CONFIRMED">Xác nhận</button>
-                  <button class="staff-button" type="submit" data-table-action="receive" th:if="${actions.receiveEnabled}"
-                          name="status" value="RECEIVE">Nhận bàn chờ</button>
-                  <button class="staff-button is-danger" type="submit" data-table-action="cancel" th:if="${actions.cancel}" name="status"
-                          value="CANCELLED" data-confirm="Hủy lượt đặt bàn chờ này?" th:text="${state == 'PENDING' ? 'Từ chối / Hủy bàn chờ' : 'Hủy bàn chờ'}"></button>
+                  <input type="hidden" name="returnDate" th:value="${selectedDate.toString()}" />
+                  <input type="hidden" name="returnTime" th:value="${selectedTime?.toString()}" />
+                  <input type="hidden" name="returnGuests" th:value="${selectedGuests}" />
                 </form>
+                  <button class="staff-button" type="submit" form="table-board-status" th:if="${actions.confirm}" th:disabled="${!actions.confirmEnabled}"
+                          th:title="${actions.confirmReason}" name="status" value="CONFIRMED">Xác nhận</button>
+                  <button class="staff-button" type="submit" form="table-board-status" data-table-action="receive" th:if="${actions.receive}"
+                          th:attr="data-arrival-url=@{${opsBase + '/reservations/{id}/payment-status'}(id=${booking.id})},
+                            data-confirm=${actions.receiveEnabled and !#strings.isEmpty(actions.receiveReason) ? actions.receiveReason : null}"
+                          th:disabled="${!actions.receiveEnabled}" th:title="${actions.receiveEnabled ? null : actions.receiveReason}"
+                          name="status" value="RECEIVE">Nhận bàn chờ</button>
                 <a class="staff-button is-outline" data-table-action="details"
                    th:href="@{${opsBase + '/reservations/{id}'}(id=${booking.id})}">Xem chi tiết</a>
                 <a class="staff-button is-outline" data-table-action="move" th:if="${actions.moveTable}"
+                   th:attr="data-move-url=@{${opsBase + '/reservations/{id}/table'}(id=${booking.id})}"
                    th:href="@{${opsBase + '/reservations/{id}'}(id=${booking.id},move=true)} + '#move-table'">Chuyển bàn</a>
                 <a class="staff-button is-outline" data-table-action="order" th:if="${item.canOrder}"
                    th:href="@{/menu(booking=${booking.code})}">Đặt món</a>
                 <a class="staff-button" data-table-action="checkout" th:if="${state == 'OCCUPIED'}"
                    th:href="@{${opsBase + '/orders/{id}'}(id=${booking.id})} + '#checkout'">Tính tiền</a>
+                <button class="staff-button is-danger" type="submit" form="table-board-status" data-table-action="cancel"
+                        th:if="${actions.cancel}" name="status" value="CANCELLED" data-confirm="Hủy lượt đặt bàn chờ này?"
+                        th:text="${state == 'PENDING' ? 'Từ chối đặt bàn' : 'Hủy bàn chờ'}"></button>
               </th:block>
-              <form th:if="${state == 'INACTIVE' or state == 'FREE'}"
-                    th:action="@{${opsBase + '/tables/{id}/availability'}(id=${table.id})}" method="post" data-partial-submit>
-                <input type="hidden" name="returnDate" th:value="${selectedDate}" />
+              <form data-board-write th:if="${state == 'INACTIVE' or state == 'FREE'}"
+                    th:action="@{${opsBase + '/tables/{id}/availability'}(id=${table.id})}" method="post">
+                <input type="hidden" name="returnDate" th:value="${selectedDate.toString()}" />
+                <input type="hidden" name="returnTime" th:value="${selectedTime?.toString()}" />
+                <input type="hidden" name="returnGuests" th:value="${selectedGuests}" />
                 <button type="submit" class="staff-button is-outline" name="active" th:value="${state == 'INACTIVE'}"
                         th:text="${state == 'INACTIVE' ? 'Mở lại bàn' : 'Tạm ngưng bàn'}"></button>
               </form>
@@ -124,12 +142,13 @@
       </div>
       <dialog class="table-board-dialog" aria-labelledby="table-dialog-title" data-board-dialog>
         <div class="table-board-dialog-heading">
+          <button type="button" class="staff-button is-outline" data-board-back hidden>← Quay lại</button>
           <h2 id="table-dialog-title" data-table-title></h2>
           <form method="dialog"><button type="submit" class="staff-button is-outline" autofocus>Đóng</button></form>
         </div>
         <div data-table-content></div>
       </dialog>
     </main>
-    <script data-page-script defer th:src="@{/js/table-board.js}"></script>
+    <script data-page-script defer th:src="@{/js/table-board.js(v=table-commands)}"></script>
   </body>
 </html>

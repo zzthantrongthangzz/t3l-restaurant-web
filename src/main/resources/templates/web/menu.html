@@ -73,6 +73,7 @@
           <ul id="menu-selection" aria-label="Món sẽ thêm"></ul>
         </div>
         <div class="menu-total"><span>Tạm tính món thêm</span><output id="menu-total" aria-live="polite">0 ₫</output></div>
+        <p th:if="${menuBooking.openBooking}" class="menu-message">Tiền cọc của bàn chờ sẽ được tính lại sau khi lưu món.</p>
         <button class="menu-primary" type="submit" disabled>Lưu món vào đơn</button>
         <a class="menu-secondary" th:href="@{${bookingReturn}}">Về chi tiết đặt bàn</a>
       </form>

@@ -8,11 +8,15 @@ window.t3lPage.register(({ signal }) => {
     if (!button) return;
     const form = button.form;
     button.disabled = !enabled;
-    button.title = reason || '';
+    button.title = enabled ? '' : reason || '';
+    if (value === 'RECEIVE') {
+      if (enabled && reason) button.dataset.confirm = reason;
+      else delete button.dataset.confirm;
+    }
     const note = form.querySelector('.staff-action-reason, small');
     if (note) {
       note.textContent = reason || '';
-      note.hidden = enabled || !reason;
+      note.hidden = !reason;
     }
   };
 
@@ -61,7 +65,7 @@ window.t3lPage.register(({ signal }) => {
         }
       }
       updateAction(container, 'CONFIRMED', state.confirmEnabled, state.confirmEnabled ? '' : 'Chưa nhận đủ tiền cọc hoặc yêu cầu đã hết hiệu lực.');
-      updateAction(container, 'SEATED', state.receiveEnabled, state.receiveReason);
+      updateAction(container, 'RECEIVE', state.receiveEnabled, state.receiveReason);
     } catch {
       // Keep the current actions if a background status request is temporarily unavailable.
     }

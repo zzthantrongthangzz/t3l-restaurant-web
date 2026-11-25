@@ -29,12 +29,4 @@ INSERT INTO dishes(name,description,price,category_name,dietary_label,available)
   ('Trà đào cam sả','Trà đào thơm nhẹ với cam tươi và sả.',49000,'Đồ uống','',TRUE)
 ON DUPLICATE KEY UPDATE description=VALUES(description),price=VALUES(price),category_name=VALUES(category_name),dietary_label=VALUES(dietary_label),available=VALUES(available);
 
-INSERT INTO reservations(code,guest_name,guest_phone,guest_email,table_id,reservation_date,reservation_time,guest_count,note,consent_accepted,status)
-SELECT 'T3L-SAMPLE-001','Nguyễn Minh Anh','0901000001','minhanh@example.com',t.id,CURRENT_DATE,'18:30:00',4,'Dữ liệu minh họa đặt bàn',TRUE,'CONFIRMED'
-FROM restaurant_tables t WHERE t.code='Bàn 008' AND NOT EXISTS (SELECT 1 FROM reservations WHERE code='T3L-SAMPLE-001');
-INSERT INTO reservations(code,guest_name,guest_phone,guest_email,table_id,reservation_date,reservation_time,guest_count,note,consent_accepted,status)
-SELECT 'T3L-SAMPLE-002','Trần Gia Bảo','0901000002','giabao@example.com',t.id,CURRENT_DATE,'19:00:00',2,'Dữ liệu minh họa đặt bàn',TRUE,'PENDING_CONFIRMATION'
-FROM restaurant_tables t WHERE t.code='Bàn 006' AND NOT EXISTS (SELECT 1 FROM reservations WHERE code='T3L-SAMPLE-002');
-INSERT INTO reservations(code,guest_name,guest_phone,guest_email,table_id,reservation_date,reservation_time,guest_count,note,consent_accepted,status)
-SELECT 'T3L-SAMPLE-003','Lê Thu Hà','0901000003','thuha@example.com',t.id,DATE_ADD(CURRENT_DATE,INTERVAL 1 DAY),'12:00:00',6,'Dữ liệu minh họa đặt bàn',TRUE,'CONFIRMED'
-FROM restaurant_tables t WHERE t.code='VIP-01' AND NOT EXISTS (SELECT 1 FROM reservations WHERE code='T3L-SAMPLE-003');
+-- Nạp lịch đặt, đơn và báo cáo sau khi chạy toàn bộ các script cấu trúc đến 22.

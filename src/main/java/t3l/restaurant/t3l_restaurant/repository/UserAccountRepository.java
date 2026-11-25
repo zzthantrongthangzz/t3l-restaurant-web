@@ -21,6 +21,13 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
   Optional<UserAccount> findByEmailIgnoreCase(String email);
 
   @Query(value = """
+      SELECT * FROM app_users WHERE role = 'BUYER'
+        AND REGEXP_REPLACE(phone, '[^0-9]', '') IN (:number, :alternate)
+      ORDER BY id LIMIT 2
+      """, nativeQuery = true)
+  List<UserAccount> findBuyersByContactPhone(@Param("number") String number, @Param("alternate") String alternate);
+
+  @Query(value = """
       SELECT COUNT(*) FROM app_users a
       WHERE a.role = 'BUYER' AND a.enabled = true AND a.verified_phone IS NULL AND a.username NOT LIKE 'local-sms:%'
         AND REGEXP_REPLACE(a.phone, '[^0-9]', '') IN (:national, :international)
@@ -45,7 +52,7 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
   List<UserAccount> lockAdministrators();
 
   @Query("""
-      select a from UserAccount a where (:role = '' or a.role = :role)
+      select a from UserAccount a where ((:role = '' and a.role in ('STAFF', 'ADMIN')) or a.role = :role)
         and (:enabled is null or a.enabled = :enabled)
         and (lower(a.username) like :pattern escape '!' or lower(coalesce(a.fullName,'')) like :pattern escape '!'
           or lower(coalesce(a.email,'')) like :pattern escape '!' or coalesce(a.phone,'') like :pattern escape '!')

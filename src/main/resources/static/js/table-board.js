@@ -1,16 +1,24 @@
 window.t3lPage.register(({ signal, state }) => {
   const board = document.querySelector('[data-table-board]');
   if (!board) return;
-  const cards = [...board.querySelectorAll('[data-select-table]')].map(button => button.closest('.table-board-card'));
-  const commands = [...board.querySelectorAll('[data-board-command]')];
+  const grid = board.querySelector('[data-board-grid]');
+  const filters = board.querySelector('[data-board-filters]');
+  const messages = board.querySelector('[data-board-messages]');
   const statusFilters = [...board.querySelectorAll('[data-board-state]')];
   const dialog = board.querySelector('[data-board-dialog]');
+  const title = dialog.querySelector('[data-table-title]');
+  const back = dialog.querySelector('[data-board-back]');
   const content = dialog.querySelector('[data-table-content]');
   const searchTable = board.querySelector('[data-filter-table]');
   const searchGuest = board.querySelector('[data-filter-guest]');
   const kindFilter = board.querySelector('[data-filter-kind]');
-  let selectedCard;
+  let cards = [...grid.children];
+  let selectedButton;
   let statusFilter = state.board?.status ?? '';
+  let pendingRead;
+  let writing = false;
+  let queuedHistory;
+  let dialogLoad;
   searchTable.value = state.board?.table ?? searchTable.value;
   searchGuest.value = state.board?.guest ?? searchGuest.value;
   kindFilter.value = state.board?.kind ?? kindFilter.value;
@@ -32,24 +40,6 @@ window.t3lPage.register(({ signal, state }) => {
     return ['PENDING', 'RESERVED'].includes(card.dataset.state) ? 'WAITING' : card.dataset.state;
   }
 
-  function findAction(command) {
-    return content.querySelector('[data-table-action="' + command + '"]');
-  }
-
-  function selectCard(card) {
-    selectedCard?.querySelector('[data-select-table]').setAttribute('aria-pressed', 'false');
-    selectedCard = card;
-    content.replaceChildren();
-    if (card) {
-      card.querySelector('[data-select-table]').setAttribute('aria-pressed', 'true');
-      dialog.querySelector('[data-table-title]').textContent = card.dataset.label;
-      content.append(card.querySelector('template').content.cloneNode(true));
-    }
-    commands.forEach(button => {
-      button.disabled = !card || (button.dataset.boardCommand !== 'details' && !findAction(button.dataset.boardCommand));
-    });
-  }
-
   function applyFilters() {
     const counts = { FREE: 0, WAITING: 0, OCCUPIED: 0 };
     const tableQuery = normalize(searchTable.value);
@@ -59,30 +49,113 @@ window.t3lPage.register(({ signal, state }) => {
       const matches = (!kindFilter.value || card.dataset.kind === kindFilter.value)
         && normalize(card.dataset.search).includes(tableQuery) && matchesGuest(card, guestQuery);
       if (matches && Object.hasOwn(counts, state)) counts[state] += 1;
-      card.hidden = !matches || (statusFilter && statusFilter !== state);
+      card.hidden = !matches || Boolean(statusFilter && statusFilter !== state);
     }
-    if (selectedCard?.hidden) selectCard(undefined);
     statusFilters.forEach(button => {
       button.setAttribute('aria-pressed', String(button.dataset.boardState === statusFilter));
       button.querySelector('[data-count]').textContent = counts[button.dataset.boardState];
     });
     board.querySelector('[data-board-empty]').hidden = cards.some(card => !card.hidden);
+    state.board = { table: searchTable.value, guest: searchGuest.value, kind: kindFilter.value, status: statusFilter };
   }
 
-  for (const card of cards) {
-    card.querySelector('[data-select-table]').addEventListener('click', () => {
-      selectCard(card);
-      dialog.showModal();
-    });
+  function showTableActions() {
+    const card = selectedButton.closest('.table-board-card');
+    title.textContent = card.dataset.label;
+    back.hidden = true;
+    content.replaceChildren(card.querySelector('template').content.cloneNode(true));
   }
-  for (const button of commands) {
-    button.addEventListener('click', () => {
-      const command = button.dataset.boardCommand;
-      const action = findAction(command);
-      if (action instanceof HTMLAnchorElement) action.click();
-      else if (action instanceof HTMLButtonElement) action.form.requestSubmit(action);
-      else if (command === 'details' && selectedCard) dialog.showModal();
-    });
+
+  function showBookingFlow(flow) {
+    content.replaceChildren(flow);
+    const error = flow.querySelector('[role="alert"]');
+    if (error) error.tabIndex = -1;
+    (error || flow.querySelector('[data-booking-focus]'))?.focus();
+  }
+
+  async function refreshArrivalAction() {
+    const button = content.querySelector('[data-arrival-url]');
+    if (!button || !dialog.open || document.hidden) return;
+    try {
+      const response = await fetch(button.dataset.arrivalUrl, { cache: 'no-store' });
+      if (!response.ok || response.redirected) return;
+      const status = await response.json();
+      if (!button.isConnected || !dialog.open) return;
+      button.disabled = !status.receiveEnabled;
+      button.title = status.receiveEnabled ? '' : status.receiveReason;
+      if (status.receiveEnabled && status.receiveReason) button.dataset.confirm = status.receiveReason;
+      else delete button.dataset.confirm;
+    } catch {
+      // Keep the current action until another refresh succeeds.
+    }
+  }
+
+  grid.addEventListener('click', event => {
+    const button = event.target.closest('[data-select-table]');
+    if (!button || writing) return;
+    selectedButton = button;
+    button.setAttribute('aria-pressed', 'true');
+    showTableActions();
+    dialog.showModal();
+    refreshArrivalAction();
+  });
+  dialog.addEventListener('close', () => {
+    dialogLoad?.abort();
+    selectedButton?.setAttribute('aria-pressed', 'false');
+    selectedButton = null;
+  });
+  dialog.addEventListener('click', async event => {
+    if (event.target.closest('[data-board-back], [data-table-dialog-back]')) {
+      if (writing) return;
+      dialogLoad?.abort();
+      showTableActions();
+      refreshArrivalAction();
+      content.querySelector('[data-table-action]')?.focus();
+      return;
+    }
+    const link = event.target.closest('[data-table-action="walk-in"], [data-table-action="reserve"], [data-booking-reset], [data-move-url]');
+    if (!link || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    if (writing) return;
+    dialogLoad?.abort();
+    const request = new AbortController();
+    dialogLoad = request;
+    const moving = Boolean(link.dataset.moveUrl);
+    const url = new URL(link.dataset.moveUrl || link.href, location.href);
+    if (!moving) url.searchParams.set('popup', 'true');
+    try {
+      const response = await fetch(url, { signal: request.signal });
+      if (response.redirected) {
+        location.assign(link.href);
+        return;
+      }
+      if (!response.ok) throw new Error();
+      const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+      if (request.signal.aborted || !dialog.open) return;
+      const form = page.querySelector(moving ? '[data-move-table-panel]' : '[data-booking-flow]');
+      if (!form) throw new Error();
+      if (moving) {
+        title.textContent = 'Chuyển bàn';
+        content.replaceChildren(form);
+        (form.querySelector('input[type="radio"]') || form.querySelector('[data-table-dialog-back]')).focus();
+      } else {
+        title.textContent = url.searchParams.get('walkIn') === 'true' ? 'Đặt bàn ngay' : 'Đặt bàn chờ';
+        back.hidden = false;
+        showBookingFlow(form);
+      }
+    } catch {
+      if (!request.signal.aborted) showDialogError('Không thể mở thao tác. Vui lòng thử lại.');
+    }
+  });
+
+  function showDialogError(message) {
+    content.querySelector('[data-dialog-error]')?.remove();
+    const error = document.createElement('p');
+    error.className = 'staff-notice is-error';
+    error.dataset.dialogError = '';
+    error.setAttribute('role', 'alert');
+    error.textContent = message;
+    content.prepend(error);
   }
   for (const button of statusFilters) {
     button.addEventListener('click', () => {
@@ -93,19 +166,128 @@ window.t3lPage.register(({ signal, state }) => {
   searchTable.addEventListener('input', applyFilters);
   searchGuest.addEventListener('input', applyFilters);
   kindFilter.addEventListener('change', applyFilters);
-  board.querySelector('[data-board-date]').addEventListener('change', event => {
-    if (event.target.validity.valid) event.target.form.requestSubmit();
-  }, { signal });
-  document.addEventListener('t3l:page-save', event => {
-    event.detail.board = { status: statusFilter, table: searchTable.value, guest: searchGuest.value, kind: kindFilter.value };
-  }, { signal });
-  document.addEventListener('keydown', event => {
-    if (dialog.open || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey
-        || event.target.closest('input, textarea, select, [contenteditable]')) return;
-    const command = commands.find(button => button.querySelector('kbd').textContent === event.key);
-    if (!command || command.disabled) return;
+  filters.addEventListener('change', event => {
+    if (event.target.name && filters.checkValidity()) filters.requestSubmit();
+  });
+
+  async function refreshBoard(url, { body, bookingStep = false, fromHistory = false, quiet = false } = {}) {
+    if (writing) {
+      if (fromHistory) queuedHistory = url;
+      return;
+    }
+    pendingRead?.abort();
+    const request = new AbortController();
+    pendingRead = body ? null : request;
+    if (body) writing = true;
+    grid.setAttribute('aria-busy', 'true');
+
+    try {
+      const response = await fetch(url, { method: body ? 'POST' : 'GET', body, signal: request.signal });
+      if (request.signal.aborted) return;
+      if (new URL(response.url).pathname !== new URL(filters.action).pathname && response.redirected) {
+        location.assign(response.url);
+        return;
+      }
+      const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+      if (request.signal.aborted) return;
+      if (bookingStep && (response.ok || response.status === 422)) {
+        const form = page.querySelector('[data-booking-flow]');
+        if (form) {
+          if (dialog.open) showBookingFlow(form);
+          return;
+        }
+      }
+      if (!response.ok) throw new Error();
+      const nextGrid = page.querySelector('[data-board-grid]');
+      const nextFilters = page.querySelector('[data-board-filters]');
+      const nextMessages = page.querySelector('[data-board-messages]');
+      if (!nextGrid || !nextFilters || !nextMessages) throw new Error();
+      if (quiet && dialog.open) return;
+
+      const focusedCard = (selectedButton || document.activeElement).closest('.table-board-card');
+      if (dialog.open) dialog.close();
+      grid.replaceChildren(...nextGrid.children);
+      cards = [...grid.children];
+      for (const name of ['date', 'time', 'guests']) {
+        filters.elements[name].value = nextFilters.elements[name].value;
+      }
+      applyFilters();
+      if (!quiet) messages.replaceChildren(...nextMessages.childNodes);
+      if (focusedCard) {
+        cards.find(card => card.dataset.label === focusedCard.dataset.label && !card.hidden)
+          ?.querySelector('[data-select-table]').focus({ preventScroll: true });
+      }
+      if (!body && !fromHistory && !quiet && url.href !== location.href) window.t3lPage.recordInline(url);
+    } catch {
+      if (request.signal.aborted || quiet) return;
+      if (fromHistory) {
+        location.reload();
+        return;
+      }
+      const message = body
+        ? 'Không nhận được kết quả. Hãy làm mới sơ đồ để kiểm tra trạng thái trước khi thử lại.'
+        : 'Không thể cập nhật sơ đồ bàn. Vui lòng thử lại.';
+      if (bookingStep && dialog.open) {
+        showDialogError(message);
+        return;
+      }
+      if (dialog.open) dialog.close();
+      const error = document.createElement('p');
+      error.className = 'staff-notice is-error';
+      error.textContent = message;
+      messages.replaceChildren(error);
+    } finally {
+      if (body || pendingRead === request) {
+        writing = false;
+        pendingRead = null;
+        grid.removeAttribute('aria-busy');
+        if (queuedHistory) {
+          const next = queuedHistory;
+          queuedHistory = null;
+          refreshBoard(next, { fromHistory: true });
+        }
+      }
+    }
+  }
+
+  filters.addEventListener('submit', event => {
     event.preventDefault();
-    command.click();
+    const url = new URL(filters.action);
+    url.search = new URLSearchParams(new FormData(filters));
+    refreshBoard(url);
+  });
+  filters.querySelector('[data-board-today]').addEventListener('click', event => {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    const url = new URL(event.currentTarget.href);
+    const guests = filters.elements.guests.value;
+    if (guests !== '1') url.searchParams.set('guests', guests);
+    refreshBoard(url);
+  });
+  board.addEventListener('submit', event => {
+    if (event.defaultPrevented || !event.target.matches('[data-board-write], [data-booking-step]')) return;
+    event.preventDefault();
+    const form = event.target;
+    const body = new URLSearchParams(new FormData(form, event.submitter));
+    if (form.matches('[data-booking-save]') || body.has('fromBoard')) {
+      for (const name of ['Date', 'Time', 'Guests']) {
+        body.set('return' + name, filters.elements[name.toLowerCase()].value);
+      }
+    }
+    refreshBoard(new URL(form.action), { body, bookingStep: form.matches('[data-booking-step]') });
   }, { signal });
+  window.addEventListener('t3l:inline-pop', () => refreshBoard(new URL(location.href), { fromHistory: true }), { signal });
+  const arrivalTimer = window.setInterval(refreshArrivalAction, 15000);
+  const boardTimer = window.setInterval(() => {
+    if (!document.hidden && !dialog.open && !writing && !pendingRead && !filters.contains(document.activeElement)) {
+      refreshBoard(new URL(location.href), { quiet: true });
+    }
+  }, 20000);
+  signal.addEventListener('abort', () => {
+    window.clearInterval(arrivalTimer);
+    window.clearInterval(boardTimer);
+    pendingRead?.abort();
+    dialogLoad?.abort();
+  }, { once: true });
   applyFilters();
 });

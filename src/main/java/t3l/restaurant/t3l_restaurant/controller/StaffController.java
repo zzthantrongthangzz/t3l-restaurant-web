@@ -1,6 +1,7 @@
 package t3l.restaurant.t3l_restaurant.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -29,6 +30,7 @@ import t3l.restaurant.t3l_restaurant.entity.TableKind;
 import t3l.restaurant.t3l_restaurant.repository.DishRepository;
 import t3l.restaurant.t3l_restaurant.repository.RestaurantTableRepository;
 import t3l.restaurant.t3l_restaurant.service.BookingException;
+import t3l.restaurant.t3l_restaurant.service.BookingCustomerService;
 import t3l.restaurant.t3l_restaurant.service.DiningOrderService;
 import t3l.restaurant.t3l_restaurant.service.ReservationManagementService;
 import t3l.restaurant.t3l_restaurant.service.ReservationSchedule;
@@ -50,6 +52,7 @@ public class StaffController {
 
   private final StaffWorkspaceService workspace;
   private final ReservationService bookings;
+  private final BookingCustomerService bookingCustomers;
   private final ReservationManagementService changes;
   private final RestaurantTableRepository tables;
   private final DiningOrderService orders;
@@ -100,42 +103,109 @@ public class StaffController {
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time,
       @RequestParam(defaultValue = "2") int guests,
-      @RequestParam(defaultValue = "false") boolean walkIn, Model model) {
+      @RequestParam(defaultValue = "false") boolean walkIn, @RequestParam(defaultValue = "false") boolean popup,
+      Authentication actor, Model model) {
+    return bookingStart(tableId, date, time, guests, walkIn, popup, actor, model);
+  }
+
+  @PostMapping("/reservations/customer/lookup")
+  public String lookupBookingCustomer(@RequestParam String phone, @RequestParam(required = false) Long tableId,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time,
+      @RequestParam(defaultValue = "2") int guests, @RequestParam(defaultValue = "false") boolean walkIn,
+      @RequestParam(defaultValue = "false") boolean popup, Authentication actor, Model model, HttpServletResponse response) {
+    response.setHeader("Cache-Control", "no-store");
+    try {
+      String normalized = bookingCustomers.normalizePhone(phone);
+      model.addAttribute("bookingCustomer", bookingCustomers.find(normalized));
+      model.addAttribute("customerPhone", normalized);
+    } catch (IllegalArgumentException exception) {
+      model.addAttribute("lookupError", exception.getMessage());
+      model.addAttribute("lookupInput", phone);
+    }
+    return bookingStart(tableId, date, time, guests, walkIn, popup, actor, model);
+  }
+
+  @PostMapping("/reservations/customer")
+  public String saveBookingCustomer(@RequestParam String phone, @RequestParam String fullName,
+      @RequestParam(defaultValue = "") String email, @RequestParam(required = false) Long tableId,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time,
+      @RequestParam(defaultValue = "2") int guests, @RequestParam(defaultValue = "false") boolean walkIn,
+      @RequestParam(defaultValue = "false") boolean popup, Authentication actor, Model model, HttpServletResponse response) {
+    response.setHeader("Cache-Control", "no-store");
+    try {
+      model.addAttribute("bookingCustomer", bookingCustomers.save(phone, fullName, email));
+    } catch (IllegalArgumentException exception) {
+      model.addAttribute("customerPhone", phone);
+      model.addAttribute("customerError", exception.getMessage());
+      model.addAttribute("draftName", fullName);
+      model.addAttribute("draftEmail", email);
+      try {
+        model.addAttribute("bookingCustomer", bookingCustomers.find(phone));
+      } catch (IllegalArgumentException ignored) {
+        model.addAttribute("lookupInput", phone);
+        model.addAttribute("lookupError", exception.getMessage());
+        model.addAttribute("customerPhone", null);
+      }
+    }
+    return bookingStart(tableId, date, time, guests, walkIn, popup, actor, model);
+  }
+
+  private String bookingStart(Long tableId, LocalDate date, LocalTime time, int guests,
+      boolean walkIn, boolean popup, Authentication actor, Model model) {
     var form = new ReservationForm();
     form.setDate(date == null ? schedule.today() : date);
     form.setTime(time);
     form.setGuests(Math.clamp(guests, 1, 20));
     model.addAttribute("bookingForm", form);
-    return newBookingPage(tableId, walkIn, model);
+    return newBookingPage(tableId, walkIn, popup, actor, model);
   }
 
   @PostMapping("/reservations")
   public String createBooking(@ModelAttribute("bookingForm") ReservationForm form, BindingResult errors,
       @RequestParam(required = false) Long tableId, @RequestParam(defaultValue = "false") boolean walkIn,
-      Authentication actor, Model model, RedirectAttributes redirect) {
-    if (!errors.hasErrors()) {
-      try {
-        var booking = bookings.createStaffBooking(form, tableId, walkIn, actor.getName());
+      @RequestParam(required = false) Long customerId, @RequestParam(defaultValue = "false") boolean popup,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate returnDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime returnTime,
+      @RequestParam(required = false) Integer returnGuests,
+      Authentication actor, Model model, RedirectAttributes redirect, HttpServletResponse response) {
+    response.setHeader("Cache-Control", "no-store");
+    try {
+      var customer = bookingCustomers.requireAccount(customerId);
+      model.addAttribute("bookingCustomer", new BookingCustomerService.Contact(customer.getId(),
+          customer.getFullName(), customer.getEmail(), customer.getPhone()));
+      if (!errors.hasErrors()) {
+        var booking = bookings.createStaffBooking(form, tableId, walkIn, actor.getName(), customer);
         redirect.addFlashAttribute("notice", walkIn ? "Đã đặt bàn ngay và bắt đầu phục vụ." : "Đã ghi nhận và xác nhận đặt bàn chờ.");
+        if (popup) {
+          keepBoardFilters(redirect, returnDate, returnTime, returnGuests);
+          return "redirect:" + operationsPath(TABLES);
+        }
         return "redirect:" + operationsPath(RESERVATIONS + "/" + booking.getId());
-      } catch (BookingException exception) {
-        String field = exception.getField();
-        if (field != null && !"tableId".equals(field)) errors.rejectValue(field, "booking.invalid", exception.getMessage());
-        else errors.reject("booking.invalid", exception.getMessage());
-      } catch (IllegalStateException exception) {
-        errors.reject("booking.shift", exception.getMessage());
-      } catch (TransientDataAccessException exception) {
-        errors.reject("booking.busy", "Bàn đang được cập nhật. Vui lòng thử lại.");
       }
+    } catch (BookingException exception) {
+      errors.reject("booking.invalid", exception.getMessage());
+      if (!model.containsAttribute("bookingCustomer")) model.addAttribute("lookupError", exception.getMessage());
+    } catch (IllegalStateException exception) {
+      errors.reject("booking.shift", exception.getMessage());
+    } catch (TransientDataAccessException exception) {
+      errors.reject("booking.busy", "Bàn đang được cập nhật. Vui lòng thử lại.");
     }
-    return newBookingPage(tableId, walkIn, model);
+    if (popup) response.setStatus(HttpStatus.UNPROCESSABLE_ENTITY.value());
+    return newBookingPage(tableId, walkIn, popup, actor, model);
   }
 
-  private String newBookingPage(Long tableId, boolean walkIn, Model model) {
-    bookingOptions(model);
+  private String newBookingPage(Long tableId, boolean walkIn, boolean popup, Authentication actor, Model model) {
+    if (popup && tableId == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
     model.addAttribute("selectedTable", tableId);
     model.addAttribute("walkIn", walkIn);
-    return "staff/reservation-new";
+    model.addAttribute("popup", popup);
+    model.addAttribute("shiftRequired", walkIn && shifts.current(actor.getName()) == null);
+    if (tableId != null) model.addAttribute("selectedTableName", tables.findById(tableId)
+        .map(RestaurantTable::getCode).orElse("Bàn đã chọn"));
+    bookingOptions(model);
+    return popup ? "staff/fragments/booking-form :: flow" : "staff/reservation-new";
   }
 
   @GetMapping("/reservations/{id}")
@@ -151,7 +221,10 @@ public class StaffController {
         : Math.max(0, java.time.Duration.between(booking.getSeatedAt(),
             booking.getCompletedAt() == null ? LocalDateTime.now(schedule.getClock()) : booking.getCompletedAt()).getSeconds()));
     model.addAttribute("order", view.order());
-    model.addAttribute("depositPaymentStatus", paymentIntents.depositStatus(booking, shifts.current(actor.getName()) != null));
+    model.addAttribute("depositPaymentStatus", paymentIntents.depositStatus(booking));
+    model.addAttribute("depositCheckout", booking.isDepositOutstanding() ? paymentIntents.depositCheckout(id) : null);
+    model.addAttribute("manualDeposit", !paymentIntents.usesQr() && "CONFIRMED".equals(booking.getStatus())
+        && "WAITING_PAYMENT".equals(booking.getDepositStatus()) && !booking.hasExpiredDeposit(LocalDateTime.now(schedule.getClock())));
     model.addAttribute("unavailablePreorders", booking.isOpenBooking() ? preorders.unavailable(view.order()) : java.util.Set.of());
     model.addAttribute("canAddMenuItems", bookings.canAddMenuItems(booking, view.order(), true));
     model.addAttribute("history", workspace.history(id));
@@ -164,6 +237,8 @@ public class StaffController {
   public String status(@PathVariable Long id, @RequestParam String status,
       @RequestParam(defaultValue = "") String from,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate returnDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime returnTime,
+      @RequestParam(required = false) Integer returnGuests,
       Authentication actor, RedirectAttributes redirect) {
     String target = switch (from) {
       case "detail" -> RESERVATIONS + "/" + id;
@@ -171,15 +246,18 @@ public class StaffController {
       case "order" -> ORDERS + "/" + id;
       default -> RESERVATIONS;
     };
-    if ("table".equals(from) && returnDate != null) redirect.addAttribute("date", returnDate);
+    if ("table".equals(from)) keepBoardFilters(redirect, returnDate, returnTime, returnGuests);
     return action(redirect, target, "Đã cập nhật lượt đặt bàn.", () -> bookings.staffStatus(id, status, actor.getName()));
   }
 
   @GetMapping("/reservations/{id}/payment-status")
   @ResponseBody
   public PaymentIntentService.PaymentStatus reservationPaymentStatus(@PathVariable Long id, Authentication actor) {
-    var view = requireBooking(id);
-    return paymentIntents.depositStatus(view.booking(), shifts.current(actor.getName()) != null);
+    var booking = requireBooking(id).booking();
+    var payment = paymentIntents.depositStatus(booking);
+    var actions = workspace.actions(booking, shifts.current(actor.getName()) != null);
+    return new PaymentIntentService.PaymentStatus(payment.status(), payment.label(), payment.demo(),
+        payment.confirmEnabled(), payment.remainingSeconds(), actions.receiveEnabled(), actions.receiveReason());
   }
 
   @PostMapping("/reservations/{id}/deposit")
@@ -198,6 +276,13 @@ public class StaffController {
         () -> bookings.refundDeposit(id, amount, reference, actor.getName()));
   }
 
+  @PostMapping("/reservations/{id}/deposit/record")
+  public String recordDeposit(@PathVariable Long id, @RequestParam BigDecimal amount, @RequestParam String reference,
+      Authentication actor, RedirectAttributes redirect) {
+    return action(redirect, RESERVATIONS + "/" + id, "Đã ghi nhận tiền cọc.",
+        () -> bookings.recordStaffDeposit(id, amount, reference, actor.getName()));
+  }
+
   @PostMapping("/reservations/{id}/preorder/unavailable")
   public String removeUnavailablePreorder(@PathVariable Long id, Authentication actor, RedirectAttributes redirect) {
     return action(redirect, RESERVATIONS + "/" + id, "Đã bỏ món không còn phục vụ và cập nhật tiền cọc.",
@@ -206,9 +291,25 @@ public class StaffController {
 
   @PostMapping("/reservations/{id}/table")
   public String moveTable(@PathVariable Long id, @RequestParam Long tableId,
+      @RequestParam(defaultValue = "false") boolean fromBoard,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate returnDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime returnTime,
+      @RequestParam(required = false) Integer returnGuests,
       Authentication actor, RedirectAttributes redirect) {
-    return action(redirect, RESERVATIONS + "/" + id, "Đã chuyển bàn.",
+    if (fromBoard) keepBoardFilters(redirect, returnDate, returnTime, returnGuests);
+    return action(redirect, fromBoard ? TABLES : RESERVATIONS + "/" + id, "Đã chuyển bàn.",
         () -> bookings.moveTable(id, tableId, actor.getName()));
+  }
+
+  @GetMapping("/reservations/{id}/table")
+  public String moveTableOptions(@PathVariable Long id, Authentication actor, Model model) {
+    var booking = requireBooking(id).booking();
+    if (!workspace.actions(booking, shifts.current(actor.getName()) != null).moveTable()) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT);
+    }
+    model.addAttribute("booking", booking);
+    model.addAttribute("moveOptions", bookings.moveOptions(booking));
+    return "staff/fragments/move-table :: options(fromBoard=true)";
   }
 
   @PostMapping("/reservations/{id}/reschedule")
@@ -230,7 +331,9 @@ public class StaffController {
     var slots = rules.slots();
     LocalTime selectedTime = time != null && slots.contains(time) ? time : null;
     int selectedGuests = Math.clamp(guests, 1, 20);
-    model.addAttribute("board", workspace.board(selectedDate, selectedTime, selectedGuests, shifts.current(actor.getName()) != null));
+    boolean shiftOpen = shifts.current(actor.getName()) != null;
+    model.addAttribute("shiftOpen", shiftOpen);
+    model.addAttribute("board", workspace.board(selectedDate, selectedTime, selectedGuests, shiftOpen));
     model.addAttribute("tableKinds", TableKind.values());
     model.addAttribute("selectedDate", selectedDate);
     model.addAttribute("selectedTime", selectedTime);
@@ -252,7 +355,7 @@ public class StaffController {
   }
 
   private void keepBoardFilters(RedirectAttributes redirect, LocalDate date, LocalTime time, Integer guests) {
-    if (date != null) redirect.addAttribute("date", date);
+    if (date != null) redirect.addAttribute("date", date.toString());
     if (time != null) redirect.addAttribute("time", time.toString());
     if (guests != null) redirect.addAttribute("guests", guests);
   }
