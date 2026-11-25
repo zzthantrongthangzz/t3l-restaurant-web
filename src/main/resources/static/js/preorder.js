@@ -78,8 +78,10 @@ window.t3lPage.register(({ signal, state }) => {
       const extra = picker.querySelector('[data-preorder-topup]');
       if (extra) extra.textContent = format(topup);
       if (voucher) {
-        voucher.querySelector('[data-voucher-discount]').textContent = format(discount);
-        voucher.querySelector('[data-voucher-net]').textContent = format(net);
+        const discountAmount = picker.querySelector('[data-voucher-discount]');
+        const netAmount = picker.querySelector('[data-voucher-net]');
+        if (discountAmount) discountAmount.textContent = format(discount);
+        if (netAmount) netAmount.textContent = format(net);
       }
     }
 

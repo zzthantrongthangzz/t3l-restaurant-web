@@ -87,6 +87,11 @@ public class StaffWorkspaceService {
   }
 
   @Transactional(readOnly = true)
+  public long pendingBookingCount() {
+    return reservations.countByStatus(PENDING);
+  }
+
+  @Transactional(readOnly = true)
   public List<TableView> board(LocalDate date, LocalTime time, int guests, boolean shiftOpen) {
     return boardAt(date, LocalDateTime.now(schedule.getClock()), time, guests, shiftOpen);
   }

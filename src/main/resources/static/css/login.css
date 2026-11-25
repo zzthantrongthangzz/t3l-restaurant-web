@@ -33,7 +33,14 @@
 .login-password-toggle[aria-pressed="true"] .login-eye-slash { display: block; }
 .home .login-password-toggle:hover { color: var(--home-cream); background: #c69d6814; }
 .home .login-password-toggle:focus-visible { outline-offset: -4px; }
-.login-submit { width: 100%; justify-content: space-between; margin-top: 4px; }
+.home .login-form > button.login-submit {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center !important;
+  text-align: center !important;
+  margin-top: 4px;
+}
 .login-alternative { display: flex; align-items: center; gap: 13px; margin: 17px 0 12px; color: #c5b9aa; font-size: var(--text-caption); }
 .login-alternative::before, .login-alternative::after { content: ""; flex: 1; height: 1px; background: var(--home-line); }
 .login-google { display: grid; place-items: center; min-height: 47px; padding: 8px 12px; border: 1px solid #c69d687b; font-size: var(--text-compact); font-weight: 600; }

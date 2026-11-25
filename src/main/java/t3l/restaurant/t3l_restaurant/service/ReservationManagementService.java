@@ -1,8 +1,6 @@
 package t3l.restaurant.t3l_restaurant.service;
 
 import jakarta.validation.Validator;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.stereotype.Service;
@@ -52,13 +50,9 @@ public class ReservationManagementService {
   }
 
   @Transactional(readOnly = true)
-  public Reservation lookup(ReservationLookupForm form) {
+  public List<Reservation> lookupByPhone(ReservationLookupForm form) {
     validate(form);
-    Reservation booking = reservations.findByCode(form.getCode()).orElse(null);
-    String expected = booking == null ? "" : canonicalPhone(booking.getGuestPhone());
-    boolean matches = MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8),
-        canonicalPhone(form.getPhone()).getBytes(StandardCharsets.UTF_8));
-    return booking != null && booking.getCustomerId() == null && matches ? booking : null;
+    return reservations.findTop20UnclaimedByCanonicalPhone(canonicalPhone(form.getPhone()));
   }
 
   @Transactional(readOnly = true)

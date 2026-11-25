@@ -97,8 +97,12 @@
               <dl class="booking-contact">
                 <div><dt>Họ và tên</dt><dd th:text="${bookingName}"></dd></div>
                 <div><dt>Số điện thoại</dt><dd th:text="${bookingPhone}"></dd></div>
-                <div th:if="${bookingEmail != null and !bookingEmail.isBlank()}"><dt>Email</dt><dd th:text="${bookingEmail}"></dd></div>
               </dl>
+              <div class="booking-field booking-full">
+                <label for="guestEmail">Email nhận thông tin đặt bàn (tùy chọn)</label>
+                <input type="email" th:field="*{guestEmail}" maxlength="254" autocomplete="email" />
+                <small class="booking-field-error" th:errors="*{guestEmail}"></small>
+              </div>
               <a class="home-text-link" th:href="@{/account}">Cập nhật hồ sơ</a>
             </fieldset>
 

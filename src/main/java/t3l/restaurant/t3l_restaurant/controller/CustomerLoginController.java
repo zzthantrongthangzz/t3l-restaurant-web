@@ -22,6 +22,12 @@ import t3l.restaurant.t3l_restaurant.service.CustomerRecovery;
 import t3l.restaurant.t3l_restaurant.service.PhoneCustomerService;
 import t3l.restaurant.t3l_restaurant.service.SmsOtpService;
 import t3l.restaurant.t3l_restaurant.service.SmsOtpService.OtpException;
+import java.nio.charset.StandardCharsets;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Controller
 public class CustomerLoginController {
@@ -31,14 +37,25 @@ public class CustomerLoginController {
   private final CustomerRecovery recovery;
   private final CustomerSession sessions;
   private final CustomerAccountService customers;
-
-  public CustomerLoginController(SmsOtpService otp, PhoneCustomerService phones, CustomerRecovery recovery,
-      CustomerSession sessions, CustomerAccountService customers) {
+  private final AuthenticationManager passwordAuthenticationManager;
+  private final PasswordEncoder passwords;
+  public CustomerLoginController(
+          SmsOtpService otp,
+          PhoneCustomerService phones,
+          CustomerRecovery recovery,
+          CustomerSession sessions,
+          CustomerAccountService customers,
+          @Qualifier("customerPasswordAuthenticationManager")
+          AuthenticationManager passwordAuthenticationManager,
+          PasswordEncoder passwords
+  ) {
     this.otp = otp;
     this.phones = phones;
     this.recovery = recovery;
     this.sessions = sessions;
     this.customers = customers;
+    this.passwordAuthenticationManager = passwordAuthenticationManager;
+    this.passwords = passwords;
   }
 
   @ModelAttribute
@@ -63,32 +80,65 @@ public class CustomerLoginController {
   }
 
   @PostMapping("/register")
-  String beginRegistration(@Valid @ModelAttribute("registrationForm") CustomerRegistrationForm form,
-      BindingResult errors, @RequestParam(required = false) String returnTo, HttpServletRequest request, Model model) {
+  String beginRegistration(
+          @Valid @ModelAttribute("registrationForm") CustomerRegistrationForm form,
+          BindingResult errors,
+          @RequestParam(required = false) String returnTo,
+          HttpServletRequest request,
+          Model model
+  ) {
     String target = LoginReturnTarget.validate(returnTo);
     String phone = SmsOtpService.normalizePhone(form.getPhone());
+
     if (!errors.hasErrors() && phone == null) {
-      errors.rejectValue("phone", "phone.invalid", "Nhập số di động Việt Nam hợp lệ.");
+      errors.rejectValue("phone", "phone.invalid",
+              "Nhập số di động Việt Nam hợp lệ.");
     }
+
     if (!errors.hasErrors() && !phones.canRegister(phone)) {
       errors.rejectValue("phone", "phone.registered",
-          "Số điện thoại đã có tài khoản. Vui lòng đăng nhập hoặc khôi phục tài khoản.");
+              "Số điện thoại đã có tài khoản. Vui lòng đăng nhập hoặc khôi phục tài khoản.");
     }
-    if (errors.hasErrors()) return registrationPage(request, model, form, target);
+
+    String rawPassword = form.getPassword() == null ? "" : form.getPassword();
+
+    if (!errors.hasErrors() && !rawPassword.equals(form.getConfirmPassword())) {
+      errors.rejectValue("confirmPassword", "password.mismatch",
+              "Mật khẩu xác nhận không khớp.");
+    }
+
+    if (!errors.hasErrors()
+            && rawPassword.getBytes(StandardCharsets.UTF_8).length > 72) {
+      errors.rejectValue("password", "password.tooLong",
+              "Mật khẩu quá dài. Vui lòng dùng tối đa 72 byte UTF-8.");
+    }
+
+    if (errors.hasErrors()) {
+      return registrationPage(request, model, form, target);
+    }
 
     try {
       var issue = otp.issue(request, null, phone, null);
-      var draft = new RegistrationDraft(form.getFullName(), issue.phone(), target, Instant.now().plusSeconds(300));
+
+      var draft = new RegistrationDraft(
+              form.getFullName(),
+              issue.phone(),
+              passwords.encode(rawPassword),
+              target,
+              Instant.now().plusSeconds(300)
+      );
+
       request.getSession().setAttribute(REGISTRATION_DRAFT, draft);
       model.addAttribute("localCode", issue.localCode());
       model.addAttribute("registrationNotice", issue.localCode() == null
-          ? "Mã xác thực đã được gửi đến số điện thoại của bạn."
-          : "Chế độ kiểm thử cục bộ. Chưa gửi SMS.");
+              ? "Mã xác thực đã được gửi đến số điện thoại của bạn."
+              : "Chế độ kiểm thử cục bộ. Chưa gửi SMS.");
     } catch (OtpException exception) {
       model.addAttribute("registrationError", exception.getMessage());
     } catch (DataAccessException exception) {
       model.addAttribute("registrationError", "Chưa thể gửi mã xác thực. Vui lòng thử lại.");
     }
+
     return registrationPage(request, model, form, target);
   }
 
@@ -106,8 +156,12 @@ public class CustomerLoginController {
       if (!draft.phone().equals(proof.phone())) {
         throw new OtpException("Số điện thoại xác thực không khớp với thông tin đăng ký.");
       }
-      UserAccount customer = phones.register(draft.fullName(), proof.phone(), proof.local());
-      request.getSession().removeAttribute(REGISTRATION_DRAFT);
+      UserAccount customer = phones.register(
+              draft.fullName(),
+              proof.phone(),
+              proof.local(),
+              draft.encodedPassword()
+      );      request.getSession().removeAttribute(REGISTRATION_DRAFT);
       return signedIn(request, response, customer, draft.returnTo());
     } catch (OtpException exception) {
       model.addAttribute("registrationError", exception.getMessage());
@@ -118,6 +172,32 @@ public class CustomerLoginController {
     }
     return registrationPage(request, model, form, draft.returnTo());
   }
+
+  @PostMapping("/login/password")
+  String passwordLogin(
+          @RequestParam(defaultValue = "") String phone,
+          @RequestParam(defaultValue = "") String password,
+          @RequestParam(required = false) String returnTo,
+          HttpServletRequest request,
+          HttpServletResponse response,
+          Model model
+  ) {
+    String target = LoginReturnTarget.validate(returnTo);
+
+    try {
+      var authentication = passwordAuthenticationManager.authenticate(
+              new UsernamePasswordAuthenticationToken(phone, password));
+
+      UserAccount customer = customers.signedInCustomer(authentication);
+      return signedIn(request, response, customer, target);
+    } catch (AuthenticationException exception) {
+      model.addAttribute("passwordError", "Số điện thoại hoặc mật khẩu không đúng.");
+      model.addAttribute("googleReturnTo", target);
+      model.addAttribute("smsAvailable", otp.available(request));
+      return "auth/login";
+    }
+  }
+
 
   @GetMapping({"/login/sms", "/account/sms"})
   String sms(@RequestParam(required = false) String returnTo, Authentication authentication,
@@ -255,5 +335,10 @@ public class CustomerLoginController {
     return "auth/sms";
   }
 
-  private record RegistrationDraft(String fullName, String phone, String returnTo, Instant expiresAt) implements Serializable {}
-}
+  private record RegistrationDraft(
+          String fullName,
+          String phone,
+          String encodedPassword,
+          String returnTo,
+          Instant expiresAt
+  ) implements Serializable {}}

@@ -60,8 +60,6 @@ public class ReservationLookupController {
   public String lookup(@RequestParam(required = false) String code, HttpServletRequest request,
       Authentication authentication, Model model) {
     var form = new ReservationLookupForm();
-    // Do not reflect arbitrary URL text or telephone numbers into the page.
-    if (code != null && code.matches("T3L-[A-Z0-9-]{4,16}")) form.setCode(code);
     model.addAttribute("lookupForm", form);
     var customer = customers.signedInCustomer(authentication);
     Reservation booking = visibleBooking(code, request, customer);
@@ -74,18 +72,19 @@ public class ReservationLookupController {
   }
 
   @PostMapping
-  public String verify(@Valid @ModelAttribute("lookupForm") ReservationLookupForm form,
-      BindingResult errors, HttpSession session, Model model, RedirectAttributes redirect) {
-    access.revoke(session, form.getCode());
-    if (!errors.hasErrors()) {
-      Reservation booking = management.lookup(form);
-      if (booking != null) {
+  public String searchByPhone(@Valid @ModelAttribute("lookupForm") ReservationLookupForm form,
+      BindingResult errors, HttpSession session, Model model) {
+    if (errors.hasErrors()) return "web/reservation-lookup";
+
+    var matches = management.lookupByPhone(form);
+    if (matches.isEmpty()) {
+      model.addAttribute("lookupError", "Không tìm thấy đặt bàn nào khớp số điện thoại này.");
+    } else {
+      for (Reservation booking : matches) {
         access.grant(session, booking.getCode());
         confirmationAccess.grant(session, booking.getCode());
-        redirect.addAttribute("code", booking.getCode());
-        return "redirect:/reservations/lookup";
       }
-      model.addAttribute("lookupError", "Không tìm thấy đặt bàn khớp mã và số điện thoại. Vui lòng kiểm tra lại thông tin.");
+      model.addAttribute("lookupResults", matches);
     }
     return "web/reservation-lookup";
   }
@@ -157,7 +156,7 @@ public class ReservationLookupController {
   }
 
   private String requireVerification(RedirectAttributes redirect) {
-    redirect.addFlashAttribute("lookupError", "Phiên xác thực đã hết hạn. Vui lòng nhập lại mã đặt bàn và số điện thoại.");
+    redirect.addFlashAttribute("lookupError", "Phiên tra cứu đã hết hạn. Vui lòng nhập lại số điện thoại đã đặt bàn.");
     return "redirect:/reservations/lookup";
   }
 
@@ -170,7 +169,6 @@ public class ReservationLookupController {
     Reservation booking = visibleBooking(code, request, customer);
     if (booking == null) return requireVerification(redirect);
     var lookup = new ReservationLookupForm();
-    lookup.setCode(code);
     model.addAttribute("lookupForm", lookup);
     addDetails(model, booking, customer);
     return "web/reservation-lookup";

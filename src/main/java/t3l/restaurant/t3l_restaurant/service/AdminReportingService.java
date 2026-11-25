@@ -42,11 +42,11 @@ public class AdminReportingService {
           CONCAT('T3L-HD-',o.id, '-COC'), 'DEPOSIT', o.id
         FROM dining_payments p JOIN dining_orders o ON o.id=p.order_id AND o.status='PAID'
         JOIN reservations r ON r.id=o.reservation_id
-        WHERE p.paid_at >= :start AND p.paid_at < :end AND r.deposit_demo=FALSE AND p.deposit_applied>0
+        WHERE p.paid_at >= :start AND p.paid_at < :end AND p.deposit_applied>0
         UNION ALL
         SELECT r.deposit_closed_at, '', 'TRANSFER', r.deposit_retained, CONCAT(r.code,'-COC'), 'DEPOSIT_RETAINED', NULL
         FROM reservations r
-        WHERE r.deposit_closed_at >= :start AND r.deposit_closed_at < :end AND r.deposit_retained>0 AND r.deposit_demo=FALSE
+        WHERE r.deposit_closed_at >= :start AND r.deposit_closed_at < :end AND r.deposit_retained>0
         UNION ALL
         SELECT s.created_at, a.username, s.payment_method, s.total_amount, CONCAT('BL-',s.id), 'DIRECT', NULL
         FROM cash_sales s JOIN staff_shifts sh ON sh.id=s.shift_id JOIN app_users a ON a.id=sh.employee_id
@@ -221,7 +221,7 @@ public class AdminReportingService {
         WHERE u.status='USED' AND u.demo=FALSE AND p.is_demo=FALSE
           AND p.paid_at>=:start AND p.paid_at<:end AND (:employee='' OR p.received_by=:employee)
           AND (:method='' OR (p.payment_method=:method AND (p.amount>0 OR p.deposit_applied=0))
-            OR (:method='TRANSFER' AND p.deposit_applied>0 AND r.deposit_demo=FALSE))
+            OR (:method='TRANSFER' AND p.deposit_applied>0))
         """,params,BigDecimal.class);
     return db.queryForObject(RECEIPTS + """
         SELECT COALESCE(SUM(amount),0) AS total,

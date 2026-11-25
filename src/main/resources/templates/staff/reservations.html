@@ -45,7 +45,7 @@
                     <small class="staff-action-reason" th:if="${!actions.confirmEnabled}" th:text="${actions.confirmReason}"></small>
                   </form>
                   <form th:if="${actions.receive}" th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post" data-partial-submit>
-                    <button class="staff-button is-outline" name="status" value="SEATED" th:disabled="${!actions.receiveEnabled}"
+                    <button class="staff-button is-outline" name="status" value="RECEIVE" th:disabled="${!actions.receiveEnabled}"
                         th:title="${actions.receiveReason}">Nhận khách &amp; bàn</button>
                     <small class="staff-action-reason" th:if="${!actions.receiveEnabled}" th:text="${actions.receiveReason}"></small>
                   </form>

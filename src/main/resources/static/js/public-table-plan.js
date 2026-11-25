@@ -3,6 +3,8 @@ window.t3lPage.register(() => {
   if (dialog?.showModal) {
     dialog.removeAttribute('open');
     dialog.showModal();
+    const errors = dialog.querySelector('[data-booking-error-summary]');
+    if (errors) errors.focus();
     const close = document.getElementById('plan-booking-close');
     if (close) dialog.addEventListener('cancel', (event) => {
       event.preventDefault();

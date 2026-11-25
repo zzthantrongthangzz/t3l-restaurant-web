@@ -2,6 +2,7 @@ package t3l.restaurant.t3l_restaurant.service;
 
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
@@ -62,8 +63,11 @@ public class SepayProperties {
   public boolean paymentReady() { return pollingConfigured() && hasQrAccount(); }
 
   public boolean demoAllowed() {
-    return demoEnabled && Arrays.stream(environment.getActiveProfiles())
-        .map(profile -> profile.toLowerCase(Locale.ROOT))
+    String configuredProfiles = environment.getProperty("spring.profiles.active",
+        environment.getProperty("SPRING_PROFILES_ACTIVE", ""));
+    return demoEnabled && Stream.concat(Arrays.stream(environment.getActiveProfiles()),
+        Arrays.stream(configuredProfiles.split(",")))
+        .map(profile -> profile.strip().toLowerCase(Locale.ROOT))
         .anyMatch(profile -> profile.equals("local") || profile.equals("dev") || profile.equals("development")
             || profile.equals("qa") || profile.equals("test"));
   }

@@ -117,6 +117,8 @@
 .deposit-bank-info p span { color: #756f68; }
 .deposit-countdown { margin: 0; font-variant-numeric: tabular-nums; }
 .deposit-refund-terms, .deposit-demo-form small { color: #756f68; font-size: .9rem; }
-.deposit-demo-form { display: grid; justify-items: start; gap: .5rem; }
+.deposit-bank-info > [data-copy-payment-code], .deposit-demo-form { width: 100%; }
+.deposit-demo-form { display: grid; justify-items: stretch; gap: .5rem; }
+.deposit-demo-form .home-button { width: 100%; }
 [hidden] { display: none !important; }
 @media (max-width: 640px) { .deposit-transfer { grid-template-columns: 1fr; } .deposit-qr { margin-inline: auto; } }
