@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/fragments/shell :: head('Quản lý FAQ')}"></head>
+<body class="staff-page admin-page">
+<header th:replace="~{admin/fragments/shell :: header('faqs')}"></header>
+<main data-navigation class="staff-main">
+  <a class="staff-link staff-back" th:href="@{/admin/faqs}">Danh sách FAQ</a>
+  <div class="staff-page-heading"><h1 th:text="${faqId == null ? 'Thêm câu hỏi' : 'Sửa câu hỏi'}"></h1></div>
+  <section class="staff-panel">
+    <form class="staff-form" method="post" data-partial-submit th:object="${form}"
+          th:action="${faqId == null} ? @{/admin/faqs} : @{/admin/faqs/{id}(id=${faqId})}">
+      <div th:replace="~{admin/fragments/shell :: errors}"></div>
+      <label class="staff-field">Câu hỏi<input type="text" th:field="*{question}" required /></label>
+      <label class="staff-field">Câu trả lời<textarea th:field="*{answer}" rows="6" required></textarea></label>
+      <label class="staff-field">Thứ tự hiển thị<input type="number" th:field="*{displayOrder}" step="1" required /></label>
+      <label class="staff-checkbox"><input type="checkbox" th:field="*{published}" /> Đã đăng</label>
+      <div class="staff-actions"><button class="staff-button" type="submit">Lưu câu hỏi</button></div>
+    </form>
+  </section>
+</main>
+</body>
+</html>

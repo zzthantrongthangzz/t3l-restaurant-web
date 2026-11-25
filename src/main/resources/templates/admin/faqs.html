@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/fragments/shell :: head('Quản lý FAQ')}"></head>
+<body class="staff-page admin-page">
+<header th:replace="~{admin/fragments/shell :: header('faqs')}"></header>
+<main data-navigation class="staff-main">
+  <div class="staff-page-heading">
+    <h1>Quản lý FAQ</h1>
+    <a class="staff-button" th:href="@{/admin/faqs/new}">Thêm mới</a>
+  </div>
+  <div th:replace="~{admin/fragments/shell :: messages}"></div>
+  <section class="staff-panel" aria-label="Danh sách câu hỏi thường gặp">
+    <p class="staff-empty" th:if="${faqs.empty}">Chưa có câu hỏi thường gặp.</p>
+    <div class="staff-table-wrap" th:unless="${faqs.empty}">
+      <table class="staff-table">
+        <thead><tr>
+          <th scope="col">Câu hỏi</th>
+          <th scope="col">Thứ tự hiển thị</th>
+          <th scope="col">Trạng thái</th>
+          <th scope="col">Thao tác</th>
+        </tr></thead>
+        <tbody>
+          <tr th:each="faq : ${faqs}">
+            <td data-label="Câu hỏi" th:text="${faq.question}"></td>
+            <td data-label="Thứ tự hiển thị" th:text="${faq.displayOrder}"></td>
+            <td data-label="Trạng thái"><span class="staff-badge" th:classappend="${!faq.published ? 'is-warning' : ''}"
+                th:text="${faq.published ? 'Đã đăng' : 'Chưa đăng'}"></span></td>
+            <td data-label="Thao tác">
+              <div class="staff-actions">
+                <a class="staff-link" th:href="@{/admin/faqs/{id}/edit(id=${faq.id})}">Sửa</a>
+                <form method="post" data-partial-submit th:action="@{/admin/faqs/{id}/status(id=${faq.id})}">
+                  <button class="staff-link-button" type="submit" name="published" th:value="${!faq.published}"
+                          th:text="${faq.published ? 'Ẩn' : 'Hiện'}"></button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+</body>
+</html>
