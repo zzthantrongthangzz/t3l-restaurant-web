@@ -467,7 +467,6 @@ public class WebController {
     model.addAttribute("showBookingProfile", false);
     if (customer != null) {
       model.addAttribute("bookingName", customer.getFullName());
-      model.addAttribute("verifiedPhone", customer.getVerifiedPhone());
     }
 
     var selectedTable = form.getTableId() == null ? null : restaurantTables.findById(form.getTableId()).orElse(null);

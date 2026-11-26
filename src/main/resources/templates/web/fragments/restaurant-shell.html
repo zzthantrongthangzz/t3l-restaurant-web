@@ -26,10 +26,10 @@
       </nav>
       <div class="restaurant-header-actions">
         <details th:replace="~{account/fragments/navigation :: dropdown}"></details>
-        <a sec:authorize="isAnonymous()" class="restaurant-login-link" data-header-login aria-label="Đăng nhập"
+        <a sec:authorize="isAnonymous()" class="restaurant-login-link" data-header-login aria-label="Đăng nhập/Đăng ký"
            th:href="${loginReturnTo == null} ? @{/login} : @{/login(returnTo=${loginReturnTo})}"
            th:attr="aria-current=${activePage == 'login' ? 'page' : null}">
-          <svg th:replace="~{web/fragments/restaurant-shell :: icon('account')}"></svg><span>Đăng nhập</span>
+          <svg th:replace="~{web/fragments/restaurant-shell :: icon('account')}"></svg><span>Đăng nhập/Đăng ký</span>
         </a>
         <button th:replace="~{web/fragments/theme :: toggle}"></button>
         <div th:replace="~{account/fragments/sidebar :: employee}"></div>

@@ -73,7 +73,7 @@ public class VoucherService {
 
   @Transactional(readOnly=true)
   public List<VoucherUsage> used(Long buyer) {
-    return usages.findByCustomerKeyAndStatusAndDemoFalseOrderByIdDesc("buyer:"+buyer,VoucherUsage.USED,PageRequest.of(0,100));
+    return usages.findByCustomerKeyAndStatusOrderByIdDesc("buyer:"+buyer,VoucherUsage.USED,PageRequest.of(0,100));
   }
 
   @Transactional

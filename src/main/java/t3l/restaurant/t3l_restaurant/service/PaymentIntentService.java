@@ -36,10 +36,10 @@ public class PaymentIntentService {
   public record Checkout(PaymentIntent intent, String qrUrl, String bankName, String bankAccount, String accountHolder) {
     public boolean hasQr() { return qrUrl != null; }
   }
-  public record PaymentStatus(String status, String label, boolean demo, boolean confirmEnabled, long remainingSeconds,
+  public record PaymentStatus(String status, String label, boolean confirmEnabled, long remainingSeconds,
                                boolean receiveEnabled, String receiveReason) {
-    public PaymentStatus(String status, String label, boolean demo, boolean confirmEnabled, long remainingSeconds) {
-      this(status, label, demo, confirmEnabled, remainingSeconds, false, "");
+    public PaymentStatus(String status, String label, boolean confirmEnabled, long remainingSeconds) {
+      this(status, label, confirmEnabled, remainingSeconds, false, "");
     }
   }
   public record CustomerDepositStatus(String status, String label, long remainingSeconds, boolean payable,
@@ -177,37 +177,36 @@ public class PaymentIntentService {
     boolean canConfirm = Reservation.PENDING.equals(booking.getStatus())
         && (!usesQr() || !booking.isDepositOutstanding());
     if (intent != null && PaymentIntent.REVIEW_REQUIRED.equals(intent.getStatus())) {
-      return withReceiveAction(booking, shiftOpen, new PaymentStatus("REVIEW_REQUIRED", "Giao dịch cần nhà hàng đối soát", intent.isDemo(), false, 0), now);
+      return withReceiveAction(booking, shiftOpen, new PaymentStatus("REVIEW_REQUIRED", "Giao dịch cần nhà hàng đối soát", false, 0), now);
     }
     if (Reservation.CANCELLED.equals(booking.getStatus()) || Reservation.NO_SHOW.equals(booking.getStatus())) {
-      return withReceiveAction(booking, shiftOpen, new PaymentStatus(booking.getStatus(), booking.getStatusLabel(), intent != null && intent.isDemo(), false, 0), now);
+      return withReceiveAction(booking, shiftOpen, new PaymentStatus(booking.getStatus(), booking.getStatusLabel(), false, 0), now);
     }
     if (booking.getDepositAmount().signum() > 0 && "PAID".equals(booking.getDepositStatus())) {
       if (!Reservation.PENDING.equals(booking.getStatus())) {
-        return withReceiveAction(booking, shiftOpen, new PaymentStatus("CONFIRMED", "Đặt bàn đã được nhà hàng xác nhận", intent != null && intent.isDemo(), false, 0), now);
+        return withReceiveAction(booking, shiftOpen, new PaymentStatus("CONFIRMED", "Đặt bàn đã được nhà hàng xác nhận", false, 0), now);
       }
-      return withReceiveAction(booking, shiftOpen, new PaymentStatus("RECEIVED", "Đã nhận tiền cọc – chờ nhà hàng xác nhận", intent != null && intent.isDemo(), canConfirm, 0), now);
+      return withReceiveAction(booking, shiftOpen, new PaymentStatus("RECEIVED", "Đã nhận tiền cọc – chờ nhà hàng xác nhận", canConfirm, 0), now);
     }
     String depositState = booking.getDepositStatus();
     if (List.of("APPLIED", "REFUND_PENDING", "REFUNDED", "FORFEITED", "CLOSED", "EXPIRED")
         .contains(depositState)) {
-      boolean demo = booking.isDepositDemo() || (intent != null && intent.isDemo());
       return withReceiveAction(booking, shiftOpen,
-          new PaymentStatus(depositState, booking.getDepositStatusLabel(), demo, false, 0), now);
+          new PaymentStatus(depositState, booking.getDepositStatusLabel(), false, 0), now);
     }
     boolean unpaidActiveBooking = booking.isOpenBooking() && booking.isDepositOutstanding();
     if (unpaidActiveBooking && (booking.hasExpiredDeposit(now)
         || (intent != null && now.isAfter(intent.getExpiresAt())))) {
-      return withReceiveAction(booking, shiftOpen, new PaymentStatus("EXPIRED", "Đã hết hạn thanh toán cọc", intent != null && intent.isDemo(), false, 0), now);
+      return withReceiveAction(booking, shiftOpen, new PaymentStatus("EXPIRED", "Đã hết hạn thanh toán cọc", false, 0), now);
     }
     if (booking.getDepositAmount().signum() <= 0) {
       if (!Reservation.PENDING.equals(booking.getStatus())) {
-        return withReceiveAction(booking, shiftOpen, new PaymentStatus("CONFIRMED", "Đặt bàn đã được nhà hàng xác nhận", false, false, 0), now);
+        return withReceiveAction(booking, shiftOpen, new PaymentStatus("CONFIRMED", "Đặt bàn đã được nhà hàng xác nhận", false, 0), now);
       }
-      return withReceiveAction(booking, shiftOpen, new PaymentStatus("NO_DEPOSIT", "Không yêu cầu đặt cọc – chờ nhà hàng xác nhận", false, canConfirm, 0), now);
+      return withReceiveAction(booking, shiftOpen, new PaymentStatus("NO_DEPOSIT", "Không yêu cầu đặt cọc – chờ nhà hàng xác nhận", canConfirm, 0), now);
     }
     long remaining = booking.getDepositDueAt() == null ? 0 : Math.max(0, Duration.between(now, booking.getDepositDueAt()).getSeconds());
-    return withReceiveAction(booking, shiftOpen, new PaymentStatus("WAITING", "Chờ thanh toán cọc", false, false, remaining), now);
+    return withReceiveAction(booking, shiftOpen, new PaymentStatus("WAITING", "Chờ thanh toán cọc", false, remaining), now);
   }
 
   private PaymentStatus withReceiveAction(Reservation booking, boolean shiftOpen, PaymentStatus status, LocalDateTime now) {
@@ -223,26 +222,26 @@ public class PaymentIntentService {
         : !sameDay ? "Chỉ nhận khách trong ngày đặt bàn."
         : !serviceHours ? "Ngoài giờ phục vụ."
         : !arrivalWindow ? "Chưa đến khung giờ nhận khách hoặc đã quá thời gian chờ." : "";
-    return new PaymentStatus(status.status(), status.label(), status.demo(), status.confirmEnabled(), status.remainingSeconds(), enabled, reason);
+    return new PaymentStatus(status.status(), status.label(), status.confirmEnabled(), status.remainingSeconds(), enabled, reason);
   }
 
   @Transactional(readOnly = true)
   public PaymentStatus intentStatus(PaymentIntent intent) {
-    if (intent == null) return new PaymentStatus("WAITING", "Chưa tạo mã thanh toán", false, false, 0);
+    if (intent == null) return new PaymentStatus("WAITING", "Chưa tạo mã thanh toán", false, 0);
     if (PaymentIntent.REVIEW_REQUIRED.equals(intent.getStatus())) {
-      return new PaymentStatus("REVIEW_REQUIRED", "Giao dịch cần nhà hàng đối soát", intent.isDemo(), false, 0);
+      return new PaymentStatus("REVIEW_REQUIRED", "Giao dịch cần nhà hàng đối soát", false, 0);
     }
     if (PaymentIntent.APPLIED.equals(intent.getStatus())) {
-      return new PaymentStatus("APPLIED", "Đã ghi nhận thanh toán", intent.isDemo(), false, 0);
+      return new PaymentStatus("APPLIED", "Đã ghi nhận thanh toán", false, 0);
     }
     if (PaymentIntent.RECEIVED.equals(intent.getStatus())) {
-      return new PaymentStatus("RECEIVED", "Đã xác minh đủ tiền – chờ nhân viên xác nhận", intent.isDemo(), true, 0);
+      return new PaymentStatus("RECEIVED", "Đã xác minh đủ tiền – chờ nhân viên xác nhận", true, 0);
     }
     if (LocalDateTime.now(schedule.getClock()).isAfter(intent.getExpiresAt())) {
-      return new PaymentStatus("EXPIRED", "Đã hết hạn thanh toán", intent.isDemo(), false, 0);
+      return new PaymentStatus("EXPIRED", "Đã hết hạn thanh toán", false, 0);
     }
     long remaining = Math.max(0, Duration.between(LocalDateTime.now(schedule.getClock()), intent.getExpiresAt()).getSeconds());
-    return new PaymentStatus("WAITING", "Đang chờ thanh toán", intent.isDemo(), false, remaining);
+    return new PaymentStatus("WAITING", "Đang chờ thanh toán", false, remaining);
   }
 
   @Transactional(readOnly = true)

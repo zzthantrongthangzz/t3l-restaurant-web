@@ -17,7 +17,7 @@
         <td data-label="Nhân viên" th:text="${row.employee}"></td>
         <td data-label="Phương thức"><span th:replace="~{admin/fragments/shell :: method(${row.method})}"></span></td>
         <td data-label="Trạng thái"><span class="staff-badge" th:attr="data-status=${row.status}" th:text="${row.statusLabel}"></span>
-          <span class="staff-badge is-warning" th:if="${row.demo}">DEMO · ngoài doanh thu</span></td>
+        </td>
         <td data-label="Số tiền"><span th:replace="~{admin/fragments/shell :: money(${row.amount})}"></span></td>
       </tr></tbody></table></div>
     <nav th:replace="~{admin/fragments/report :: pages('/admin/invoices')}"></nav>

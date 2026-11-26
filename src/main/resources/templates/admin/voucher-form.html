@@ -37,7 +37,7 @@
           <td data-label="Mã" th:text="${usage.code}"></td>
           <td data-label="Hóa đơn"><a class="staff-link" th:href="@{/admin/invoices/{id}(id=${usage.orderId})}" th:text="${'T3L-HD-' + usage.orderId}"></a></td>
           <td data-label="Đã giữ" th:text="${#temporals.format(usage.heldAt,'dd/MM/yyyy HH:mm')}"></td>
-          <td data-label="Trạng thái" th:text="${usage.status == 'HELD' ? 'Đang giữ' : (usage.status == 'RELEASED' ? 'Đã trả lượt' : (usage.demo ? 'Đã dùng · DEMO' : 'Đã dùng'))}"></td>
+          <td data-label="Trạng thái" th:text="${usage.status == 'HELD' ? 'Đang giữ' : (usage.status == 'RELEASED' ? 'Đã trả lượt' : 'Đã dùng')}"></td>
           <td data-label="Số tiền giảm"><span th:replace="~{admin/fragments/shell :: money(${usage.discountAmount})}"></span></td>
         </tr></tbody></table>
     </div>

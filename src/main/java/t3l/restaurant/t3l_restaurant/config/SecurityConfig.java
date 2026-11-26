@@ -32,10 +32,10 @@ import t3l.restaurant.t3l_restaurant.security.AccountSessionFilter;
 import t3l.restaurant.t3l_restaurant.security.JwtAuthenticationFilter;
 import t3l.restaurant.t3l_restaurant.security.JwtService;
 import t3l.restaurant.t3l_restaurant.service.DatabaseUserDetailsService;
+import t3l.restaurant.t3l_restaurant.service.SmsOtpService;
 import t3l.restaurant.t3l_restaurant.repository.UserAccountRepository;
 import org.springframework.security.authentication.ProviderManager;
 import t3l.restaurant.t3l_restaurant.security.AccountPrincipal;
-import t3l.restaurant.t3l_restaurant.service.SmsOtpService;
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
@@ -64,8 +64,13 @@ public class SecurityConfig {
         throw new UsernameNotFoundException("Không tìm thấy tài khoản khách hàng.");
       }
 
+      String digits = phone.replace("+", "");
+      String alternate = "84" + digits.substring(1);
+      var phoneMatches = accounts.findBuyersByContactPhone(digits, alternate);
       var account = accounts.findByVerifiedPhone(phone)
               .or(() -> accounts.findByUsername("local-sms:" + phone))
+              .or(() -> phoneMatches.size() == 1
+                  ? java.util.Optional.of(phoneMatches.getFirst()) : java.util.Optional.empty())
               .filter(user -> "BUYER".equals(user.getRole()))
               .orElseThrow(() ->
                       new UsernameNotFoundException("Không tìm thấy tài khoản khách hàng."));
@@ -141,8 +146,8 @@ public class SecurityConfig {
             a.requestMatchers("/account", "/account/**", "/reservations/lookup/*/claim")
                 .hasRole("BUYER")
                 .requestMatchers(HttpMethod.POST, "/reservations/*/preorder").hasAnyRole("BUYER", "STAFF", "ADMIN")
-                .requestMatchers("/login","/login/password",  "/oauth2/authorization/google", "/login/oauth2/code/google", "/login/sms/**",
-                    "/login/recover/**", "/register", "/register/verify", "/staff/login")
+                .requestMatchers("/login","/login/password",  "/oauth2/authorization/google", "/login/oauth2/code/google",
+                    "/login/recover/**", "/register", "/staff/login")
                 .permitAll()
                 .requestMatchers("/chat/**", "/tracking/**").access(new org.springframework.security.web.access.expression.WebExpressionAuthorizationManager(
                     "isAnonymous() or hasRole('BUYER')"))

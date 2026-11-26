@@ -15,6 +15,7 @@ import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.repository.CustomerAddressRepository;
 import t3l.restaurant.t3l_restaurant.repository.CustomerProfileRepository;
 import t3l.restaurant.t3l_restaurant.repository.UserAccountRepository;
+import t3l.restaurant.t3l_restaurant.service.SmsOtpService;
 
 @Service
 public class CustomerAccountService {
@@ -77,6 +78,18 @@ public class CustomerAccountService {
   @Transactional
   public void updateProfile(Long accountId, CustomerProfileForm form) {
     UserAccount account = lockCustomer(accountId);
+    String phone = form.getPhone();
+    if (phone != null && !phone.isBlank()) {
+      String normalized = bookingPhone(phone);
+      if (normalized == null) throw new IllegalArgumentException("Vui lòng nhập số điện thoại hợp lệ.");
+      String digits = normalized.replaceAll("\\D", "");
+      String alternate = SmsOtpService.normalizePhone(normalized) == null
+          ? digits : "84" + digits.substring(1);
+      boolean usedByAnother = accounts.findBuyersByContactPhone(digits, alternate).stream()
+          .anyMatch(other -> !other.getId().equals(accountId));
+      if (usedByAnother) throw new IllegalArgumentException("Số điện thoại đã được dùng cho tài khoản hoặc hồ sơ khác.");
+      form.setPhone(normalized);
+    }
     String email = form.getEmail();
     if (email != null && !email.isBlank() && (accounts.existsByEmailIgnoreCaseAndIdNot(email, accountId)
         || profiles.existsByGoogleEmailIgnoreCaseAndIdNot(email, accountId))) {

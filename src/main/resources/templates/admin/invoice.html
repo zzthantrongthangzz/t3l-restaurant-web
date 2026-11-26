@@ -30,7 +30,6 @@
         <div><dt>Nhân viên xác nhận</dt><dd th:text="${payment.receivedBy}"></dd></div>
         <div><dt>Thời gian thu</dt><dd th:text="${#temporals.format(payment.paidAt,'dd/MM/yyyy HH:mm')}"></dd></div>
         <div th:if="${payment.transferReference}"><dt>Mã giao dịch</dt><dd th:text="${payment.transferReference}"></dd></div>
-        <div th:if="${payment.demo}"><dt>Loại giao dịch</dt><dd><span class="staff-badge is-warning">DEMO · không tính doanh thu thực tế</span></dd></div>
       </dl>
     </section>
     <div class="staff-actions" th:if="${payment == null and booking.status == 'SEATED'}">

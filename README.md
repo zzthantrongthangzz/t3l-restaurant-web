@@ -34,7 +34,7 @@ Theo hướng dẫn thực hành, Spring MVC nhận yêu cầu tại controller,
 ## Nghiệp vụ và phân quyền
 
 - Khách vãng lai xem trang chủ, thực đơn, FAQ và kiểm tra bàn trống theo ngày, giờ đến. Số điện thoại là bắt buộc khi gửi yêu cầu giữ chỗ. Yêu cầu ở trạng thái **Chờ xác nhận** đến khi nhân viên xử lý.
-- Khách có tài khoản (`BUYER`) chọn bàn trước. Sau khi lượt đặt bàn được lưu, khách có thể mở thực đơn từ trang kết quả để thêm món vào đơn của lượt đó. Khách cũng có thể xem lịch sử và gửi yêu cầu đổi hoặc hủy. Cấu hình Google hoặc SMS trong `.env` để sử dụng phương thức đăng nhập tương ứng.
+- Khách có tài khoản (`BUYER`) đăng ký bằng số điện thoại và mật khẩu xác nhận, đăng nhập bằng số điện thoại/mật khẩu hoặc Google. Sau khi lượt đặt bàn được lưu, khách có thể mở thực đơn từ trang kết quả để thêm món vào đơn của lượt đó, xem lịch sử và gửi yêu cầu đổi hoặc hủy.
 - Nhân viên (`STAFF`) duyệt yêu cầu, check-in, chuyển bàn, gọi món, ghi nhận thanh toán và đối soát ca.
 - Quản trị viên (`ADMIN`) dùng trang chủ và thực đơn chung, đồng thời có bảng điều khiển cho tài khoản, bàn, báo cáo doanh thu, hóa đơn, ca, liên hệ, cấu hình và nhật ký. Biểu tượng bút chì trên từng món mở trang chỉnh sửa. Món ẩn và món hết bán vẫn hiển thị cho admin.
 - Nút mặt trăng/mặt trời đổi giữa giao diện sáng trắng–cam và tối xám xanh–san hô. Trình duyệt lưu tùy chọn khi chuyển trang.
@@ -86,7 +86,7 @@ SOURCE /docker-entrypoint-initdb.d/20_sepay_payments.sql;
 
 Script 17 đồng bộ link ảnh theo tên món mẫu. Có thể bỏ qua script 17 nếu muốn giữ các ảnh đã thay trên database hiện tại.
 
-Mỗi thành viên dùng `.env` riêng. Các giá trị MySQL trong file đó được dùng cho cả Docker Compose và Spring Boot. Đặt mật khẩu demo của nhân viên/admin qua `APP_STAFF_PASSWORD` và `APP_ADMIN_PASSWORD`, rồi đăng nhập tại `/staff/login`. Khi cần thử Buyer trên máy cá nhân, bật `SMS_OTP_LOCAL_ENABLED=true` và dùng số ở `SMS_OTP_LOCAL_PHONE`. Với bản chạy dùng chung, thay `APP_JWT_SECRET` bằng khóa ngẫu nhiên tối thiểu 32 byte, mã hóa Base64.
+Mỗi thành viên dùng `.env` riêng. Các giá trị MySQL trong file đó được dùng cho cả Docker Compose và Spring Boot. Đặt mật khẩu nhân viên/admin qua `APP_STAFF_PASSWORD` và `APP_ADMIN_PASSWORD`, rồi đăng nhập tại `/staff/login`. Với bản chạy dùng chung, thay `APP_JWT_SECRET` bằng khóa ngẫu nhiên tối thiểu 32 byte, mã hóa Base64.
 
 Nếu cần cùng nhìn thấy các lượt đặt và thay đổi thực đơn mới phát sinh, dùng MySQL và MongoDB dành riêng cho nhóm. Chia sẻ trực tiếp `MYSQL_URL`, `MYSQL_USER`, `MYSQL_PASSWORD` và `MONGODB_URI` qua kênh riêng. Chỉ đưa `.env.example` và dữ liệu giả định vào Git.
 
@@ -178,4 +178,4 @@ Mức cọc theo tiền món áp dụng trên giá sau giảm và vẫn giữ m�
 - Một lượt truy cập là một lượt xem trang. Phiên mới bắt đầu sau 30 phút không hoạt động. Thời gian hoạt động chỉ cộng khi trang hiển thị, có focus và còn tương tác gần đây.
 - Từ khóa được giới hạn ở các cụm khớp tên món hoặc danh mục đang bán. Báo cáo dùng tên trang chuẩn hóa, ID món và ID yêu cầu đặt bàn nội bộ. Nội dung trò chuyện, biểu mẫu cá nhân và dữ liệu chuyển khoản nằm ngoài dữ liệu tracking.
 - Phễu chính đếm theo phiên có lượt xem, với đối tượng xác định tại lúc bắt đầu đặt bàn. Hai nhánh cọc đếm theo yêu cầu đã gửi và dùng trạng thái đặt bàn, cọc từ MySQL. Lượt bỏ dở là lượt bắt đầu nhưng chưa gửi sau 30 phút không hoạt động. Yêu cầu đã gửi và đang chờ vẫn thuộc nhóm đã gửi.
-- Tác vụ lúc 03:35 theo giờ Việt Nam dọn dữ liệu tracking quá 90 ngày. Dùng `TRACKING_ENABLED=false` ở môi trường kiểm thử và khi chạy tự động hóa trên dữ liệu dùng chung. Phiên đã đăng nhập bằng SMS local và yêu cầu đặt bàn có khoản cọc DEMO được loại khỏi thống kê tương ứng.
+- Tác vụ lúc 03:35 theo giờ Việt Nam dọn dữ liệu tracking quá 90 ngày. Dùng `TRACKING_ENABLED=false` ở môi trường kiểm thử và khi chạy tự động hóa trên dữ liệu dùng chung. Dữ liệu tracking từ các phiên SMS local cũ và yêu cầu đặt bàn có khoản cọc DEMO được loại khỏi thống kê tương ứng.

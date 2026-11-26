@@ -25,7 +25,6 @@ import t3l.restaurant.t3l_restaurant.repository.DiningPaymentRepository;
 import t3l.restaurant.t3l_restaurant.security.GoogleOAuthFlow;
 import t3l.restaurant.t3l_restaurant.service.CustomerAccountService;
 import t3l.restaurant.t3l_restaurant.service.CustomerAccountService.DuplicateEmailException;
-import t3l.restaurant.t3l_restaurant.service.PhoneCustomerService;
 import t3l.restaurant.t3l_restaurant.service.PaymentIntentService;
 import t3l.restaurant.t3l_restaurant.service.ReservationService;
 
@@ -208,8 +207,6 @@ public class CustomerAccountController {
       model.addAttribute("profileForm", customers.profileForm(account, profile));
     }
     model.addAttribute("linkedGoogleEmail", profile.getGoogleEmail());
-    model.addAttribute("verifiedPhone", account.getVerifiedPhone());
-    model.addAttribute("localCustomer", PhoneCustomerService.isLocal(account));
     return page(model, "profile", "Tài khoản");
   }
 

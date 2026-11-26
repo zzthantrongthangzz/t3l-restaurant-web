@@ -171,7 +171,7 @@ public class DiningOrderService {
     payments.saveAndFlush(new DiningPayment(order, shift, method, transferReference, applied, actor, paidAt));
     booking.settleDeposit(applied, paidAt);
     if (applied.signum() > 0) markDepositIntentApplied(reservationId);
-    vouchers.consume(order,booking.isDepositDemo());
+    vouchers.consume(order,false);
     order.markPaid();
     bookingService.finishService(booking, actor, now());
     if (applied.signum() > 0) emails.enqueue(booking,
@@ -208,21 +208,20 @@ public class DiningOrderService {
     if (reference == null || payments.existsByTransferReference(reference)) {
       throw new BookingException(null, "Giao dịch này đã được ghi nhận cho một hóa đơn khác.");
     }
-    payments.saveAndFlush(new DiningPayment(order, shift, "TRANSFER", reference, applied, actor, now(), intent.isDemo()));
+    payments.saveAndFlush(new DiningPayment(order, shift, "TRANSFER", reference, applied, actor, now(), false));
     booking.settleDeposit(applied, now());
     if (applied.signum() > 0) markDepositIntentApplied(reservationId);
     order.markPaid();
     bookingService.finishService(booking, actor, now());
-    vouchers.consume(order,intent.isDemo());
+    vouchers.consume(order,false);
     intent.markApplied(now());
     if (applied.signum() > 0) emails.enqueue(booking,
         t3l.restaurant.t3l_restaurant.entity.ReservationEmail.Kind.DEPOSIT_APPLIED, null,
-        "Đã khấu trừ " + applied.toPlainString() + " đ, thu thêm " + balance.toPlainString() + " đ."
-            + (intent.isDemo() ? " Khoản thanh toán hóa đơn này ở chế độ DEMO." : ""));
+        "Đã khấu trừ " + applied.toPlainString() + " đ, thu thêm " + balance.toPlainString() + " đ.");
   }
 
   private void requireManualPaymentMethod(String method) {
-    if ("CASH".equals(method) || "CARD".equals(method) || "DEPOSIT".equals(method)) return;
+    if ("CASH".equals(method) || "DEPOSIT".equals(method)) return;
     throw new BookingException(null, "Phương thức thanh toán không hợp lệ.");
   }
 

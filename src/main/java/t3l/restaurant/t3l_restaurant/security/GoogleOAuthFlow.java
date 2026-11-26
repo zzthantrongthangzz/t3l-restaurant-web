@@ -109,7 +109,7 @@ public class GoogleOAuthFlow {
           var identity = GoogleCustomerService.GoogleProfile.from(user);
           if ("email_in_use".equals(exception.getError().getErrorCode()) && customers.canRecover(identity)) {
             SecurityContextHolder.setContext(previousContext);
-            recovery.begin(request.getSession(), null, identity, returnTarget(request));
+            recovery.begin(request.getSession(), identity, returnTarget(request));
             response.sendRedirect(request.getContextPath() + "/login/recover");
             return;
           }

@@ -68,7 +68,12 @@ public class UserAccount {
   public void updateCustomerContact(String fullName, String email, String phone) {
     this.fullName = fullName;
     this.email = email;
-    this.phone = verifiedPhone == null ? phone : verifiedPhone;
+    if (verifiedPhone != null && !phoneDigits(verifiedPhone).equals(phoneDigits(phone))) verifiedPhone = null;
+    this.phone = phone;
+  }
+
+  private String phoneDigits(String value) {
+    return value == null ? "" : value.replaceAll("\\D", "");
   }
 
   public void verifyPhone(String phone) {

@@ -185,6 +185,8 @@ a.staff-metric:hover { border-color: var(--accent-text); background: var(--surfa
 .staff-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 .staff-link-button { min-height: 34px; padding: 4px 0; border: 0; background: none; font: 600 var(--text-label)/var(--leading-control) var(--font-sans); cursor: pointer; }
 .staff-actions { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.staff-panel form[action*="/voucher"] { align-items: end; }
+.staff-panel form[action*="/voucher"] .staff-field { flex: 0 1 320px; }
 .staff-panel > .staff-actions { margin-top: 15px; }
 
 .staff-form { display: grid; gap: 16px; }

@@ -61,7 +61,6 @@ public class GoogleCustomerService {
   public String link(Long accountId, OidcUser user) {
     GoogleProfile google = GoogleProfile.from(user);
     UserAccount account = lockCustomer(accountId);
-    if (account.getVerifiedPhone() == null) throw new OAuth2AuthenticationException("customer_unavailable");
     var profile = profiles.findById(accountId).orElseGet(() -> new CustomerProfile(account));
     Long linkedId = profiles.findAccountIdByGoogleSubject(google.subject()).orElse(null);
     if ((linkedId != null && !linkedId.equals(accountId))

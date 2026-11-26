@@ -1,6 +1,6 @@
 <dl xmlns:th="http://www.thymeleaf.org" th:fragment="totals(view)" class="staff-details">
   <div th:if="${view.order.voucherCode != null}"><dt>Tiền món trước giảm</dt><dd th:text="${#numbers.formatInteger(view.order.currentTotal,1,'POINT') + ' đ'}"></dd></div>
-  <div th:if="${view.order.voucherCode != null}"><dt th:text="${'Voucher ' + view.order.voucherCode != null}"></dt><dd th:text="${'−' + #numbers.formatInteger(view.order.voucherDiscount,1,'POINT') + ' đ'}"></dd></div>
+  <div th:if="${view.order.voucherCode != null}"><dt th:text="${'Voucher ' + view.order.voucherCode}"></dt><dd th:text="${'−' + #numbers.formatInteger(view.order.voucherDiscount,1,'POINT') + ' đ'}"></dd></div>
   <div><dt>Tổng hóa đơn</dt><dd th:text="${#numbers.formatInteger(view.total,1,'POINT') + ' đ'}"></dd></div>
   <div><dt>Cọc đã nhận</dt><dd th:text="${#numbers.formatInteger(view.booking.depositPaid,1,'POINT') + ' đ'}"></dd></div>
   <div><dt>Cọc khấu trừ</dt><dd th:text="${#numbers.formatInteger(view.depositApplied,1,'POINT') + ' đ'}"></dd></div>

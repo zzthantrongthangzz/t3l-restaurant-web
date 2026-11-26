@@ -69,31 +69,27 @@ public class PaymentVerificationService {
   }
 
   @Transactional(isolation = Isolation.READ_COMMITTED)
-  public PaymentIntent simulate(String paymentCode) {
-    return simulate(paymentCode, true, false);
+  public PaymentIntent simulateDepositAsPaid(String paymentCode) {
+    return simulateAsPaid(paymentCode, PaymentIntent.DEPOSIT);
   }
 
   @Transactional(isolation = Isolation.READ_COMMITTED)
-  public PaymentIntent simulateDepositAsPaid(String paymentCode) {
-    return simulate(paymentCode, false, true);
+  public PaymentIntent simulateInvoiceAsPaid(String paymentCode) {
+    return simulateAsPaid(paymentCode, PaymentIntent.INVOICE);
   }
 
-  private PaymentIntent simulate(String paymentCode, boolean demo, boolean depositOnly) {
+  private PaymentIntent simulateAsPaid(String paymentCode, String expectedType) {
     if (!properties.demoAllowed()) throw new org.springframework.web.server.ResponseStatusException(
         org.springframework.http.HttpStatus.NOT_FOUND);
     PaymentIntent intent = intents.findByPaymentCode(paymentCode)
         .orElseThrow(() -> new BookingException(null, "Không tìm thấy yêu cầu thanh toán."));
-    if (depositOnly && !PaymentIntent.DEPOSIT.equals(intent.getPaymentType())) {
-      throw new BookingException(null, "Yêu cầu thanh toán này không phải tiền cọc.");
+    if (!expectedType.equals(intent.getPaymentType())) {
+      throw new BookingException(null, "Yêu cầu thanh toán không đúng loại.");
     }
     var now = now();
-    String account = properties.bankAccount().isBlank() ? "DEMO-ACCOUNT" : properties.bankAccount();
-    String prefix = demo ? "DEMO-" : "SIM-";
-    String reference = demo ? "DEMO-" + intent.getPaymentCode() : "SIM-" + intent.getPaymentCode();
-    String content = demo ? "DEMO " + intent.getPaymentCode() : intent.getPaymentCode();
-    var incoming = new Incoming(prefix + intent.getId(), reference, account,
-        "in", intent.getAmount(), BigDecimal.ZERO, content, now);
-    process(intent.getId(), incoming, demo);
+    var incoming = new Incoming("SIM-" + intent.getId(), "SIM-" + intent.getPaymentCode(), properties.bankAccount(),
+        "in", intent.getAmount(), BigDecimal.ZERO, intent.getPaymentCode(), now);
+    process(intent.getId(), incoming, false);
     return intents.findByPaymentCode(paymentCode).orElseThrow();
   }
 

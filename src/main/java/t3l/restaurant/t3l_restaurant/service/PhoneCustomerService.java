@@ -30,9 +30,27 @@ public class PhoneCustomerService {
   }
 
   public boolean canRegister(String phone) {
-    return phone != null
-        && accounts.findByVerifiedPhone(phone).isEmpty()
-        && !canRecover(phone);
+    return phone != null && findPhoneMatches(phone).isEmpty();
+  }
+
+  @Transactional(isolation = Isolation.READ_COMMITTED)
+  public UserAccount registerPassword(String fullName, String inputPhone, String encodedPassword) {
+    String name = fullName == null ? "" : fullName.strip().replaceAll("\\s+", " ");
+    String phone = SmsOtpService.normalizePhone(inputPhone);
+    if (name.isBlank() || name.length() > 120 || phone == null
+        || encodedPassword == null || encodedPassword.isBlank() || encodedPassword.length() > 100) {
+      throw new IllegalArgumentException("Vui lòng kiểm tra lại thông tin đăng ký.");
+    }
+    if (!canRegister(phone)) {
+      throw new IllegalArgumentException("Số điện thoại đã có tài khoản hoặc hồ sơ khách. Vui lòng đăng nhập hoặc liên hệ nhà hàng.");
+    }
+    return accounts.saveAndFlush(UserAccount.customer(name, null, phone, "phone:" + phone, encodedPassword));
+  }
+
+  public java.util.List<UserAccount> findPhoneMatches(String phone) {
+    String digits = phone.replace("+", "");
+    String alternate = SmsOtpService.normalizePhone(phone) == null ? digits : "84" + digits.substring(1);
+    return accounts.findBuyersByContactPhone(digits, alternate);
   }
 
   @Transactional(isolation = Isolation.READ_COMMITTED)

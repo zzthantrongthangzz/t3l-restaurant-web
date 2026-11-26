@@ -256,7 +256,7 @@ public class StaffController {
     var booking = requireBooking(id).booking();
     var payment = paymentIntents.depositStatus(booking);
     var actions = workspace.actions(booking, shifts.current(actor.getName()) != null);
-    return new PaymentIntentService.PaymentStatus(payment.status(), payment.label(), payment.demo(),
+    return new PaymentIntentService.PaymentStatus(payment.status(), payment.label(),
         payment.confirmEnabled(), payment.remainingSeconds(), actions.receiveEnabled(), actions.receiveReason());
   }
 
@@ -431,10 +431,10 @@ public class StaffController {
 
   @PostMapping("/orders/{id}/payment-demo")
   public String demoInvoicePayment(@PathVariable Long id, Authentication actor, RedirectAttributes redirect) {
-    return action(redirect, ORDERS + "/" + id, "Đã xác minh khoản thanh toán hóa đơn DEMO.", () -> {
+    return action(redirect, ORDERS + "/" + id, "Đã ghi nhận thanh toán hóa đơn.", () -> {
       var checkout = paymentIntents.invoiceCheckout(id);
       if (checkout == null) throw new BookingException(null, "Hãy tạo mã QR trước khi giả lập thanh toán.");
-      paymentVerification.simulate(checkout.intent().getPaymentCode());
+      paymentVerification.simulateInvoiceAsPaid(checkout.intent().getPaymentCode());
     });
   }
 

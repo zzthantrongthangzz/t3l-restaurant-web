@@ -25,9 +25,8 @@
       <div class="account-field account-full account-contact-field">
         <label for="phone">Số điện thoại</label>
         <input type="tel" th:field="*{phone}" th:errorclass="is-invalid" autocomplete="tel" maxlength="30"
-            th:required="${requirePhone and verifiedPhone == null}" th:readonly="${verifiedPhone != null}" />
+            th:required="${requirePhone}" />
         <small th:errors="*{phone}"></small>
-        <small class="account-muted" th:if="${verifiedPhone != null}">Đã xác thực qua SMS</small>
       </div>
       <div class="account-field account-full">
         <label for="dietaryPreferences">Chế độ ăn đặc biệt <span class="account-muted">(tùy chọn)</span></label>
@@ -74,25 +73,10 @@
             <div class="account-provider-actions">
               <span class="account-status" th:classappend="${linkedGoogleEmail != null ? 'is-linked' : 'is-unlinked'}"
                   th:text="${linkedGoogleEmail != null ? 'Đã liên kết' : 'Chưa liên kết'}"></span>
-              <form method="post" th:if="${googleEnabled and linkedGoogleEmail == null and verifiedPhone != null}"
+              <form method="post" th:if="${googleEnabled and linkedGoogleEmail == null}"
                   th:action="@{/account/google/link}">
                 <button class="account-button" type="submit">Liên kết với Google</button>
               </form>
-            </div>
-          </div>
-          <div class="account-provider">
-            <span class="account-provider-icon">
-              <svg th:replace="~{account/fragments/navigation :: icon('phone')}"></svg>
-            </span>
-            <div class="account-provider-label">
-              <strong>Số điện thoại</strong>
-              <span class="account-muted" th:if="${verifiedPhone != null}" th:text="${verifiedPhone}"></span>
-            </div>
-            <div class="account-provider-actions">
-              <span class="account-status" th:classappend="${verifiedPhone != null ? 'is-linked' : 'is-unlinked'}"
-                  th:text="${verifiedPhone != null ? 'Đã xác thực SMS' : 'Chưa xác thực SMS'}"></span>
-              <a class="account-text-action" th:unless="${localCustomer}" th:href="@{/account/sms}"
-                  th:text="${verifiedPhone == null ? 'Liên kết số điện thoại' : 'Đổi số điện thoại đã xác thực'}"></a>
             </div>
           </div>
         </div>
