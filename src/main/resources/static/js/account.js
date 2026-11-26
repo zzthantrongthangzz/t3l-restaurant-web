@@ -17,6 +17,13 @@ window.t3lPage.register(({ signal }) => {
     signal.addEventListener('abort', () => observer.disconnect(), { once: true });
   }
 
+  const depositLinks = [...document.querySelectorAll('[data-deposit-seconds]')];
+  if (depositLinks.length) {
+    const seconds = Math.min(...depositLinks.map(link => Number(link.dataset.depositSeconds)));
+    const timer = window.setTimeout(() => window.location.reload(), seconds * 1000);
+    signal.addEventListener('abort', () => window.clearTimeout(timer), { once: true });
+  }
+
   const form = document.querySelector('[data-account-profile]');
   if (!form) return;
 

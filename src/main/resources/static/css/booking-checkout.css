@@ -1,0 +1,400 @@
+.booking-checkout {
+  --checkout-gutter: clamp(16px, 4vw, 58px);
+  --checkout-menu-width: min(1360px, calc(100% - 2 * var(--checkout-gutter)));
+  min-height: 70vh;
+  background: radial-gradient(ellipse at 74% 0, color-mix(in srgb, var(--accent) 9%, var(--page)), transparent 44rem), var(--page);
+  color: var(--text);
+}
+
+.booking-checkout-inner {
+  width: min(1180px, calc(100% - 2 * var(--checkout-gutter)));
+  margin-inline: auto;
+  padding-block: clamp(26px, 4.5vw, 62px);
+}
+.booking-checkout-inner:has([data-booking-ready] [data-booking-panel="2"]:not([hidden])) {
+  width: var(--checkout-menu-width);
+}
+
+.booking-checkout [data-booking-flow]:not([data-booking-ready]) [data-booking-js] { display: none; }
+.booking-checkout [data-booking-flow]:not([data-booking-ready]) .checkout-step + .checkout-step { margin-top: 32px; }
+.booking-checkout :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.booking-checkout h1 { font: 500 clamp(2rem, 4.2vw, 3.75rem)/1.13 var(--font-serif); letter-spacing: -.035em; }
+.booking-checkout h2 { font: 500 clamp(1.65rem, 2.6vw, 2.35rem)/1.22 var(--font-serif); letter-spacing: -.02em; }
+.booking-checkout h3 { font: 500 1.3rem/1.25 var(--font-serif); }
+.booking-checkout h2:focus { outline: none; }
+.booking-checkout .checkout-muted { color: var(--text-muted); font-size: .875rem; }
+
+.booking-checkout-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px 24px;
+  margin-bottom: clamp(16px, 3vw, 28px);
+}
+
+.booking-checkout .checkout-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-text);
+  font-size: .86rem;
+  font-weight: 650;
+  text-align: center;
+}
+
+.booking-checkout .checkout-link:hover { text-decoration: underline; text-underline-offset: 4px; }
+.checkout-progress { margin-bottom: clamp(23px, 4vw, 38px); }
+.checkout-progress ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(4px, 1.3vw, 14px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.checkout-progress button {
+  display: flex;
+  align-items: center;
+  gap: clamp(5px, 1.3vw, 12px);
+  width: 100%;
+  min-height: 54px;
+  padding: 8px clamp(6px, 1.3vw, 14px);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: clamp(.72rem, 1.65vw, .9rem);
+  font-weight: 650;
+  line-height: 1.25;
+  text-align: start;
+}
+.checkout-progress button span {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: clamp(22px, 4.5vw, 31px);
+  aspect-ratio: 1;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+.checkout-progress button:disabled { cursor: default; }
+.checkout-progress button:is([data-complete], [aria-current]) { color: var(--accent-text); }
+.checkout-progress button:is([data-complete], [aria-current]) span { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
+.checkout-progress button[aria-current] { border-color: var(--accent); background: var(--accent-wash); }
+.checkout-progress button[aria-current] span { background: var(--action); color: var(--on-action); }
+
+.checkout-step-heading { margin-bottom: clamp(14px, 2vw, 24px); }
+.checkout-step-heading p { margin-top: 5px; }
+.checkout-details,
+.checkout-review,
+.checkout-menu {
+  display: grid;
+  align-items: start;
+  gap: clamp(14px, 2vw, 24px);
+}
+.checkout-details { grid-template-columns: minmax(0, .8fr) minmax(0, 1.4fr); }
+.checkout-review { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+.checkout-menu { grid-template-columns: minmax(0, 1fr) clamp(260px, 26vw, 340px); }
+.checkout-review-main { display: grid; gap: clamp(14px, 2vw, 24px); }
+.checkout-card {
+  min-width: 0;
+  padding: clamp(14px, 2.4vw, 26px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.checkout-card h3 { margin-bottom: 14px; }
+.checkout-table { border-top-color: var(--accent); }
+.checkout-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+.checkout-summary div { min-width: 0; padding: 0 0 8px; border-bottom: 1px solid var(--border); }
+.checkout-summary dt { color: var(--text-muted); font-size: .78rem; }
+.checkout-summary dd { margin: 2px 0 0; font-weight: 650; overflow-wrap: anywhere; white-space: pre-wrap; }
+.checkout-table .checkout-summary div:first-child dd { color: var(--accent-text); }
+.checkout-contact-summary { margin-top: 16px; }
+.checkout-contact > p { margin-bottom: 12px; }
+.checkout-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 14px;
+}
+.checkout-full { grid-column: 1 / -1; }
+.booking-checkout label:not(.checkout-consent) {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  color: var(--text);
+  font-size: .86rem;
+  font-weight: 550;
+}
+.booking-checkout label small { color: var(--text-muted); font-size: .8rem; font-weight: 400; }
+.booking-checkout :is(input:not([type=checkbox]), select, textarea) {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 11px;
+  border: 1px solid var(--control-border);
+  border-radius: 7px;
+  background: var(--page);
+  color: var(--text);
+  font: 400 1rem/1.35 var(--font-sans);
+}
+.booking-checkout input[readonly] { color: var(--text-muted); border-color: var(--border); background: var(--surface-muted); }
+.booking-checkout [aria-invalid=true] { border-color: var(--error); }
+.booking-checkout textarea { resize: vertical; }
+
+.booking-checkout .preorder-filters {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 440px;
+  margin-bottom: 10px;
+}
+.checkout-category-tabs {
+  display: flex;
+  gap: 6px;
+  max-width: 100%;
+  margin-bottom: 12px;
+  padding: 3px 0 6px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.checkout-category-tabs button {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 6px 13px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: .84rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.checkout-category-tabs button:focus-visible { outline-offset: -3px; }
+.checkout-category-tabs button:hover,
+.checkout-category-tabs button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  color: var(--accent-text);
+}
+.booking-checkout .preorder-products {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 10px;
+  max-height: none;
+  padding: 0;
+  overflow: visible;
+}
+.booking-checkout .preorder-product {
+  grid-template: auto 1fr auto / minmax(0, 1fr);
+  align-items: start;
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+}
+.booking-checkout .preorder-product:has([data-preorder-step="-1"]:enabled) { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+.booking-checkout .preorder-product-media {
+  position: relative;
+  isolation: isolate;
+  justify-self: center;
+  width: min(100%, clamp(120px, 11vw, 176px));
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--menu-plate);
+  box-shadow: 0 8px 18px -9px var(--menu-plate-shadow);
+}
+.booking-checkout .preorder-product-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--menu-plate-rim);
+  border-radius: inherit;
+  pointer-events: none;
+}
+.booking-checkout .preorder-product-media img {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  background: transparent;
+  object-fit: cover;
+  mix-blend-mode: lighten;
+  mask-image: radial-gradient(ellipse closest-side, currentColor 88%, transparent 100%);
+}
+.booking-checkout .preorder-product-media img[src$="dish-placeholder.svg"] {
+  object-fit: contain;
+  padding: 13%;
+}
+.booking-checkout .preorder-product-info { min-width: 0; overflow-wrap: anywhere; }
+.booking-checkout .preorder-product-info h3 {
+  margin: 2px 0 4px;
+  font: 500 clamp(1rem, 1.4vw, 1.18rem)/1.25 var(--font-serif);
+}
+.booking-checkout .preorder-product-info small { color: var(--text-muted); font-size: .78rem; }
+.booking-checkout .preorder-stepper {
+  grid-template-columns: 44px minmax(22px, auto) 44px;
+  justify-self: start;
+  gap: 4px;
+  font-size: .87rem;
+}
+.booking-checkout .preorder-stepper button {
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  font-size: 1.05rem;
+}
+.booking-checkout .preorder-stepper button:hover:enabled { border-color: var(--accent); }
+.booking-checkout .preorder-stepper button[data-preorder-step="1"]:enabled { background: var(--accent-wash); }
+.checkout-cart {
+  min-height: 105px;
+  padding: clamp(14px, 1.6vw, 22px);
+}
+.checkout-cart-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
+.checkout-cart-heading h3 { margin: 0; }
+.checkout-cart-heading [data-booking-cart-count] { white-space: nowrap; }
+.checkout-cart [data-booking-cart-content] { margin-top: 7px; }
+.checkout-cart [data-booking-cart-note] { margin-top: 12px; }
+.checkout-cart .preorder-stepper { grid-column: 1 / -1; grid-template-columns: 44px minmax(22px, auto) 44px minmax(44px, auto); }
+.checkout-cart .preorder-stepper [data-preorder-remove] {
+  width: auto;
+  padding-inline: 8px;
+  border-color: transparent;
+  background: transparent;
+  font-size: .82rem;
+}
+.checkout-lines { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.checkout-lines li, .checkout-totals div, .checkout-cart-total {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 6px 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: .875rem;
+  overflow-wrap: anywhere;
+}
+.checkout-lines strong, .checkout-cart-total strong { color: var(--accent-text); font-weight: 650; }
+.checkout-cart-total { margin-bottom: 8px; border-bottom: 0; font-weight: 650; }
+.checkout-cart-total + dl { margin-top: 7px; }
+.checkout-cart textarea { margin-top: 2px; }
+
+.booking-checkout .preorder-voucher { margin: 0 0 15px; padding: 0 0 14px; border-top: 0; }
+.checkout-payment .preorder-voucher-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 7px;
+}
+.checkout-payment .preorder-voucher-entry label { flex: 1 1 150px; }
+.checkout-payment .preorder-voucher-entry button { min-height: 44px; padding: 6px 12px; border-radius: 7px; }
+.checkout-payment .preorder-voucher-entry button:enabled:hover { background: var(--accent-wash); border-color: var(--accent); }
+.checkout-payment .preorder-hint { margin: 0; }
+.checkout-payment [data-invalid] { color: var(--error); }
+.checkout-totals { margin: 0; }
+.checkout-totals dt { color: var(--text-muted); }
+.checkout-totals dd { margin: 0; text-align: end; font-weight: 650; }
+.checkout-totals .checkout-deposit { padding-block: 12px; }
+.checkout-deposit dt, .checkout-deposit dd { color: var(--accent-text); font-weight: 700; }
+.checkout-policy { margin-block: 13px; padding-block: 4px 12px; border-bottom: 1px solid var(--border); font-size: .875rem; }
+.checkout-policy summary { width: fit-content; color: var(--accent-text); cursor: pointer; }
+.checkout-policy p { margin-top: 7px; color: var(--text-muted); }
+.checkout-consent { display: flex; align-items: start; gap: 8px; margin-block: 8px 12px; font-size: .87rem; cursor: pointer; }
+.checkout-consent input { width: 17px; height: 17px; flex: 0 0 17px; margin: 3px 0 0; accent-color: var(--accent); }
+.checkout-consent a { color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; }
+.checkout-feedback { margin-top: 7px; color: var(--text-muted); font-size: .82rem; }
+.checkout-feedback:empty, .checkout-payment .preorder-hint:empty { display: none; }
+.checkout-errors, .booking-checkout .checkout-notice {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.checkout-errors { border-color: var(--error-border); color: var(--error); }
+.checkout-errors ul { margin: 4px 0 0; padding-inline-start: 20px; }
+
+.checkout-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px clamp(10px, 2.4vw, 24px);
+  margin-top: 14px;
+  padding-block: 10px;
+  border-top: 1px solid var(--border);
+}
+.checkout-actions .checkout-link:first-child { margin-inline-end: auto; }
+.booking-checkout .checkout-primary { min-height: 48px; gap: 9px; padding-inline: clamp(10px, 2vw, 21px); border-radius: 7px; }
+.booking-checkout [aria-disabled=true] { cursor: wait; opacity: .75; }
+.checkout-menu-actions {
+  position: fixed;
+  z-index: 18;
+  inset-inline: 0;
+  bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 -4px 18px color-mix(in srgb, var(--shadow-ink) 12%, transparent);
+}
+.checkout-menu-action-inner {
+  width: var(--checkout-menu-width);
+  min-height: 64px;
+  margin: 0 auto;
+  padding-block: 8px;
+  border: 0;
+  flex-wrap: nowrap;
+}
+.checkout-menu-action-inner button { white-space: nowrap; }
+
+html:has(.booking-checkout [data-booking-ready] [data-booking-panel="2"]:not([hidden])) {
+  --checkout-menu-bar: var(--checkout-menu-bar-size, calc(65px + env(safe-area-inset-bottom, 0px)));
+  scroll-padding-bottom: calc(var(--checkout-menu-bar) + 16px);
+}
+.booking-checkout [data-booking-ready] [data-booking-panel="2"] { padding-bottom: var(--checkout-menu-bar); }
+.home:has(.booking-checkout [data-booking-ready] [data-booking-panel="2"]:not([hidden])) :is(.t3l-chat, .tracking-choice) {
+  bottom: calc(var(--checkout-menu-bar) + 12px);
+}
+
+@media (min-width: 1024px) {
+  .booking-checkout .preorder-products { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 881px) {
+  .checkout-cart {
+    position: sticky;
+    top: min(94px, calc(100dvh - var(--checkout-menu-bar, 65px) - var(--checkout-cart-height, 0px) - 12px));
+  }
+}
+@media (max-width: 880px) {
+  .checkout-menu { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .checkout-details, .checkout-review { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .booking-checkout .preorder-products { grid-template-columns: minmax(0, 1fr); }
+  .booking-checkout .preorder-product {
+    grid-template: 1fr auto / minmax(0, .56fr) minmax(0, 1fr);
+    align-items: center;
+  }
+  .booking-checkout .preorder-product-media { grid-row: 1 / -1; }
+}
+@media (max-width: 480px) {
+  .checkout-fields { grid-template-columns: minmax(0, 1fr); }
+  .checkout-progress button { gap: 4px; padding-inline: 4px; }
+}
+@media (max-width: 350px) {
+  .booking-checkout .checkout-actions .checkout-link { font-size: .77rem; }
+  .booking-checkout .checkout-primary { font-size: .8rem; }
+}

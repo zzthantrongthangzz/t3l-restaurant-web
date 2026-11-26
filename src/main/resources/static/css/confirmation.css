@@ -104,10 +104,19 @@
 
 .receipt-deposit li small { display: block; overflow-wrap: anywhere; }
 .deposit-payment { display: grid; gap: 1rem; }
-.deposit-amounts { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .6rem 1rem; }
-.deposit-amounts p, .deposit-bank-info p { display: flex; justify-content: space-between; gap: 1rem; margin: 0; }
+.deposit-amounts { display: grid; gap: .5rem; margin: 0; }
+.deposit-amounts > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem 1rem; }
+.deposit-amounts dd {
+  margin: 0 0 0 auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.deposit-bank-info p { display: flex; justify-content: space-between; gap: 1rem; margin: 0; }
 .deposit-payment-status { margin: 0; color: var(--warning); font-weight: 700; }
 .deposit-payment[data-status="RECEIVED"] .deposit-payment-status,
+.deposit-payment[data-status="PAID"] .deposit-payment-status,
 .deposit-payment[data-status="CONFIRMED"] .deposit-payment-status { color: var(--success); }
 .deposit-payment[data-status="REVIEW_REQUIRED"] .deposit-payment-status,
 .deposit-payment[data-status="EXPIRED"] .deposit-payment-status { color: var(--error); }

@@ -70,6 +70,7 @@ public class ReservationManagementService {
 
   @Transactional(readOnly = true)
   public String preorderBlockedReason(Reservation booking) {
+    if (booking.getTable() == null) return "Chỉ chọn món khi đặt bàn đã có bàn được phân.";
     String reason = requestBlockedReason(booking);
     if (reason == null && "TRANSFER_SUBMITTED".equals(booking.getDepositStatus())) {
       return "Vui lòng đợi đối soát tiền cọc trước khi đổi món.";

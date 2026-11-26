@@ -26,6 +26,7 @@ import t3l.restaurant.t3l_restaurant.security.GoogleOAuthFlow;
 import t3l.restaurant.t3l_restaurant.service.CustomerAccountService;
 import t3l.restaurant.t3l_restaurant.service.CustomerAccountService.DuplicateEmailException;
 import t3l.restaurant.t3l_restaurant.service.PhoneCustomerService;
+import t3l.restaurant.t3l_restaurant.service.PaymentIntentService;
 import t3l.restaurant.t3l_restaurant.service.ReservationService;
 
 @Controller
@@ -38,15 +39,18 @@ public class CustomerAccountController {
   private final DiningOrderRepository diningOrders;
   private final DiningPaymentRepository diningPayments;
   private final GoogleOAuthFlow google;
+  private final PaymentIntentService paymentIntents;
   private final t3l.restaurant.t3l_restaurant.service.VoucherService vouchers;
 
   public CustomerAccountController(CustomerAccountService customers, ReservationService reservations, DiningOrderRepository diningOrders,
-      DiningPaymentRepository diningPayments, GoogleOAuthFlow google,t3l.restaurant.t3l_restaurant.service.VoucherService vouchers) {
+      DiningPaymentRepository diningPayments, GoogleOAuthFlow google, PaymentIntentService paymentIntents,
+      t3l.restaurant.t3l_restaurant.service.VoucherService vouchers) {
     this.customers = customers;
     this.reservations = reservations;
     this.diningOrders = diningOrders;
     this.diningPayments = diningPayments;
     this.google = google;
+    this.paymentIntents = paymentIntents;
     this.vouchers=vouchers;
   }
 
@@ -93,12 +97,13 @@ public class CustomerAccountController {
       Model model) {
     boolean past = "past".equals(tab);
     model.addAttribute("tab", past ? "past" : "upcoming");
-    var bookings=reservations.customerBookings(customers.signedInCustomer(authentication).getId(),past);
-    model.addAttribute("bookings",bookings);
-    var voucherOrders=bookings.isEmpty() ? java.util.Map.of() : diningOrders.findByReservation_IdIn(bookings.stream().map(b -> b.getId()).toList())
-        .stream().filter(order -> order.getVoucherCode()!=null).collect(java.util.stream.Collectors.toMap(
-          order -> order.getReservation().getId(),java.util.function.Function.identity()));
-    model.addAttribute("voucherOrders",voucherOrders);
+    var bookings = reservations.customerBookings(customers.signedInCustomer(authentication).getId(), past);
+    model.addAttribute("bookings", bookings);
+    var bookingOrders = bookings.isEmpty() ? Map.of()
+        : diningOrders.findWithItemsByReservation_IdIn(bookings.stream().map(booking -> booking.getId()).toList())
+            .stream().collect(Collectors.toMap(order -> order.getReservation().getId(), Function.identity()));
+    model.addAttribute("bookingOrders", bookingOrders);
+    model.addAttribute("bookingDeposits", paymentIntents.customerDepositStatuses(bookings));
     return page(model, "reservations", "Lịch sử đặt bàn");
   }
 

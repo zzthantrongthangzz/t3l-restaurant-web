@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="robots" content="noindex,nofollow,noarchive" />
     <meta name="referrer" content="no-referrer" />
-    <title>Tra cứu đặt bàn | T3L Restaurant</title>
+    <title th:text="${ownedBooking == true ? 'Chi tiết đặt bàn | T3L Restaurant' : 'Tra cứu đặt bàn | T3L Restaurant'}"></title>
     <th:block th:replace="~{web/fragments/theme :: start}"></th:block>
     <link rel="stylesheet" th:href="@{/css/home.css}" />
     <link rel="stylesheet" th:href="@{/css/confirmation.css(v=2)}" />
@@ -14,6 +14,7 @@
     <link rel="stylesheet" th:href="@{/css/account.css}" th:if="${ownedBooking == true}" />
     <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
     <script data-page-script defer th:src="@{/js/account.js}" th:if="${ownedBooking == true}"></script>
+    <script data-page-script defer th:src="@{/js/payment-status.js}" th:if="${reservation != null}"></script>
   </head>
   <body class="home lookup-page" th:classappend="${ownedBooking == true ? 'account-page' : ''}">
     <a class="skip-link" th:href="${ownedBooking == true ? '#account-content' : '#lookup-form'}" th:text="${ownedBooking == true ? 'Chuyển đến chi tiết đặt bàn' : 'Chuyển đến form tra cứu'}"></a>
@@ -23,7 +24,7 @@
         <th:block th:if="${ownedBooking == true}"><aside th:replace="~{account/fragments/sidebar :: customer('reservations', 'Khách T3L')}"></aside></th:block>
         <div class="account-content" id="account-content" tabindex="-1" th:remove="${ownedBooking == true ? 'none' : 'tag'}">
         <header class="account-heading" th:if="${ownedBooking == true}">
-          <a class="account-text-action" th:href="@{/account/reservations}">← Lịch sử đặt bàn</a>
+          <a class="account-text-action" th:href="${pastBooking} ? @{/account/reservations(tab='past')} : @{/account/reservations}">← Lịch sử đặt bàn</a>
           <h1>Chi tiết đặt bàn</h1>
         </header>
         <section class="lookup-intro" aria-labelledby="lookup-title" th:unless="${ownedBooking == true}">
@@ -41,6 +42,8 @@
         </form>
         <div class="lookup-alert is-error" role="alert" th:if="${lookupError}" th:text="${lookupError}"></div>
         <div class="lookup-alert is-success" role="status" th:if="${lookupNotice}" th:text="${lookupNotice}"></div>
+        <div class="lookup-alert is-error" role="alert" th:if="${error != null}" th:text="${error}"></div>
+        <div class="lookup-alert is-success" role="status" th:if="${notice != null}" th:text="${notice}"></div>
 
         <section class="lookup-search-results" th:if="${lookupResults != null}" aria-labelledby="lookup-results-title">
           <h2 id="lookup-results-title" th:text="${#lists.size(lookupResults) + ' lượt đặt bàn khớp số điện thoại'}"></h2>
@@ -58,28 +61,47 @@
           <form class="lookup-alert" th:if="${canClaimBooking}" th:action="@{/reservations/lookup/{code}/claim(code=${reservation.code})}" method="post">
             <button class="home-button" type="submit">Thêm đặt bàn vào tài khoản</button>
           </form>
-          <div class="lookup-result-heading"><div th:unless="${ownedBooking == true}"><p class="home-eyebrow">THÔNG TIN ĐẶT BÀN</p><h2>Hẹn bạn <em>tại T3L.</em></h2></div><a class="home-text-link" th:href="@{/reservations/lookup(code=${reservation.code})}">Cập nhật trạng thái <span aria-hidden="true">↻</span></a></div>
-          <div class="lookup-result-grid">
+          <th:block th:if="${ownedBooking == true}">
+            <section th:replace="~{web/fragments/booking-details :: status(${reservation},${paymentStatus})}"></section>
+          </th:block>
+          <div class="lookup-result-heading" th:unless="${ownedBooking == true}"><div><p class="home-eyebrow">THÔNG TIN ĐẶT BÀN</p><h2>Hẹn bạn <em>tại T3L.</em></h2></div><a class="home-text-link" th:href="@{/reservations/lookup(code=${reservation.code})}">Cập nhật trạng thái <span aria-hidden="true">↻</span></a></div>
+          <div class="lookup-result-grid" th:classappend="${ownedBooking == true ? 'booking-detail-grid' : ''}">
+            <aside class="booking-detail-payment" th:if="${ownedBooking == true}">
+              <section th:replace="~{web/fragments/deposit :: details(${reservation})}"></section>
+              <section class="lookup-receipt" th:if="${reservation.depositAmount.signum() == 0 and reservation.depositPaid.signum() == 0}">
+                <h2>Tiền đặt cọc</h2><p class="account-muted">Không yêu cầu cọc.</p>
+              </section>
+            </aside>
+            <div class="booking-detail-main" th:remove="${ownedBooking == true ? 'none' : 'tag'}">
             <section class="lookup-receipt" aria-labelledby="lookup-details-title">
-              <div class="lookup-receipt-top"><h3 id="lookup-details-title" th:text="${reservation.code}"></h3><span class="lookup-status" th:attr="data-status=${reservation.status}" th:text="${reservation.statusLabel}"></span></div>
+              <h2 id="lookup-details-title" th:if="${ownedBooking == true}">Thông tin đặt bàn</h2>
+              <div class="lookup-receipt-top" th:unless="${ownedBooking == true}"><h3 id="lookup-details-title" th:text="${reservation.code}"></h3><span class="lookup-status" th:attr="data-status=${reservation.status}" th:text="${reservation.statusLabel}"></span></div>
               <dl class="lookup-details">
                 <div><dt>Họ và tên</dt><dd th:text="${reservation.guestName}"></dd></div>
                 <div><dt>Số điện thoại</dt><dd th:text="${reservation.guestPhone}"></dd></div>
+                <div class="lookup-full" th:if="${ownedBooking == true and !#strings.isEmpty(reservation.guestEmail)}"><dt>Email</dt><dd th:text="${reservation.guestEmail}"></dd></div>
                 <div><dt>Ngày đến</dt><dd th:text="${#temporals.format(reservation.reservationDate, 'dd/MM/yyyy')}"></dd></div>
                 <div><dt>Giờ đến</dt><dd th:text="${#temporals.format(reservation.reservationTime, 'HH:mm') + (reservation.endsAt != null ? ' – ' + #temporals.format(reservation.endsAt, 'HH:mm') : '')}"></dd></div>
                 <div><dt>Số khách</dt><dd th:text="${reservation.guestCount + ' khách'}"></dd></div>
-                <div><dt>Loại bàn</dt><dd th:text="${reservation.table != null ? reservation.table.kind.label : 'Chờ sắp xếp'}"></dd></div>
+                <div><dt>Bàn</dt><dd th:text="${reservation.table != null ? reservation.table.code + ' · ' + reservation.table.kind.label : 'Chờ sắp xếp'}"></dd></div>
                 <div class="lookup-full lookup-note"><dt>Ghi chú đặc biệt</dt><dd th:text="${reservation.note != null and !reservation.note.isBlank() ? reservation.note : 'Không có ghi chú đặc biệt.'}"></dd></div>
               </dl>
-              <section th:replace="~{web/fragments/deposit :: details(${reservation})}"></section>
-              <a class="home-text-link" th:href="@{/reservations/confirmation(code=${reservation.code})}">Xem trang xác nhận <span aria-hidden="true">↗</span></a>
+              <th:block th:unless="${ownedBooking == true}">
+                <section th:replace="~{web/fragments/deposit :: details(${reservation})}"></section>
+                <a class="home-text-link" th:href="@{/reservations/confirmation(code=${reservation.code})}">Xem trang xác nhận <span aria-hidden="true">↗</span></a>
+              </th:block>
             </section>
-            <aside class="lookup-policy"><p class="home-eyebrow">LINH HOẠT CHO BUỔI HẸN</p><h2>Thay đổi kế hoạch?<br /><em>Để T3L hỗ trợ.</em></h2><div class="lookup-policy-time"><span>THỜI HẠN GỬI YÊU CẦU</span><strong th:text="${#temporals.format(deadline, 'HH:mm · dd/MM/yyyy')}"></strong></div><p>Yêu cầu hủy hoặc thay đổi cần được gửi và duyệt trước giờ đặt tối thiểu <strong th:text="${changeNoticeMinutes + ' phút'}"></strong>.</p><p>Lịch hiện tại vẫn được giữ chỗ trong thời gian chờ. Thay đổi chỉ có hiệu lực sau khi nhân viên duyệt và kiểm tra lại bàn trống.</p><a class="home-text-link" th:href="@{/faq}">Thông tin hỗ trợ <span aria-hidden="true">↗</span></a></aside>
+            <th:block th:if="${ownedBooking == true}">
+              <section th:replace="~{web/fragments/booking-details :: order(${preorder},${reservation},${canEditPreorder})}"></section>
+            </th:block>
+            </div>
+            <aside class="lookup-policy" th:unless="${ownedBooking == true}"><p class="home-eyebrow">LINH HOẠT CHO BUỔI HẸN</p><h2>Thay đổi kế hoạch?<br /><em>Để T3L hỗ trợ.</em></h2><div class="lookup-policy-time"><span>THỜI HẠN GỬI YÊU CẦU</span><strong th:text="${#temporals.format(deadline, 'HH:mm · dd/MM/yyyy')}"></strong></div><p>Yêu cầu hủy hoặc thay đổi cần được gửi và duyệt trước giờ đặt tối thiểu <strong th:text="${changeNoticeMinutes + ' phút'}"></strong>.</p><p>Lịch hiện tại vẫn được giữ chỗ trong thời gian chờ. Thay đổi chỉ có hiệu lực sau khi nhân viên duyệt và kiểm tra lại bàn trống.</p><a class="home-text-link" th:href="@{/faq}">Thông tin hỗ trợ <span aria-hidden="true">↗</span></a></aside>
           </div>
 
           <section class="lookup-request-actions" aria-label="Yêu cầu hỗ trợ đặt bàn">
             <div class="lookup-alert" th:if="${blockedReason != null}" th:text="${blockedReason}"></div>
             <th:block th:if="${blockedReason == null}">
+              <p th:if="${ownedBooking == true}" class="account-muted" th:text="${'Hạn gửi yêu cầu: ' + #temporals.format(deadline, 'HH:mm · dd/MM/yyyy')}"></p>
               <details class="lookup-disclosure" th:open="${changeOpen}">
                 <summary>Yêu cầu thay đổi lịch <span aria-hidden="true">↗</span></summary>
                 <form class="booking-form lookup-change-form" th:action="@{/reservations/lookup/{code}/change(code=${reservation.code})}" th:object="${changeForm}" method="post">
@@ -106,7 +128,7 @@
             </th:block>
           </section>
 
-          <section class="lookup-history" th:if="${!#lists.isEmpty(history)}" aria-labelledby="history-title"><p class="home-eyebrow">ĐỒNG HÀNH CÙNG CUỘC HẸN</p><h2 id="history-title">Yêu cầu <em>của bạn.</em></h2>
+          <section class="lookup-history" th:if="${!#lists.isEmpty(history)}" aria-labelledby="history-title"><h2 id="history-title">Lịch sử yêu cầu</h2>
             <article class="lookup-history-card" th:each="item : ${history}">
               <div class="lookup-history-top"><h3 th:text="${item.typeLabel}"></h3><span class="lookup-status" th:attr="data-status=${item.status}" th:text="${item.statusLabel}"></span></div>
               <p class="lookup-history-date" th:text="${'Đã gửi ' + #temporals.format(item.createdAt, 'HH:mm · dd/MM/yyyy')}"></p>
@@ -118,7 +140,7 @@
           </section>
         </th:block>
 
-        <div class="lookup-bottom"><p>Bạn chưa có cuộc hẹn tại T3L?</p><a class="home-text-link" th:href="@{/reservations/new}">Đặt bàn ngay <span aria-hidden="true">↗</span></a></div>
+        <div class="lookup-bottom" th:unless="${ownedBooking == true}"><p>Bạn chưa có cuộc hẹn tại T3L?</p><a class="home-text-link" th:href="@{/reservations/new}">Đặt bàn ngay <span aria-hidden="true">↗</span></a></div>
         </div>
       </div>
     </main>

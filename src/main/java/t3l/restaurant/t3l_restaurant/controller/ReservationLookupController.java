@@ -30,12 +30,13 @@ public class ReservationLookupController {
   private final PaymentIntentService paymentIntents;
   private final SepayProperties sepay;
   private final DiningOrderRepository diningOrders;
+  private final TrackingService tracking;
 
   public ReservationLookupController(ReservationManagementService management, ReservationService bookings,
       ReservationLookupAccess access, ReservationConfirmationAccess confirmationAccess,
       ReservationChangePolicy policy, ReservationSchedule schedule, RestaurantTableRepository tables,
       CustomerAccountService customers, PaymentIntentService paymentIntents, SepayProperties sepay,
-      DiningOrderRepository diningOrders) {
+      DiningOrderRepository diningOrders, TrackingService tracking) {
     this.management = management;
     this.bookings = bookings;
     this.access = access;
@@ -47,6 +48,7 @@ public class ReservationLookupController {
     this.paymentIntents = paymentIntents;
     this.sepay = sepay;
     this.diningOrders = diningOrders;
+    this.tracking = tracking;
   }
 
   @ModelAttribute
@@ -64,7 +66,9 @@ public class ReservationLookupController {
     var customer = customers.signedInCustomer(authentication);
     Reservation booking = visibleBooking(code, request, customer);
     if (booking != null) {
-      addDetails(model, booking, customer);
+      if (addDetails(model, booking, customer) && !booking.isDepositDemo()) {
+        tracking.depositOpened(request, authentication, booking.getId());
+      }
     } else if (access.canView(request.getSession(false), code)) {
       model.addAttribute("lookupError", "Không thể hiển thị đặt bàn này. Vui lòng tra cứu lại.");
     }
@@ -174,19 +178,25 @@ public class ReservationLookupController {
     return "web/reservation-lookup";
   }
 
-  private void addDetails(Model model, Reservation booking, UserAccount customer) {
+  private boolean addDetails(Model model, Reservation booking, UserAccount customer) {
     model.addAttribute("reservation", booking);
-    model.addAttribute("preorder", diningOrders.findByReservation_Id(booking.getId()).orElse(null));
+    var order = diningOrders.findByReservation_Id(booking.getId()).orElse(null);
+    var deposit = paymentIntents.customerDeposit(booking);
+    model.addAttribute("preorder", order);
     model.addAttribute("depositRefundTerms", bookings.depositRefundTerms());
-    model.addAttribute("depositOverdue", booking.hasExpiredDeposit(policy.now()));
-    model.addAttribute("depositCheckout", paymentIntents.depositCheckout(booking.getId()));
-    model.addAttribute("paymentStatus", paymentIntents.depositStatus(booking));
+    model.addAttribute("depositCheckout", deposit.checkout());
+    model.addAttribute("paymentStatus", deposit.status());
     model.addAttribute("qrPayments", paymentIntents.usesQr());
     model.addAttribute("demoEnabled", sepay.demoAllowed());
-    model.addAttribute("ownedBooking", bookings.owns(booking, customer));
+    boolean owned = bookings.owns(booking, customer);
+    model.addAttribute("ownedBooking", owned);
+    model.addAttribute("pastBooking", bookings.isPast(booking));
     model.addAttribute("canClaimBooking", customer != null && booking.getCustomerId() == null);
     model.addAttribute("history", management.history(booking.getId()));
-    model.addAttribute("blockedReason", management.requestBlockedReason(booking));
+    var blocked = management.requestBlockedReason(booking);
+    model.addAttribute("blockedReason", blocked);
+    model.addAttribute("canEditPreorder", owned && blocked == null && management.preorderBlockedReason(booking) == null);
+    model.addAttribute("canAddMenuItems", owned && bookings.canAddMenuItems(booking, order, false));
     model.addAttribute("deadline", policy.deadline(booking));
     model.addAttribute("changeNoticeMinutes", policy.noticeMinutes());
     if (!model.containsAttribute("changeForm")) {
@@ -201,5 +211,6 @@ public class ReservationLookupController {
     model.addAttribute("maxGuests", Math.min(20, active.stream().mapToInt(t -> t.getCapacity()).max().orElse(20)));
     model.addAttribute("today", schedule.today());
     model.addAttribute("timeSlots", schedule.getTimeSlots());
+    return deposit.status().payable();
   }
 }

@@ -1,0 +1,173 @@
+<main xmlns:th="http://www.thymeleaf.org" th:fragment="checkout" id="main" class="booking-checkout" data-navigation>
+  <div class="booking-checkout-inner">
+    <form id="plan-booking-form" method="post" th:action="@{/reservations}" th:object="${form}"
+        data-booking-flow data-preorder-picker data-booking-preorder
+        th:with="contactErrors=${#fields.hasErrors('guestName') or #fields.hasErrors('guestPhone') or #fields.hasErrors('guestEmail') or #fields.hasErrors('note')},
+          missingContact=${bookingProfileMissing and (#strings.isEmpty(form.guestName) or #strings.isEmpty(form.guestPhone))},
+          mealErrors=${#fields.hasErrors('preorderQuantities') or #fields.hasErrors('preorderNote')},
+          reviewing=${#fields.hasAnyErrors() or bookingResumeReview == true}"
+        th:attr="data-start-step=${contactErrors or missingContact ? 1 : (mealErrors ? 2 : (reviewing ? 3 : 1))},
+          data-placeholder=@{/images/menu/dish-placeholder.svg},data-quote-url=@{/reservations/quote}">
+      <input type="hidden" th:field="*{tableId}" />
+      <input type="hidden" th:field="*{date}" />
+      <input type="hidden" th:field="*{time}" />
+      <input type="hidden" th:field="*{guests}" />
+      <input type="hidden" name="draft" th:if="${bookingDraft != null}" th:value="${bookingDraft}" />
+      <th:block th:replace="~{web/fragments/preorder-picker :: formFields}"></th:block>
+
+      <header class="booking-checkout-heading">
+        <h1 th:text="${'Yêu cầu đặt ' + selectedTable.code}">Đặt bàn</h1>
+        <button class="checkout-link" name="choose" value="true" type="submit" formnovalidate>← Đổi bàn hoặc khung giờ</button>
+      </header>
+      <nav class="checkout-progress" aria-label="Tiến trình đặt bàn" data-booking-js>
+        <ol>
+          <li><button type="button" data-booking-step="1"><span aria-hidden="true">1</span> Thông tin</button></li>
+          <li><button type="button" data-booking-step="2"><span aria-hidden="true">2</span> Món đặt trước</button></li>
+          <li><button type="button" data-booking-step="3"><span aria-hidden="true">3</span> Xác nhận</button></li>
+        </ol>
+      </nav>
+      <p th:if="${bookingNotice != null}" class="checkout-notice" role="status" th:text="${bookingNotice}"></p>
+      <div th:if="${#fields.hasAnyErrors()}" class="checkout-errors" role="alert" tabindex="-1" data-booking-errors>
+        <strong>Chưa thể gửi yêu cầu đặt bàn</strong>
+        <ul><li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li></ul>
+      </div>
+
+      <section class="checkout-step" data-booking-panel="1" aria-labelledby="booking-contact-title">
+        <header class="checkout-step-heading"><h2 id="booking-contact-title" tabindex="-1">Thông tin đặt bàn</h2></header>
+        <div class="checkout-details">
+          <aside class="checkout-card checkout-table" aria-label="Bàn đã chọn">
+            <h3>Bàn đã chọn</h3>
+            <dl th:replace="~{web/fragments/booking-checkout :: visit}"></dl>
+          </aside>
+          <div class="checkout-card checkout-contact">
+            <h3>Thông tin liên hệ</h3>
+            <p class="checkout-muted" th:if="${bookingProfileMissing}">Bổ sung họ tên và số điện thoại để T3L xác nhận đặt bàn.</p>
+            <div class="checkout-fields">
+              <label>Họ và tên
+                <input th:field="*{guestName}" th:required="${!bookingCustomer or bookingProfileMissing}" th:readonly="${bookingCustomer and !bookingProfileMissing}"
+                    maxlength="120" autocomplete="name" th:attr="aria-invalid=${#fields.hasErrors('guestName')}" />
+              </label>
+              <label>Số điện thoại
+                <input type="tel" th:field="*{guestPhone}" th:required="${!bookingCustomer or bookingProfileMissing}" th:readonly="${bookingCustomer and !bookingProfileMissing}"
+                    maxlength="30" autocomplete="tel" th:attr="aria-invalid=${#fields.hasErrors('guestPhone')}" />
+              </label>
+              <label class="checkout-full"><span>Email nhận thông tin đặt bàn <small>(tùy chọn)</small></span>
+                <input th:field="*{guestEmail}" type="email" maxlength="254" autocomplete="email" th:attr="aria-invalid=${#fields.hasErrors('guestEmail')}" />
+              </label>
+              <label class="checkout-full"><span>Ghi chú <small>(tùy chọn)</small></span>
+                <textarea th:field="*{note}" rows="3" maxlength="500" placeholder="Dị ứng thực phẩm, ghế trẻ em hoặc yêu cầu khác…" th:attr="aria-invalid=${#fields.hasErrors('note')}"></textarea>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="checkout-actions">
+          <a class="checkout-link" th:if="${bookingCustomer and !bookingProfileMissing}" th:href="@{/account}">Cập nhật hồ sơ</a>
+          <button type="button" class="home-button checkout-primary" data-booking-next="2" data-booking-js>Tiếp tục chọn món <span aria-hidden="true">→</span></button>
+        </div>
+      </section>
+
+      <section class="checkout-step" data-booking-panel="2" aria-labelledby="booking-preorder-title">
+        <header class="checkout-step-heading"><h2 id="booking-preorder-title" tabindex="-1">Món đặt trước</h2>
+          <p class="checkout-muted" th:text="${bookingCustomer ? 'Bạn có thể bỏ qua bước này.' : 'Nếu chọn món, bạn sẽ đăng nhập trước khi xác nhận. Giỏ món sẽ được lưu.'}"></p>
+        </header>
+        <div class="preorder-layout checkout-menu">
+          <div th:replace="~{web/fragments/preorder-picker :: catalog(${preorderCards}, @{/images/menu/dish-placeholder.svg}, true)}"></div>
+          <aside class="checkout-card checkout-cart" aria-labelledby="checkout-cart-title">
+            <div class="checkout-cart-heading">
+              <h3 id="checkout-cart-title" tabindex="-1">Giỏ món</h3>
+              <span data-booking-cart-count class="checkout-muted" hidden></span>
+            </div>
+            <p data-preorder-empty class="checkout-muted">Chưa chọn món</p>
+            <ul data-preorder-lines class="checkout-lines"></ul>
+            <div data-booking-cart-content hidden>
+              <dl class="checkout-totals" aria-live="polite">
+                <div><dt>Tạm tính</dt><dd data-booking-amount="gross" data-booking-cart-total></dd></div>
+                <div><dt>Giảm giá voucher</dt><dd data-booking-amount="discount">—</dd></div>
+                <div class="checkout-deposit"><dt>Cọc dự kiến</dt><dd data-booking-amount="deposit">—</dd></div>
+              </dl>
+              <p class="checkout-feedback" role="status" data-booking-quote-status></p>
+            </div>
+            <div data-booking-cart-note th:hidden="${#strings.isEmpty(form.preorderNote)}">
+              <label>Ghi chú cho bếp
+                <textarea th:field="*{preorderNote}" rows="2" maxlength="500" placeholder="Ví dụ: để sốt riêng"></textarea>
+              </label>
+            </div>
+            <p class="checkout-feedback" role="status" data-preorder-warning></p>
+          </aside>
+        </div>
+        <div class="checkout-menu-actions" data-booking-js>
+          <div class="checkout-actions checkout-menu-action-inner">
+            <button type="button" class="checkout-link" data-booking-next="1">← Quay lại</button>
+            <button type="button" class="checkout-link" data-booking-skip>Bỏ qua</button>
+            <button type="button" class="home-button checkout-primary" data-booking-next="3">Tiếp tục <span aria-hidden="true">→</span></button>
+          </div>
+        </div>
+        <noscript><p>Bật JavaScript để chọn hoặc chỉnh số lượng món.</p></noscript>
+      </section>
+
+      <section class="checkout-step" data-booking-panel="3" aria-labelledby="booking-review-title">
+        <header class="checkout-step-heading"><h2 id="booking-review-title" tabindex="-1">Xác nhận đặt bàn</h2></header>
+        <div class="checkout-review">
+          <div class="checkout-review-main">
+            <section class="checkout-card">
+              <h3>Thông tin buổi hẹn</h3>
+              <dl th:replace="~{web/fragments/booking-checkout :: visit}"></dl>
+              <dl class="checkout-summary checkout-contact-summary">
+                <div><dt>Họ và tên</dt><dd data-booking-copy="guestName" th:text="*{guestName}"></dd></div>
+                <div><dt>Số điện thoại</dt><dd data-booking-copy="guestPhone" th:text="*{guestPhone}"></dd></div>
+                <div class="checkout-full" data-booking-optional><dt>Email</dt><dd data-booking-copy="guestEmail" th:text="*{guestEmail}"></dd></div>
+                <div class="checkout-full" data-booking-optional><dt>Ghi chú</dt><dd data-booking-copy="note" th:text="*{note}"></dd></div>
+              </dl>
+            </section>
+            <section class="checkout-card">
+              <h3>Món đặt trước</h3>
+              <p class="checkout-muted" data-booking-review-empty>Không có món đặt trước.</p>
+              <p class="checkout-muted" data-booking-review-skipped hidden>Bạn có thể quay lại để dùng giỏ món đã chọn.</p>
+              <ul data-booking-review-lines class="checkout-lines"></ul>
+              <div class="checkout-cart-total" data-booking-review-subtotal hidden><span>Tổng tiền món</span><strong data-booking-review-total></strong></div>
+              <dl class="checkout-summary" data-booking-kitchen-note hidden><div><dt>Ghi chú cho bếp</dt><dd data-booking-copy="preorderNote" th:text="*{preorderNote}"></dd></div></dl>
+            </section>
+          </div>
+          <section class="checkout-card checkout-payment">
+            <div th:if="${bookingCustomer}" data-booking-voucher>
+              <h3>Voucher</h3>
+              <div th:replace="~{web/fragments/preorder-picker :: voucher(null)}"></div>
+            </div>
+            <h3>Tổng tiền</h3>
+            <dl class="checkout-totals" aria-live="polite">
+              <div><dt>Tiền món trước giảm</dt><dd data-booking-amount="gross">0 đ</dd></div>
+              <div><dt>Giảm giá voucher</dt><dd data-booking-amount="discount">0 đ</dd></div>
+              <div><dt>Tiền món sau giảm</dt><dd data-booking-amount="net">0 đ</dd></div>
+              <div class="checkout-deposit"><dt>Cọc bắt buộc</dt><dd data-booking-amount="deposit"
+                  th:text="${minimumDeposit.signum() == 0 ? 'Không yêu cầu cọc' : #numbers.formatInteger(minimumDeposit,1,'POINT') + ' đ'}"></dd></div>
+              <div><dt>Dự kiến còn lại cho món</dt><dd data-booking-amount="balance">0 đ</dd></div>
+            </dl>
+            <p class="checkout-feedback" role="status" data-booking-quote-status></p>
+            <details class="checkout-policy">
+              <summary>Chính sách hủy và hoàn cọc</summary>
+              <p th:text="${depositRefundTerms}"></p>
+            </details>
+            <label class="checkout-consent">
+              <input th:field="*{consentAccepted}" type="checkbox" required />
+              <span>Tôi đồng ý với <a th:href="@{/faq}" target="_blank" rel="noopener noreferrer">chính sách đặt bàn và quyền riêng tư</a> của T3L.</span>
+            </label>
+            <p class="checkout-muted">T3L sẽ liên hệ để xác nhận yêu cầu. Hướng dẫn thanh toán cọc (nếu có) hiển thị sau khi gửi.</p>
+          </section>
+        </div>
+        <div class="checkout-actions">
+          <button type="button" class="checkout-link" data-booking-next="2" data-booking-js>← Quay lại</button>
+          <button class="home-button checkout-primary" type="submit" data-booking-confirm>Xác nhận đặt bàn</button>
+          <button class="home-button checkout-primary" name="loginOnly" value="true" type="submit" formnovalidate
+              th:unless="${bookingCustomer}" data-booking-login-review hidden>Đăng nhập để tiếp tục</button>
+        </div>
+      </section>
+    </form>
+  </div>
+</main>
+
+<dl xmlns:th="http://www.thymeleaf.org" th:fragment="visit" class="checkout-summary">
+  <div><dt>Số bàn</dt><dd th:text="${selectedTable.code}"></dd></div>
+  <div><dt>Số khách</dt><dd th:text="${form.guests != null ? form.guests + ' khách' : '—'}"></dd></div>
+  <div><dt>Ngày đến</dt><dd th:text="${form.date != null ? #temporals.format(form.date,'dd/MM/yyyy') : '—'}"></dd></div>
+  <div><dt>Giờ đến</dt><dd th:text="${form.time != null ? #temporals.format(form.time,'HH:mm') : '—'}"></dd></div>
+</dl>

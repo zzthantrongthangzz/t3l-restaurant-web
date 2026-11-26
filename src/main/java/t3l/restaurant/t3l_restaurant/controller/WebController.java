@@ -196,7 +196,7 @@ public class WebController {
   }
 
   private String bookingReturn(Reservation booking, Authentication authentication) {
-    if (!isEmployee(authentication)) return "/reservations/confirmation?code=" + booking.getCode();
+    if (!isEmployee(authentication)) return "/reservations/lookup?code=" + booking.getCode();
     boolean admin = authentication.getAuthorities().stream()
         .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
     return (admin ? "/admin" : "/staff") + "/reservations/" + booking.getId();
@@ -256,7 +256,12 @@ public class WebController {
         model.addAttribute("bookingNotice", "Bàn đã chọn không còn phù hợp hoặc vừa có lượt đặt. Vui lòng chọn bàn khác.");
       }
     }
-    if (customer != null) prefillMissingContact(form, customer);
+    if (customer != null) {
+      if (!customers.needsBookingProfile(customer)) fillContact(form, customer);
+      prefillMissingContact(form, customer);
+    }
+    model.addAttribute("bookingResumeReview", resumed && !choose && !chooseTable && tableId == null
+        && (form.isConsentAccepted() || !form.getPreorderQuantities().isEmpty() || !form.getPreorderDishIds().isEmpty()));
     if (resumed || customer != null || form.getTableId() != null) {
       draft = drafts.save(request.getSession(), form, customerId(customer), draft);
     }
@@ -279,16 +284,16 @@ public class WebController {
       redirect.addFlashAttribute("error", exception.getMessage());
     }
     redirect.addAttribute("code", code);
-    return "redirect:/reservations/confirmation";
+    return booking.getCustomerId() == null ? "redirect:/reservations/confirmation" : "redirect:/reservations/lookup#booking-payment";
   }
 
   @GetMapping("/reservations/{code}/payment-status")
   @ResponseBody
-  public PaymentIntentService.PaymentStatus paymentStatus(@PathVariable String code,
+  public PaymentIntentService.CustomerDepositStatus paymentStatus(@PathVariable String code,
       Authentication authentication, HttpServletRequest request) {
     Reservation booking = visibleReservation(code, authentication, request);
     if (booking == null) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
-    return paymentIntents.depositStatus(booking);
+    return paymentIntents.customerDeposit(booking).status();
   }
 
   @PostMapping("/reservations/{code}/payment-demo")
@@ -297,8 +302,8 @@ public class WebController {
     Reservation booking = visibleReservation(code, authentication, request);
     if (booking == null) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
     try {
-      var checkout = paymentIntents.depositCheckout(booking.getId());
-      if (checkout == null) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
+      var checkout = paymentIntents.customerDeposit(booking).checkout();
+      if (checkout == null) throw new BookingException(null, "Lượt đặt không còn chờ thanh toán cọc.");
       paymentVerification.simulateDepositAsPaid(checkout.intent().getPaymentCode());
       redirect.addFlashAttribute("notice", "Đã ghi nhận khoản cọc; nhân viên có thể xác nhận đặt bàn.");
     } catch (org.springframework.web.server.ResponseStatusException exception) {
@@ -309,7 +314,7 @@ public class WebController {
       redirect.addFlashAttribute("error", "Chưa thể ghi nhận khoản cọc. Vui lòng tải lại trang và thử lại.");
     }
     redirect.addAttribute("code", code);
-    return "redirect:/reservations/confirmation";
+    return booking.getCustomerId() == null ? "redirect:/reservations/confirmation" : "redirect:/reservations/lookup#booking-payment";
   }
 
   private Reservation visibleReservation(String code, Authentication authentication, HttpServletRequest request) {
@@ -476,7 +481,6 @@ public class WebController {
     model.addAttribute("selectedTable", selectedTable);
     if (selectedTable != null) {
       model.addAttribute("minimumDeposit", reservationService.minimumDeposit(selectedTable));
-      model.addAttribute("pickerPaid", java.math.BigDecimal.ZERO);
       model.addAttribute("depositRefundTerms", reservationService.depositRefundTerms());
       model.addAttribute("preorderCards", preorders.picker(form, null));
       if (customer!=null) model.addAttribute("voucherOffers",vouchers.offers(customer.getId(),false));
@@ -501,17 +505,12 @@ public class WebController {
       model.addAttribute("reservation", reservation);
       var order = diningOrders.findByReservation_Id(reservation.getId()).orElse(null);
       model.addAttribute("preorder", order);
-      model.addAttribute("canAddMenuItems", reservationService.owns(reservation, customer)
-          && reservationService.canAddMenuItems(reservation, order, false));
       if (order != null) model.addAttribute("payment", diningPayments.findByOrder_Id(order.getId()).orElse(null));
       model.addAttribute("depositRefundTerms", reservationService.depositRefundTerms());
-      model.addAttribute("depositOverdue", reservation.hasExpiredDeposit(java.time.LocalDateTime.now(reservationSchedule.getClock())));
-      var checkout = paymentIntents.depositCheckout(reservation.getId());
-      var paymentStatus = paymentIntents.depositStatus(reservation);
-      model.addAttribute("depositCheckout", checkout);
-      model.addAttribute("paymentStatus", paymentStatus);
-      if (!reservation.isDepositDemo() && "WAITING".equals(paymentStatus.status())
-          && (checkout != null && checkout.hasQr() || !paymentIntents.usesQr())) {
+      var deposit = paymentIntents.customerDeposit(reservation);
+      model.addAttribute("depositCheckout", deposit.checkout());
+      model.addAttribute("paymentStatus", deposit.status());
+      if (!reservation.isDepositDemo() && deposit.status().payable() && !reservationService.owns(reservation, customer)) {
         tracking.depositOpened(request, authentication, reservation.getId());
       }
       model.addAttribute("demoEnabled", sepay.demoAllowed());

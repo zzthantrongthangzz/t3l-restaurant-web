@@ -20,45 +20,18 @@
         <aside th:replace="~{account/fragments/sidebar :: customer('reservations', ${booking.guestName})}"></aside>
         <div class="account-content preorder-page account-stack" id="account-content" tabindex="-1">
           <header class="account-heading">
-            <a class="account-text-action" th:href="@{/account/reservations}">← Lịch sử đặt bàn</a>
+            <a class="account-text-action" th:href="@{/reservations/lookup(code=${booking.code})} + '#booking-order'">← Chi tiết đặt bàn</a>
             <h1 id="account-title">Món đặt trước</h1>
             <p class="account-muted" th:text="${booking.code + ' · ' + #temporals.format(booking.startsAt,'dd/MM/yyyy HH:mm') + ' · ' + booking.statusLabel}"></p>
           </header>
-          <p class="account-notice" role="status" th:if="${preorderNotice != null}" th:text="${preorderNotice}"></p>
-          <section class="account-card preorder-panel">
-            <h2>Giỏ đã xác nhận</h2>
-            <p th:if="${currentPreorder.lines.isEmpty() and legacyOrder == null}">Chưa có món đặt trước.</p>
-            <ul><li th:each="line : ${currentPreorder.lines}"
-                th:text="${line.name + ' × ' + line.quantity + ' · ' + #numbers.formatInteger(line.price,1,'POINT') + ' đ/phần'}"></li></ul>
-            <p th:if="${currentPreorder.note != null}" th:text="${'Ghi chú cho bếp: ' + currentPreorder.note}"></p>
-            <p th:if="${currentOrder != null and currentOrder.voucherCode != null}" th:text="${'Voucher ' + currentOrder.voucherCode + ' · giảm ' + #numbers.formatInteger(currentOrder.voucherDiscount,1,'POINT') + ' đ'}"></p>
-            <p th:if="${legacyOrder == null}" th:text="${'Tổng tiền món: ' + #numbers.formatInteger(currentPreorder.total(),1,'POINT') + ' đ'}"></p>
-            <div th:if="${legacyOrder != null}">
-              <p>Chi tiết đơn cũ</p>
-              <ul><li th:each="item : ${legacyOrder.items}" th:unless="${item.cancelled}"
-                  th:text="${item.dishName + ' × ' + item.quantity + ' · ' + #numbers.formatInteger(item.amount,1,'POINT') + ' đ'}"></li></ul>
-            </div>
-            <p th:text="${'Tiền cọc: ' + #numbers.formatInteger(booking.depositAmount,1,'POINT') + ' đ · ' + booking.depositStatusLabel}"></p>
-            <a class="account-text-action" th:href="@{/reservations/confirmation(code=${booking.code})}">Xem đặt bàn và tiền cọc</a>
-          </section>
           <form class="account-form" th:action="@{/account/reservations/{code}/preorder(code=${booking.code})}" th:object="${preorderForm}" method="post" data-partial-submit>
             <div class="account-notice is-error" role="alert" th:if="${#fields.hasErrors('*')}">
               <p th:each="error : ${#fields.allErrors()}" th:text="${error}"></p>
             </div>
-            <p class="account-card preorder-panel" th:if="${preorderBlocked != null}" th:text="${preorderBlocked}"></p>
-            <th:block th:if="${preorderBlocked == null}">
-              <p>Nhân viên sẽ duyệt giỏ mới. Số lượng giữ lại dùng giá đã xác nhận, phần thêm dùng giá hiện hành.</p>
-              <section th:replace="~{web/fragments/preorder-picker :: picker(${preorderCards},${minimumDeposit},${booking.depositPaid},true,${preorderForm.preorderNote})}"></section>
-              <div class="account-form-actions"><button class="account-button is-primary" type="submit">Gửi yêu cầu đổi món</button></div>
-            </th:block>
+            <p>Nhân viên sẽ duyệt giỏ mới. Số lượng giữ lại dùng giá đã xác nhận, phần thêm dùng giá hiện hành.</p>
+            <section th:replace="~{web/fragments/preorder-picker :: picker(${preorderCards},${minimumDeposit},${booking.depositPaid},true,${preorderForm.preorderNote})}"></section>
+            <div class="account-form-actions"><button class="account-button is-primary" type="submit">Gửi yêu cầu đổi món</button></div>
           </form>
-          <section class="account-card preorder-panel" th:if="${!preorderHistory.isEmpty()}">
-            <h2>Lịch sử yêu cầu</h2>
-            <article th:each="item : ${preorderHistory}">
-              <p th:text="${#temporals.format(item.createdAt,'dd/MM/yyyy HH:mm') + ' · ' + item.statusLabel}"></p>
-              <p th:if="${item.reviewNote != null}" th:text="${item.reviewNote}"></p>
-            </article>
-          </section>
         </div>
       </div>
     </main>

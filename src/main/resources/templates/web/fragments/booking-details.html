@@ -1,0 +1,69 @@
+<section xmlns:th="http://www.thymeleaf.org" th:fragment="status(booking,payment)" class="lookup-receipt booking-detail-status"
+    aria-label="Tiến trình đặt bàn"
+    th:with="closed=${booking.status == 'CANCELLED' or booking.status == 'NO_SHOW'},
+      ready=${!booking.openBooking or (booking.status == 'CONFIRMED' and !booking.depositOutstanding)}">
+  <div class="booking-detail-status-head">
+    <div class="booking-detail-code">
+      <small>Mã đặt bàn</small>
+      <strong th:text="${booking.code}"></strong>
+    </div>
+    <span class="lookup-status" th:attr="data-status=${booking.status}" th:text="${booking.statusLabel}"></span>
+    <a class="account-text-action" th:href="@{/reservations/lookup(code=${booking.code})}">Cập nhật trạng thái <span aria-hidden="true">↻</span></a>
+  </div>
+  <ol class="booking-detail-progress">
+    <li class="is-done">Đã tiếp nhận</li>
+    <li th:if="${closed}" class="is-closed" aria-current="step"
+        th:text="${payment.status == 'EXPIRED' or payment.status == 'CLOSED_TRANSFER_PENDING' ? payment.label : booking.statusLabel}"></li>
+    <li th:unless="${closed}" th:class="${ready ? 'is-done' : 'is-current'}"
+        th:attr="aria-current=${!ready ? 'step' : null}"
+        th:text="${ready ? 'Đã xác nhận' : (booking.depositOutstanding and payment.status != 'PENDING_STAFF_CONFIRMATION' ? payment.label
+          : (payment.status == 'PAID' ? 'Đã nhận cọc · chờ xác nhận' : 'Chờ xác nhận'))}"></li>
+    <li th:unless="${closed}" th:class="${booking.status == 'COMPLETED' ? 'is-done' : (ready ? 'is-current' : '')}"
+        th:attr="aria-current=${ready ? 'step' : null}"
+        th:text="${!booking.openBooking ? booking.statusLabel : 'Dùng bữa'}"></li>
+  </ol>
+</section>
+
+<section xmlns:th="http://www.thymeleaf.org" th:fragment="order(order,booking,editable)" class="lookup-receipt booking-detail-order"
+    id="booking-order" aria-labelledby="booking-order-title">
+  <div class="booking-detail-order-head">
+    <h2 id="booking-order-title">Món trong lượt đặt</h2>
+    <div class="account-record-actions">
+      <a class="account-button" th:if="${canAddMenuItems}" th:href="@{/menu(booking=${booking.code})}"
+          th:text="${order != null and order.hasItems() ? 'Thêm món' : 'Chọn món đặt trước'}"></a>
+      <a class="account-button" th:if="${editable and (!canAddMenuItems or (order != null and order.hasItems()))}"
+          th:href="@{/account/reservations/{code}/preorder(code=${booking.code})}"
+          th:text="${order != null and order.hasItems() ? 'Chỉnh sửa món' : 'Chọn món đặt trước'}"></a>
+    </div>
+  </div>
+  <p class="account-muted" th:if="${order == null or !order.hasItems()}">Chưa có món đặt trước.</p>
+  <th:block th:if="${order != null and order.hasItems()}" th:with="items=${order.items.?[!cancelled]}">
+    <p th:if="${order.status == 'VOID'}" class="account-muted">Đơn món đã hủy.</p>
+    <details class="booking-item-details" th:open="${items.size() <= 4}">
+      <summary th:text="${'Danh sách món (' + items.size() + ')'}"></summary>
+      <ul class="booking-meal-list">
+        <li th:each="item : ${items}">
+          <div>
+            <strong th:text="${item.dishName}"></strong>
+            <small th:if="${item.preordered}" class="account-muted">Đặt trước</small>
+            <small th:if="${item.note != null}" class="account-muted" th:text="${item.note}"></small>
+          </div>
+          <dl>
+            <div><dt>Số lượng</dt><dd th:text="${item.quantity}"></dd></div>
+            <div><dt>Đơn giá</dt><dd th:text="${#numbers.formatInteger(item.unitPrice,1,'POINT') + ' đ'}"></dd></div>
+            <div><dt>Thành tiền</dt><dd th:text="${#numbers.formatInteger(item.amount,1,'POINT') + ' đ'}"></dd></div>
+          </dl>
+        </li>
+      </ul>
+      <p th:if="${order.preorderNote != null}" class="account-muted" th:text="${'Ghi chú cho bếp: ' + order.preorderNote}"></p>
+    </details>
+    <dl class="deposit-amounts booking-order-totals">
+      <div><dt>Tiền món</dt><dd th:text="${#numbers.formatInteger(order.currentTotal,1,'POINT') + ' đ'}"></dd></div>
+      <div th:if="${order.voucherCode != null}">
+        <dt th:text="${'Giảm giá voucher ' + order.voucherCode}"></dt>
+        <dd th:text="${'−' + #numbers.formatInteger(order.voucherDiscount,1,'POINT') + ' đ'}"></dd>
+      </div>
+      <div><dt>Tổng tiền món</dt><dd th:text="${#numbers.formatInteger(order.netTotal,1,'POINT') + ' đ'}"></dd></div>
+    </dl>
+  </th:block>
+</section>

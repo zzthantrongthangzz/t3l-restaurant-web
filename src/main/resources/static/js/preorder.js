@@ -1,24 +1,31 @@
 window.t3lPage.register(({ signal, state }) => {
   document.querySelectorAll('[data-preorder-picker]').forEach((picker) => {
+    const booking = picker.hasAttribute('data-booking-preorder');
     const currency = new Intl.NumberFormat('vi-VN');
     const format = (amount) => currency.format(amount) + ' đ';
-    const minimum = BigInt(picker.dataset.minimum);
-    const paid = BigInt(picker.dataset.paid);
-    const voucher = picker.querySelector('[data-voucher-url]');
+    const minimum = BigInt(picker.dataset.minimum ?? 0);
+    const paid = BigInt(picker.dataset.paid ?? 0);
+    const voucher = booking ? null : picker.querySelector('[data-voucher-url]');
     const voucherCode = voucher?.querySelector('[data-voucher-code]');
     const voucherMessage = voucher?.querySelector('[data-voucher-message]');
     let quoteRequest;
     let quoteTimer;
     const search = picker.querySelector('[data-preorder-search]');
     const category = picker.querySelector('[data-preorder-category]');
+    const categories = picker.querySelector('[data-preorder-categories]');
     const cart = picker.querySelector('[data-preorder-lines]');
     const fields = picker.querySelector('[data-preorder-fields]');
     const warning = picker.querySelector('[data-preorder-warning]');
-    const submit = picker.closest('form').querySelector('[data-preorder-booking-submit]');
     const pageUrl = location.pathname + location.search;
     const saved = state.preorder?.pageUrl === pageUrl ? state.preorder : null;
     const normalize = (text) => text.toLocaleLowerCase('vi').normalize('NFD').replace(/\p{M}/gu, '').replaceAll('đ', 'd');
-    const items = new Map([...picker.querySelectorAll('[data-preorder-product]')].map((element) => {
+    const products = [...picker.querySelectorAll('[data-preorder-product]')];
+    if (categories) {
+      const drink = (product) => /\b(do uong|thuc uong|nuoc uong|ruou|bia|cocktail|mocktail)\b/.test(normalize(product.dataset.category ?? ''));
+      products.sort((a, b) => Number(drink(a)) - Number(drink(b)));
+      picker.querySelector('.preorder-products').append(...products);
+    }
+    const items = new Map(products.map((element) => {
       const {id, name, category, price, quantity, available} = element.dataset;
       const tiers = [...element.querySelectorAll('[data-preorder-tier]')].map((tier) => ({
         price: BigInt(tier.dataset.price), quantity: Number(tier.dataset.quantity)
@@ -34,16 +41,32 @@ window.t3lPage.register(({ signal, state }) => {
       return [id, item];
     }));
 
-    for (const value of new Set([...items.values()].map((item) => item.category))) {
-      category.add(new Option(value, value));
+    const categoryValues = [...new Set([...items.values()].map((item) => item.category).filter(Boolean))];
+    let selectedCategory = categoryValues.includes(saved?.category) ? saved.category : '';
+    if (category) {
+      for (const value of categoryValues) category.add(new Option(value, value));
+      category.value = selectedCategory;
     }
-    if (saved) {
-      search.value = saved.search;
-      if ([...category.options].some(option => option.value === saved.category)) category.value = saved.category;
+    if (categories && categoryValues.length) {
+      for (const value of ['', ...categoryValues]) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.preorderFilter = value;
+        button.textContent = value || 'Tất cả';
+        categories.append(button);
+      }
+      categories.hidden = false;
+      categories.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-preorder-filter]');
+        if (!button) return;
+        selectedCategory = button.dataset.preorderFilter;
+        filter();
+      });
     }
+    if (saved) search.value = saved.search;
     document.addEventListener('t3l:page-save', event => {
       event.detail.preorder = {
-        pageUrl, search: search.value, category: category.value,
+        pageUrl, search: search.value, category: selectedCategory,
         quantities: Object.fromEntries([...items].map(([id, item]) => [id, item.quantity]))
       };
     }, { signal });
@@ -52,11 +75,14 @@ window.t3lPage.register(({ signal, state }) => {
       const query = normalize(search.value.trim());
       let visible = 0;
       items.forEach((item) => {
-        const matches = (!category.value || category.value === item.category)
+        const matches = (!selectedCategory || selectedCategory === item.category)
           && item.searchName.includes(query);
         item.element.hidden = !matches;
         if (matches) visible += 1;
       });
+      for (const button of categories?.children ?? []) {
+        button.setAttribute('aria-pressed', String(button.dataset.preorderFilter === selectedCategory));
+      }
       picker.querySelector('[data-preorder-no-results]').hidden = visible > 0;
     }
 
@@ -123,8 +149,10 @@ window.t3lPage.register(({ signal, state }) => {
     function render() {
       const lines = document.createDocumentFragment();
       const inputs = document.createDocumentFragment();
+      const review = document.createDocumentFragment();
       let total = 0n;
       let count = 0;
+      let portions = 0;
       let unavailable = false;
 
       items.forEach((item) => {
@@ -133,6 +161,7 @@ window.t3lPage.register(({ signal, state }) => {
         item.element.querySelector('[data-preorder-step="1"]').disabled = !item.available || item.quantity >= 20;
         if (item.quantity === 0) return;
         count += 1;
+        portions += item.quantity;
         const price = amount(item);
         total += price;
         unavailable ||= !item.available;
@@ -144,7 +173,18 @@ window.t3lPage.register(({ signal, state }) => {
         remove.dataset.preorderRemove = item.id;
         remove.setAttribute('aria-label', 'Bỏ ' + item.name + ' khỏi giỏ');
         remove.textContent = 'Bỏ';
-        row.append(description, remove);
+        if (booking) {
+          row.dataset.preorderCartId = item.id;
+          const linePrice = document.createElement('strong');
+          linePrice.textContent = item.available ? format(price) : 'Hết hoặc ngừng bán';
+          description.textContent = item.name + ' × ' + item.quantity;
+          const summary = document.createElement('li');
+          summary.append(description.cloneNode(true), linePrice.cloneNode(true));
+          review.append(summary);
+          const controls = item.element.querySelector('.preorder-stepper').cloneNode(true);
+          controls.append(remove);
+          row.append(description, linePrice, controls);
+        } else row.append(description, remove);
         lines.append(row);
         const input = document.createElement('input');
         input.type = 'hidden';
@@ -153,31 +193,34 @@ window.t3lPage.register(({ signal, state }) => {
         inputs.append(input);
       });
 
-      const portion = (total * 70n + 99n) / 100n;
-      const deposit = portion > minimum ? portion : minimum;
-      const credit = paid > deposit ? paid : deposit;
-      showTotals(total,0n,total,deposit,deposit > paid ? deposit - paid : 0n,total > credit ? total - credit : 0n);
       picker.querySelector('[data-preorder-expected]').value = total.toString();
       picker.querySelector('[data-preorder-empty]').hidden = count > 0;
       cart.replaceChildren(lines);
       fields.replaceChildren(inputs);
+      warning.textContent = unavailable ? 'Bỏ món đã hết hoặc ngừng bán khỏi giỏ trước khi gửi.' : '';
+      if (booking) {
+        picker.querySelector('[data-booking-cart-content]').hidden = count === 0;
+        const cartCount = picker.querySelector('[data-booking-cart-count]');
+        cartCount.hidden = count === 0;
+        cartCount.textContent = portions + ' phần';
+        const note = picker.querySelector('[data-booking-cart-note]');
+        note.hidden = count === 0;
+        picker.querySelector('[data-booking-cart-total]').textContent = format(total);
+        picker.querySelector('[data-booking-review-total]').textContent = format(total);
+        picker.querySelector('[data-booking-review-lines]').replaceChildren(review);
+        picker.dispatchEvent(new Event('booking:cart-change'));
+        return;
+      }
+
+      const portion = (total * 70n + 99n) / 100n;
+      const deposit = portion > minimum ? portion : minimum;
+      const credit = paid > deposit ? paid : deposit;
+      showTotals(total,0n,total,deposit,deposit > paid ? deposit - paid : 0n,total > credit ? total - credit : 0n);
       if (voucher) {
         clearTimeout(quoteTimer);
         quoteRequest?.abort();
         voucherMessage.textContent = '';
         if (voucherCode.value.trim()) quoteTimer = setTimeout(preview, 240);
-      }
-      warning.textContent = unavailable ? 'Bỏ món đã hết hoặc ngừng bán khỏi giỏ trước khi gửi.' : '';
-      if (submit && picker.dataset.buyer === 'false') {
-        submit.textContent = count > 0 ? 'Đăng nhập để đặt bàn và món' : submit.dataset.defaultLabel;
-        if (count > 0) {
-          submit.name = 'loginOnly';
-          submit.value = 'true';
-          submit.formNoValidate = true;
-        } else {
-          submit.removeAttribute('name');
-          submit.formNoValidate = false;
-        }
       }
     }
 
@@ -192,7 +235,10 @@ window.t3lPage.register(({ signal, state }) => {
     signal.addEventListener('abort',()=> {clearTimeout(quoteTimer);quoteRequest?.abort();},{once:true});
 
     search.addEventListener('input', filter);
-    category.addEventListener('change', filter);
+    category?.addEventListener('change', () => {
+      selectedCategory = category.value;
+      filter();
+    });
     function trackCart(item, before) {
       const type = item.quantity === 0 ? 'CART_REMOVE' : before === 0 ? 'CART_ADD' : 'CART_QUANTITY';
       document.dispatchEvent(new CustomEvent('t3l:cart', { detail: { type, id: item.id, quantity: item.quantity } }));
@@ -207,12 +253,15 @@ window.t3lPage.register(({ signal, state }) => {
         item.quantity = 0;
         render();
         trackCart(item, before);
-        if (item.available && !item.element.hidden) item.element.querySelector('[data-preorder-step="1"]').focus();
+        if (booking) (cart.querySelector('button:enabled') ?? cart.parentElement.querySelector('h3')).focus();
+        else if (item.available && !item.element.hidden) item.element.querySelector('[data-preorder-step="1"]').focus();
         else search.focus();
         return;
       }
       if (!button.dataset.preorderStep) return;
-      const item = items.get(button.closest('[data-preorder-product]').dataset.id);
+      const cartRow = button.closest('[data-preorder-cart-id]');
+      const id = cartRow?.dataset.preorderCartId ?? button.closest('[data-preorder-product]').dataset.id;
+      const item = items.get(id);
       const step = Number(button.dataset.preorderStep);
       if (step > 0 && item.quantity === 0 && [...items.values()].filter((product) => product.quantity > 0).length >= 30) {
         warning.textContent = 'Giỏ chỉ nhận tối đa 30 loại món.';
@@ -222,6 +271,11 @@ window.t3lPage.register(({ signal, state }) => {
       item.quantity += step;
       render();
       trackCart(item, before);
+      if (cartRow) {
+        const row = [...cart.children].find(element => element.dataset.preorderCartId === id);
+        const replacement = row?.querySelector('[data-preorder-step="' + step + '"]:enabled, [data-preorder-remove]');
+        (replacement ?? cart.querySelector('button:enabled') ?? cart.parentElement.querySelector('h3')).focus();
+      }
     });
 
     filter();

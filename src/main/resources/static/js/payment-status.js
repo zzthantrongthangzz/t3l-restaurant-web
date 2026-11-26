@@ -1,32 +1,33 @@
-(() => {
-  const panel = document.querySelector('.deposit-payment[data-payment-status-url]');
+window.t3lPage.register(({ signal }) => {
+  const panel = document.querySelector('[data-payment-status-url]');
   if (!panel) return;
 
   const statusText = panel.querySelector('[data-payment-status-text]');
   const countdown = panel.querySelector('[data-payment-countdown]');
-  const transfer = panel.querySelector('.deposit-transfer');
-  const demo = panel.querySelector('.deposit-demo-form');
-  let seconds = Number(countdown?.dataset.seconds || 0);
+  const actions = panel.querySelectorAll('[data-deposit-action]');
+  const copy = panel.querySelector('[data-copy-payment-code]');
+  let deadline = Date.now() + Number(countdown?.dataset.seconds ?? panel.dataset.paymentSeconds ?? 0) * 1000;
+  let refreshing = false;
 
   const paintCountdown = () => {
-    if (!countdown) return;
+    const seconds = Math.ceil((deadline - Date.now()) / 1000);
     if (seconds <= 0) {
-      countdown.textContent = 'Thời hạn thanh toán đã kết thúc.';
+      if (countdown) countdown.textContent = 'Thời hạn thanh toán đã kết thúc.';
+      actions.forEach(action => { action.hidden = true; });
       return;
     }
+    if (!countdown) return;
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
     countdown.textContent = `Còn ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')} để thanh toán.`;
-    seconds -= 1;
   };
 
-  panel.querySelector('[data-copy-payment-code]')?.addEventListener('click', async (event) => {
+  copy?.addEventListener('click', async () => {
     const code = panel.querySelector('[data-payment-code]')?.textContent?.trim();
     if (!code) return;
     try {
       await navigator.clipboard.writeText(code);
-      event.currentTarget.textContent = 'Đã sao chép';
     } catch {
       const input = document.createElement('textarea');
       input.value = code;
@@ -36,39 +37,49 @@
       input.select();
       document.execCommand('copy');
       input.remove();
-      event.currentTarget.textContent = 'Đã sao chép';
     }
-  });
-
-  paintCountdown();
-  window.setInterval(paintCountdown, 1000);
+    copy.textContent = 'Đã sao chép';
+  }, { signal });
 
   const refresh = async () => {
+    if (refreshing) return;
+    refreshing = true;
     try {
       const response = await fetch(panel.dataset.paymentStatusUrl, {
         headers: { Accept: 'application/json' },
         cache: 'no-store',
         credentials: 'same-origin',
+        signal,
       });
       if (!response.ok) return;
       const status = await response.json();
-      panel.dataset.status = status.status;
-      if (statusText) statusText.textContent = status.label;
-      if (countdown && status.remainingSeconds >= 0 && status.status === 'WAITING') {
-        seconds = status.remainingSeconds;
-        countdown.hidden = false;
-      } else if (countdown) {
-        countdown.hidden = true;
+      if (signal.aborted) return;
+      if (!status.payable) actions.forEach(action => { action.hidden = true; });
+      if (panel.dataset.reservationStatus !== status.reservationStatus || panel.dataset.status !== status.status
+          || (panel.dataset.payable === 'true') !== status.payable) {
+        window.location.reload();
+        return;
       }
-      if (transfer) transfer.hidden = status.status !== 'WAITING';
-      if (demo) demo.hidden = status.status !== 'WAITING';
-      if (['CONFIRMED', 'CANCELLED', 'NO_SHOW', 'APPLIED', 'REFUNDED', 'FORFEITED', 'CLOSED']
-          .includes(status.status)) window.clearInterval(timer);
+      if (statusText) statusText.textContent = status.label;
+      if (status.payable) {
+        deadline = Date.now() + status.remainingSeconds * 1000;
+        actions.forEach(action => { action.hidden = false; });
+        paintCountdown();
+      }
     } catch {
-      // A temporary status request failure must not hide the payment instructions.
+      // The local countdown still hides expired payment controls if polling fails.
+    } finally {
+      refreshing = false;
     }
   };
 
-  const timer = window.setInterval(refresh, 5000);
-  refresh();
-})();
+  paintCountdown();
+  const clock = countdown || actions.length ? window.setInterval(paintCountdown, 1000) : null;
+  const open = ['PENDING_CONFIRMATION', 'CONFIRMED'].includes(panel.dataset.reservationStatus);
+  const timer = open ? window.setInterval(refresh, 5000) : null;
+  if (open) refresh();
+  signal.addEventListener('abort', () => {
+    window.clearInterval(clock);
+    window.clearInterval(timer);
+  }, { once: true });
+});

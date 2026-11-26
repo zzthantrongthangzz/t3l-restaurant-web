@@ -5,6 +5,9 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -39,8 +42,65 @@ public class PaymentIntentService {
       this(status, label, demo, confirmEnabled, remainingSeconds, false, "");
     }
   }
+  public record CustomerDepositStatus(String status, String label, long remainingSeconds, boolean payable,
+                                      String reservationStatus) {}
+  public record CustomerDeposit(CustomerDepositStatus status, Checkout checkout) {}
 
   public boolean usesQr() { return properties.enabled() || properties.demoAllowed(); }
+
+  @Transactional(readOnly = true)
+  public CustomerDeposit customerDeposit(Reservation booking) {
+    var intent = usesQr() && booking.isOpenBooking() && booking.isDepositOutstanding()
+        ? intents.findFirstByPaymentTypeAndReservationIdOrderByIdDesc(PaymentIntent.DEPOSIT, booking.getId()).orElse(null)
+        : null;
+    var status = customerDepositStatus(booking, intent, now());
+    return new CustomerDeposit(status, status.payable() ? checkout(intent) : null);
+  }
+
+  @Transactional(readOnly = true)
+  public Map<Long, CustomerDepositStatus> customerDepositStatuses(List<Reservation> bookings) {
+    var candidateIds = bookings.stream().filter(booking -> booking.isOpenBooking() && booking.isDepositOutstanding())
+        .map(Reservation::getId).toList();
+    Map<Long, PaymentIntent> current = !usesQr() || candidateIds.isEmpty() ? Map.of()
+        : intents.latestDeposits(candidateIds).stream().collect(Collectors.toMap(PaymentIntent::getReservationId, Function.identity()));
+    var now = now();
+    return bookings.stream().collect(Collectors.toMap(Reservation::getId,
+        booking -> customerDepositStatus(booking, current.get(booking.getId()), now)));
+  }
+
+  private CustomerDepositStatus customerDepositStatus(Reservation booking, PaymentIntent intent, LocalDateTime now) {
+    String state = booking.getDepositStatus();
+    String label = booking.getDepositStatusLabel();
+    long seconds = 0;
+    boolean payable = waitingForCustomerDeposit(booking, now) && (!usesQr() || activeCustomerQr(booking, intent, now));
+    if (payable) {
+      var deadline = booking.getDepositDueAt();
+      if (intent != null && intent.getExpiresAt().isBefore(deadline)) deadline = intent.getExpiresAt();
+      seconds = Math.max(1, (Duration.between(now, deadline).toMillis() + 999) / 1000);
+      state = "WAITING";
+    } else if (booking.hasExpiredDeposit(now)) {
+      state = "EXPIRED";
+      label = "Đã hết hạn thanh toán cọc";
+    } else if (booking.isOpenBooking() && intent != null && PaymentIntent.REVIEW_REQUIRED.equals(intent.getStatus())) {
+      state = "REVIEW_REQUIRED";
+      label = "Giao dịch cần nhà hàng đối soát";
+    } else if ("WAITING_PAYMENT".equals(state)) {
+      state = "UNAVAILABLE";
+      label = "Chưa có hướng dẫn thanh toán khả dụng. Vui lòng liên hệ T3L.";
+    }
+    return new CustomerDepositStatus(state, label, seconds, payable, booking.getStatus());
+  }
+
+  private boolean waitingForCustomerDeposit(Reservation booking, LocalDateTime now) {
+    return booking.isOpenBooking() && booking.isDepositOutstanding() && "WAITING_PAYMENT".equals(booking.getDepositStatus())
+        && booking.getDepositDueAt() != null && booking.getDepositDueAt().isAfter(now)
+        && (usesQr() || Reservation.CONFIRMED.equals(booking.getStatus()));
+  }
+
+  private boolean activeCustomerQr(Reservation booking, PaymentIntent intent, LocalDateTime now) {
+    return properties.paymentReady() && intent != null && PaymentIntent.PENDING.equals(intent.getStatus())
+        && intent.getExpiresAt().isAfter(now) && intent.getAmount().compareTo(booking.getDepositRemaining()) == 0;
+  }
 
   @Transactional(isolation = Isolation.READ_COMMITTED)
   public PaymentIntent ensureDepositIntent(Reservation booking) {

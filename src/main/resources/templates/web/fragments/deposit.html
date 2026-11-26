@@ -1,19 +1,36 @@
-<section xmlns:th="http://www.thymeleaf.org" th:fragment="details(booking)" class="receipt-deposit deposit-payment"
+<section xmlns:th="http://www.thymeleaf.org" th:fragment="details(booking)" class="receipt-deposit deposit-payment" id="booking-payment"
     th:if="${booking.depositAmount.signum() > 0 or booking.depositPaid.signum() > 0}"
-    th:attr="data-payment-status-url=@{/reservations/{code}/payment-status(code=${booking.code})},data-status=${paymentStatus.status}">
-  <h3>Thanh toán tiền đặt cọc</h3>
-  <div class="deposit-amounts">
-    <p th:if="${preorder != null}">Tổng món đặt trước <strong th:text="${#numbers.formatInteger(preorder.preorderTotal,1,'POINT') + ' đ'}"></strong></p>
-    <p>Số tiền cần cọc <strong th:text="${#numbers.formatInteger(booking.depositAmount,1,'POINT') + ' đ'}"></strong></p>
-    <p>Đã nhận <strong th:text="${#numbers.formatInteger(booking.depositPaid,1,'POINT') + ' đ'}"></strong></p>
-  </div>
+    th:attr="data-payment-status-url=@{/reservations/{code}/payment-status(code=${booking.code})},data-status=${paymentStatus.status},
+      data-reservation-status=${booking.status},data-payable=${paymentStatus.payable}">
+  <h3 th:text="${paymentStatus.payable ? 'Thanh toán tiền đặt cọc' : 'Tiền đặt cọc'}"></h3>
   <p class="deposit-payment-status" data-payment-status-text role="status" th:text="${paymentStatus.label}"></p>
+  <dl class="deposit-amounts">
+    <div th:if="${preorder != null and ownedBooking != true}">
+      <dt>Tổng món đặt trước</dt>
+      <dd th:text="${#numbers.formatInteger(preorder.preorderTotal,1,'POINT') + ' đ'}"></dd>
+    </div>
+    <div>
+      <dt>Cọc yêu cầu</dt>
+      <dd th:text="${#numbers.formatInteger(booking.depositAmount,1,'POINT') + ' đ'}"></dd>
+    </div>
+    <div>
+      <dt>Đã nhận</dt>
+      <dd th:text="${#numbers.formatInteger(booking.depositPaid,1,'POINT') + ' đ'}"></dd>
+    </div>
+    <div th:if="${booking.openBooking}">
+      <dt>Còn phải cọc</dt>
+      <dd th:text="${#numbers.formatInteger(booking.depositRemaining,1,'POINT') + ' đ'}"></dd>
+    </div>
+    <div th:if="${booking.refundRemaining.signum() > 0}">
+      <dt>Cọc chờ hoàn</dt>
+      <dd th:text="${#numbers.formatInteger(booking.refundRemaining,1,'POINT') + ' đ'}"></dd>
+    </div>
+  </dl>
   <p class="deposit-countdown" data-payment-countdown
-      th:if="${paymentStatus.status == 'WAITING' and booking.depositDueAt != null}"
+      th:if="${paymentStatus.payable}"
       th:attr="data-seconds=${paymentStatus.remainingSeconds}"></p>
-  <p th:if="${depositOverdue}" class="deposit-expired">Thời hạn thanh toán đã kết thúc; bàn đã được giải phóng.</p>
 
-  <div class="deposit-transfer" th:if="${depositCheckout != null and depositCheckout.hasQr() and paymentStatus.status == 'WAITING'}">
+  <div class="deposit-transfer" data-deposit-action th:if="${qrPayments and paymentStatus.payable and depositCheckout != null and depositCheckout.hasQr()}">
     <img class="deposit-qr" th:src="${depositCheckout.qrUrl}" alt="Mã QR chuyển khoản tiền đặt cọc" width="260" height="260" />
     <div class="deposit-bank-info">
       <p><span>Ngân hàng</span><strong th:text="${depositCheckout.bankName}"></strong></p>
@@ -29,16 +46,14 @@
       </form>
     </div>
   </div>
-  <p th:if="${depositCheckout != null and !depositCheckout.hasQr() and paymentStatus.status == 'WAITING'}">
-    Nhà hàng chưa cấu hình đủ thông tin nhận chuyển khoản. Vui lòng liên hệ nhân viên để được hỗ trợ.
-  </p>
-
-  <form th:if="${!qrPayments and booking.status == 'CONFIRMED' and booking.depositStatus == 'WAITING_PAYMENT' and !depositOverdue}"
+  <form th:if="${!qrPayments and paymentStatus.payable}" data-deposit-action
       th:action="@{/reservations/{code}/deposit-reference(code=${booking.code})}" method="post" class="receipt-deposit-form">
     <label for="deposit-reference">Mã giao dịch chuyển khoản</label>
     <input id="deposit-reference" name="reference" minlength="4" maxlength="80" required />
     <button class="home-button" type="submit">Gửi mã giao dịch</button>
   </form>
-  <p class="deposit-refund-terms" th:text="${depositRefundTerms}"></p>
-  <script th:src="@{/js/payment-status.js(v=2)}" defer></script>
+  <details class="deposit-refund-terms">
+    <summary>Chính sách hoàn cọc</summary>
+    <p th:text="${depositRefundTerms}"></p>
+  </details>
 </section>

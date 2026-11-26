@@ -1,5 +1,8 @@
 package t3l.restaurant.t3l_restaurant.service;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.PersistenceContext;
 import jakarta.validation.Validator;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -54,6 +57,9 @@ public class ReservationService {
   private final PaymentReferences references;
   private final PaymentIntentService paymentIntents;
   private final VoucherService vouchers;
+
+  @PersistenceContext
+  private EntityManager entityManager;
 
   public ReservationService(ReservationRepository reservations, RestaurantTableRepository tables,
       ReservationSchedule schedule, Validator validator, ReservationEmailQueue emails,
@@ -297,11 +303,12 @@ public class ReservationService {
     return reservations.findByCode(code).orElse(null);
   }
 
-  @Transactional(readOnly = true)
+  @Transactional(isolation = Isolation.READ_COMMITTED)
   public List<Reservation> customerBookings(Long customerId, boolean past) {
-    LocalDateTime now = LocalDateTime.now(schedule.getClock());
-    var bookings = reservations.findByCustomerIdOrderByReservationDateAscReservationTimeAscIdAsc(customerId)
-        .stream().filter(booking -> past == isPast(booking, now)).toList();
+    var customerBookings = reservations.findByCustomerIdOrderByReservationDateAscReservationTimeAscIdAsc(customerId);
+    var now = now();
+    releaseExpiredCustomerBookings(customerBookings, now);
+    var bookings = customerBookings.stream().filter(booking -> past == isPast(booking, now)).toList();
     return past ? bookings.reversed() : bookings;
   }
 
@@ -313,13 +320,25 @@ public class ReservationService {
     return booking.isTerminal() || (booking.isOpenBooking() && booking.getStartsAt().isBefore(now));
   }
 
-  @Transactional(readOnly = true)
+  @Transactional(isolation = Isolation.READ_COMMITTED)
   public Reservation findVisibleByCode(String code, UserAccount customer, boolean guestVerified) {
     if (code == null || !code.matches("T3L-[A-Z0-9-]{4,16}") || (customer == null && !guestVerified)) return null;
     Reservation booking = findByCode(code);
     if (booking == null) return null;
-    Long owner = booking.getCustomerId();
-    return (owner == null ? guestVerified : owns(booking, customer)) ? booking : null;
+    if (!(booking.getCustomerId() == null ? guestVerified : owns(booking, customer))) return null;
+    releaseExpiredCustomerBookings(List.of(booking), now());
+    return (booking.getCustomerId() == null ? guestVerified : owns(booking, customer)) ? booking : null;
+  }
+
+  private void releaseExpiredCustomerBookings(List<Reservation> bookings, LocalDateTime now) {
+    var expired = bookings.stream().filter(booking -> booking.hasExpiredDeposit(now)).toList();
+    if (expired.isEmpty()) return;
+    tables.lockInventory();
+    for (Reservation booking : expired) {
+      // Payment or a staff action may have updated the booking since the initial read.
+      entityManager.refresh(booking, LockModeType.PESSIMISTIC_WRITE);
+      expireDeposit(booking, now);
+    }
   }
 
   public boolean owns(Reservation booking, UserAccount customer) {

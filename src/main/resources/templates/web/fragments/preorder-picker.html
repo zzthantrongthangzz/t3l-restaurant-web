@@ -4,48 +4,14 @@
   <h2>Món đặt trước</h2>
   <p class="preorder-hint" th:unless="${buyer}">Bạn có thể chọn món ngay. Giỏ món sẽ được lưu khi đăng nhập hoặc đăng ký.</p>
   <div class="preorder-layout">
-    <div class="preorder-catalog">
-      <div class="preorder-filters">
-        <label>Tìm món <input type="search" data-preorder-search placeholder="Nhập tên món" /></label>
-        <label>Danh mục <select data-preorder-category><option value="">Tất cả danh mục</option></select></label>
-      </div>
-      <div class="preorder-products" aria-label="Thực đơn đặt trước">
-        <article class="preorder-product" th:each="card : ${cards}" data-preorder-product
-            th:attr="data-id=${card.id},data-name=${card.name},data-category=${card.category},data-price=${card.price},data-quantity=${card.quantity},data-available=${card.available}">
-          <img width="88" height="72" loading="lazy" decoding="async" alt=""
-              th:src="${card.image != null and !card.image.isBlank()} ? ${card.image} : @{/images/dish-placeholder.svg}" />
-          <div class="preorder-product-info">
-            <small th:text="${card.category}"></small>
-            <h3 th:text="${card.name}"></h3>
-            <strong th:if="${card.available}" th:text="${#numbers.formatInteger(card.price,1,'POINT') + ' đ'}"></strong>
-            <span th:unless="${card.available}">Bỏ món này để tiếp tục</span>
-          </div>
-          <div class="preorder-stepper">
-            <button type="button" data-preorder-step="-1" th:aria-label="${'Giảm ' + card.name}">−</button>
-            <output data-preorder-count th:text="${card.quantity}">0</output>
-            <button type="button" data-preorder-step="1" th:aria-label="${'Thêm ' + card.name}">+</button>
-          </div>
-          <span th:each="tier : ${card.existing}" data-preorder-tier hidden
-              th:attr="data-price=${tier.price},data-quantity=${tier.quantity}"></span>
-        </article>
-      </div>
-      <p data-preorder-no-results class="preorder-hint" hidden>Không tìm thấy món phù hợp.</p>
-    </div>
+    <div th:replace="~{web/fragments/preorder-picker :: catalog(${cards}, @{/images/dish-placeholder.svg}, false)}"></div>
     <aside class="preorder-cart" aria-label="Giỏ món ăn">
       <h3>Giỏ món ăn</h3>
       <p data-preorder-empty class="preorder-hint">Chưa chọn món.</p>
       <ul data-preorder-lines></ul>
-      <div th:if="${buyer}" class="preorder-voucher"
-          th:attr="data-voucher-url=@{/account/vouchers/quote},data-voucher-booking=${voucherBookingCode}">
-        <label th:if="${voucherOffers != null and !voucherOffers.empty}">Ưu đãi có sẵn
-          <select data-voucher-select><option value="">Chọn mã</option>
-            <option th:each="offer : ${voucherOffers}" th:value="${offer.code}" th:text="${offer.code + ' · ' + offer.offerLabel}"></option>
-          </select>
-        </label>
-        <label>Mã voucher<input name="voucherCode" data-voucher-code maxlength="32" autocomplete="off" th:value="${selectedVoucher}" /></label>
-        <button class="home-button home-button-outline" type="button" data-voucher-preview>Kiểm tra mã</button>
-        <p class="preorder-hint" role="status" data-voucher-message></p>
-      </div>
+      <th:block th:if="${buyer}">
+        <div th:replace="~{web/fragments/preorder-picker :: voucher(${voucherBookingCode})}"></div>
+      </th:block>
       <dl class="preorder-totals" aria-live="polite">
         <div><dt>Tiền món trước giảm</dt><dd data-preorder-total>0 đ</dd></div>
         <div th:if="${buyer}"><dt>Giảm giá voucher</dt><dd data-voucher-discount>0 đ</dd></div>
@@ -62,7 +28,56 @@
       <p class="preorder-hint" role="status" data-preorder-warning></p>
     </aside>
   </div>
-  <div data-preorder-fields></div>
-  <input type="hidden" name="preorderExpectedTotal" data-preorder-expected />
+  <th:block th:replace="~{web/fragments/preorder-picker :: formFields}"></th:block>
   <noscript><p>Bật JavaScript để chọn hoặc chỉnh số lượng món.</p></noscript>
 </section>
+
+<div xmlns:th="http://www.thymeleaf.org" th:fragment="catalog(cards,placeholder,checkout)" class="preorder-catalog">
+  <div class="preorder-filters">
+    <label>Tìm món <input type="search" data-preorder-search placeholder="Nhập tên món…" /></label>
+    <label th:unless="${checkout}">Danh mục <select data-preorder-category><option value="">Tất cả danh mục</option></select></label>
+  </div>
+  <div th:if="${checkout}" class="checkout-category-tabs" data-preorder-categories role="group" aria-label="Danh mục món" hidden></div>
+  <div class="preorder-products" aria-label="Thực đơn đặt trước">
+    <article class="preorder-product" th:each="card : ${cards}" data-preorder-product
+        th:attr="data-id=${card.id},data-name=${card.name},data-category=${card.category},data-price=${card.price},data-quantity=${card.quantity},data-available=${card.available}">
+      <div class="preorder-product-media" th:remove="${checkout ? 'none' : 'tag'}">
+        <img width="88" height="72" loading="lazy" decoding="async" alt=""
+            th:src="${card.image != null and !card.image.isBlank() ? card.image : placeholder}" />
+      </div>
+      <div class="preorder-product-info">
+        <small th:text="${card.category}"></small>
+        <h3 th:text="${card.name}"></h3>
+        <strong th:if="${card.available}" th:text="${#numbers.formatInteger(card.price,1,'POINT') + ' đ'}"></strong>
+        <span th:unless="${card.available}">Bỏ món này để tiếp tục</span>
+      </div>
+      <div class="preorder-stepper">
+        <button type="button" data-preorder-step="-1" th:aria-label="${'Giảm ' + card.name}">−</button>
+        <output data-preorder-count th:text="${card.quantity}">0</output>
+        <button type="button" data-preorder-step="1" th:aria-label="${'Thêm ' + card.name}">+</button>
+      </div>
+      <span th:each="tier : ${card.existing}" data-preorder-tier hidden
+          th:attr="data-price=${tier.price},data-quantity=${tier.quantity}"></span>
+    </article>
+  </div>
+  <p data-preorder-no-results class="preorder-hint" hidden>Không tìm thấy món phù hợp.</p>
+</div>
+
+<div xmlns:th="http://www.thymeleaf.org" th:fragment="voucher(bookingCode)" class="preorder-voucher"
+    th:attr="data-voucher-url=@{/account/vouchers/quote},data-voucher-booking=${bookingCode}">
+  <label th:if="${voucherOffers != null and !voucherOffers.empty}">Ưu đãi có sẵn
+    <select data-voucher-select><option value="">Chọn mã</option>
+      <option th:each="offer : ${voucherOffers}" th:value="${offer.code}" th:text="${offer.code + ' · ' + offer.offerLabel}"></option>
+    </select>
+  </label>
+  <div class="preorder-voucher-entry">
+    <label>Mã voucher<input name="voucherCode" data-voucher-code maxlength="32" autocomplete="off" th:value="${selectedVoucher}" /></label>
+    <button class="home-button home-button-outline" type="button" data-voucher-preview>Kiểm tra mã</button>
+  </div>
+  <p class="preorder-hint" role="status" data-voucher-message></p>
+</div>
+
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="formFields">
+  <div data-preorder-fields></div>
+  <input type="hidden" name="preorderExpectedTotal" data-preorder-expected />
+</th:block>

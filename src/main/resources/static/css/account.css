@@ -472,6 +472,16 @@
 
 .account-area.account-related { padding-block: clamp(24px, 4vw, 58px) clamp(46px, 6vw, 82px); }
 .account-area .account-related-return { margin-block-end: 10px; }
+.booking-history-amounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem 1rem;
+  margin: .55rem 0 0;
+  font-size: var(--text-compact);
+}
+.booking-history-amounts div { display: flex; align-items: baseline; gap: .35rem; }
+.booking-history-amounts dt { color: var(--text-muted); }
+.booking-history-amounts dd { margin: 0; font-weight: 650; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .account-area .lookup-result-heading { margin-block: 0 12px; }
 .account-area .lookup-result-heading .home-text-link { font-size: var(--text-compact); }
 .account-area .lookup-history { margin-top: 32px; }

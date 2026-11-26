@@ -22,6 +22,13 @@ public interface PaymentIntentRepository extends JpaRepository<PaymentIntent, Lo
   Optional<PaymentIntent> findFirstByPaymentTypeAndReservationIdAndStatusInOrderByIdDesc(
       String paymentType, Long reservationId, Collection<String> statuses);
   Optional<PaymentIntent> findFirstByPaymentTypeAndReservationIdOrderByIdDesc(String paymentType, Long reservationId);
+  @Query("""
+      select p from PaymentIntent p
+      where p.paymentType = 'DEPOSIT' and p.reservationId in :ids
+        and p.id = (select max(latest.id) from PaymentIntent latest
+          where latest.paymentType = 'DEPOSIT' and latest.reservationId = p.reservationId)
+      """)
+  List<PaymentIntent> latestDeposits(@Param("ids") Collection<Long> reservationIds);
   Optional<PaymentIntent> findFirstByPaymentTypeAndOrderIdAndStatusInOrderByIdDesc(
       String paymentType, Long orderId, Collection<String> statuses);
   Optional<PaymentIntent> findFirstByPaymentTypeAndOrderIdOrderByIdDesc(String paymentType, Long orderId);

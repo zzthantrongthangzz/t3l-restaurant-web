@@ -41,8 +41,10 @@ public class PreorderController {
   }
 
   @GetMapping
-  String preorder(@PathVariable String code, Authentication authentication, Model model) {
+  String preorder(@PathVariable String code, Authentication authentication, Model model, RedirectAttributes redirect) {
     var booking = ownedBooking(code, authentication);
+    var blocked = management.preorderBlockedReason(booking);
+    if (blocked != null) return bookingDetails(booking, blocked, redirect);
     return render(booking, null, model);
   }
 
@@ -50,12 +52,12 @@ public class PreorderController {
   String requestChange(@PathVariable String code, @Valid @ModelAttribute("preorderForm") PreorderForm form,
       BindingResult errors, Authentication authentication, Model model, RedirectAttributes redirect) {
     var booking = ownedBooking(code, authentication);
+    var blocked = management.preorderBlockedReason(booking);
+    if (blocked != null) return bookingDetails(booking, blocked, redirect);
     if (!errors.hasErrors()) {
       try {
         management.requestPreorder(code, booking.getCustomerId(), form);
-        redirect.addAttribute("code", code);
-        redirect.addFlashAttribute("preorderNotice", "Đã gửi yêu cầu đổi món. Giỏ hiện tại được giữ đến khi nhân viên duyệt.");
-        return "redirect:/account/reservations/{code}/preorder";
+        return bookingDetails(booking, "Đã gửi yêu cầu đổi món. Giỏ hiện tại được giữ đến khi nhân viên duyệt.", redirect);
       } catch (BookingException exception) {
         errors.reject("preorder.invalid", exception.getMessage());
       } catch (TransientDataAccessException exception) {
@@ -63,6 +65,12 @@ public class PreorderController {
       }
     }
     return render(booking, form, model);
+  }
+
+  private String bookingDetails(Reservation booking, String notice, RedirectAttributes redirect) {
+    redirect.addAttribute("code", booking.getCode());
+    redirect.addFlashAttribute("lookupNotice", notice);
+    return "redirect:/reservations/lookup";
   }
 
   private Reservation ownedBooking(String code, Authentication authentication) {
@@ -81,22 +89,12 @@ public class PreorderController {
       form.setVoucherCode(current.voucherCode());
       model.addAttribute("preorderForm", form);
     }
-    var blocked = management.preorderBlockedReason(booking);
-    if (booking.getTable() == null) blocked = "Chỉ chọn món khi đặt bàn đã có bàn được phân.";
     model.addAttribute("booking", booking);
-    model.addAttribute("currentPreorder", current);
-    model.addAttribute("currentOrder",order);
     model.addAttribute("voucherOffers",vouchers.offers(booking.getCustomerId(),false));
     model.addAttribute("selectedVoucher",form.getVoucherCode());
     model.addAttribute("voucherBookingCode",booking.getCode());
-    if (order != null && order.isLegacyCustomerOrder()) model.addAttribute("legacyOrder", order);
-    model.addAttribute("preorderHistory", management.history(booking.getId()).stream()
-        .filter(request -> "PREORDER".equals(request.getRequestType())).toList());
-    model.addAttribute("preorderBlocked", blocked);
-    if (blocked == null) {
-      model.addAttribute("minimumDeposit", bookings.minimumDeposit(booking.getTable()));
-      model.addAttribute("preorderCards", preorders.picker(form, order));
-    }
+    model.addAttribute("minimumDeposit", bookings.minimumDeposit(booking.getTable()));
+    model.addAttribute("preorderCards", preorders.picker(form, order));
     return "account/preorder";
   }
 }

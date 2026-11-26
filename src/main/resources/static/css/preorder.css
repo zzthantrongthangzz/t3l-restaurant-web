@@ -1,7 +1,3 @@
-.plan-booking-dialog:has(.preorder-picker) {
-  width: min(1000px, calc(100% - 28px));
-}
-
 .preorder-page {
   width: min(1100px, 100%);
   margin-inline: auto;
@@ -85,5 +81,6 @@
 }
 
 .preorder-voucher { display: grid; gap: 8px; margin-block: 12px; padding-block: 10px; border-block: 1px solid var(--border); }
+.preorder-voucher-entry { display: grid; gap: 8px; }
 .preorder-voucher :is(input,select) { width: 100%; min-width: 0; }
 .preorder-voucher button { justify-self: start; }

@@ -325,6 +325,42 @@ class StaffOperationsIntegrationTest {
   }
 
   @Test
+  void customerHistoryClosesOverdueDepositBeforeShowingAnyPaymentAction() throws Exception {
+    var buyer = preorderBuyer();
+    var booking = preorderBooking(buyer, "14:00", 2);
+    var owner = user(buyer.getUsername()).roles("BUYER");
+    String detail = "/reservations/lookup?code=" + booking.getCode();
+
+    mvc.perform(get("/account/reservations").with(owner))
+        .andExpect(status().isOk()).andExpect(content().string(not(containsString("#booking-payment"))));
+    step(booking.getId(), "CONFIRMED").andExpect(flash().attributeExists("notice"));
+    mvc.perform(get("/account/reservations").with(owner))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("#booking-payment")));
+    mvc.perform(get(detail).with(owner)).andExpect(status().isOk())
+        .andExpect(content().string(containsString("Gửi mã giao dịch")))
+        .andExpect(content().string(containsString("250.000 đ")));
+
+    var deadline = reservations.findOneById(booking.getId()).orElseThrow().getDepositDueAt();
+    clock.at(deadline.plusSeconds(1));
+    mvc.perform(get("/account/reservations?tab=past").with(owner)).andExpect(status().isOk())
+        .andExpect(content().string(containsString(booking.getCode())))
+        .andExpect(content().string(containsString("Đã hết hạn thanh toán cọc")))
+        .andExpect(content().string(not(containsString("#booking-payment"))));
+    var expired = reservations.findOneById(booking.getId()).orElseThrow();
+    assertEquals(Reservation.CANCELLED, expired.getStatus());
+    assertEquals("EXPIRED", expired.getDepositStatus());
+    assertEquals("VOID", preorders.order(booking.getId()).getStatus());
+    assertBoardState("14:00", "FREE");
+    mvc.perform(get(detail).with(owner)).andExpect(status().isOk())
+        .andExpect(content().string(not(containsString("Gửi mã giao dịch"))));
+    mvc.perform(get("/reservations/" + booking.getCode() + "/payment-status").with(owner))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("EXPIRED"))
+        .andExpect(jsonPath("$.payable").value(false));
+    mvc.perform(get("/account/reservations/" + booking.getCode() + "/preorder").with(owner))
+        .andExpect(redirectedUrl(detail));
+  }
+
+  @Test
   void guestCannotBypassVipDepositAndLateTransferReleasesTableThenQueuesRefund() throws Exception {
     jdbc.update("update restaurant_tables set table_type='Phòng VIP' where id=?", tableOne);
     var session = new MockHttpSession();
@@ -472,7 +508,7 @@ class StaffOperationsIntegrationTest {
     mvc.perform(get(page).with(user(other.getUsername()).roles("BUYER"))).andExpect(status().isNotFound());
     mvc.perform(post(page).with(user(buyer.getUsername()).roles("BUYER")).with(csrf())
         .param("preorderQuantities[" + dishId + "]", "3").param("preorderNote", "Không hành")
-        .param("preorderExpectedTotal", "800000")).andExpect(redirectedUrl(page));
+        .param("preorderExpectedTotal", "800000")).andExpect(redirectedUrl("/reservations/lookup?code=" + code));
     long requestId = id("select id from reservation_change_requests");
     staff(get("/staff/reservations")).andExpect(status().isOk())
         .andExpect(content().string(containsString("Giỏ món đề nghị")));

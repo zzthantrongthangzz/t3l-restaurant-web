@@ -10,7 +10,7 @@ import t3l.restaurant.t3l_restaurant.security.LoginReturnTarget;
 import t3l.restaurant.t3l_restaurant.service.CustomerAccountService;
 
 @ControllerAdvice(assignableTypes = {WebController.class, ReservationLookupController.class,
-    CustomerLoginController.class, ContactController.class, CustomerAccountController.class})
+    CustomerLoginController.class, ContactController.class, CustomerAccountController.class, PreorderController.class})
 public class CustomerHeaderAdvice {
   private final CustomerAccountService customers;
   private final GoogleOAuthFlow google;

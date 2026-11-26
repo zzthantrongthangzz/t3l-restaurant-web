@@ -16,22 +16,28 @@
         <div th:replace="~{account/fragments/activity :: empty('reservations',${tab == 'past' ? 'Chưa có lịch đặt bàn đã qua' : 'Chưa có lịch đặt bàn sắp tới'},'Các lịch được lưu vào tài khoản sẽ hiển thị tại đây.')}"></div>
       </th:block>
       <ul class="account-list" th:unless="${bookings.isEmpty()}">
-        <li class="account-record" th:each="booking : ${bookings}" th:with="order=${voucherOrders.get(booking.id)}">
+        <li class="account-record" th:each="booking : ${bookings}"
+            th:with="order=${bookingOrders.get(booking.id)},deposit=${bookingDeposits.get(booking.id)}">
           <div class="account-record-meta">
             <p class="account-record-title"><time th:attr="datetime=${booking.startsAt}"
                 th:text="${#temporals.format(booking.reservationDate, 'dd/MM/yyyy') + ' · ' + #temporals.format(booking.reservationTime, 'HH:mm')}"></time></p>
-            <p class="account-muted" th:if="${order != null}" th:text="${'Voucher ' + order.voucherCode + ' · giảm ' + #numbers.formatInteger(order.voucherDiscount,1,'POINT') + ' đ'}"></p>
             <p class="account-muted" th:text="${booking.guestCount + ' khách · ' + booking.code}"></p>
+            <dl class="booking-history-amounts">
+              <div><dt>Tiền món</dt><dd th:text="${order == null ? '0 đ' : #numbers.formatInteger(order.netTotal, 1, 'POINT') + ' đ'}"></dd></div>
+              <div><dt>Tiền cọc</dt><dd th:text="${#numbers.formatInteger(booking.depositAmount, 1, 'POINT') + ' đ'}"></dd></div>
+            </dl>
           </div>
           <div class="account-record-actions">
             <span class="account-status" th:attr="data-status=${booking.status}" th:text="${booking.statusLabel}"></span>
             <span class="account-status" th:if="${booking.depositAmount.signum() > 0 or booking.depositPaid.signum() > 0}"
-                th:text="${booking.depositStatusLabel}"></span>
+                th:attr="data-status=${deposit.status}"
+                th:text="${deposit.label}"></span>
           </div>
           <div class="account-record-actions account-record-footer">
             <a class="account-text-action" th:href="@{/reservations/lookup(code=${booking.code})}">Xem chi tiết</a>
-            <a class="account-text-action" th:href="@{/reservations/confirmation(code=${booking.code})}">Đơn món</a>
-            <a class="account-text-action" th:href="@{/account/reservations/{code}/preorder(code=${booking.code})}">Món đặt trước</a>
+            <a class="account-button is-primary" th:if="${deposit.payable}"
+                th:attr="data-deposit-seconds=${deposit.remainingSeconds}"
+                th:href="@{/reservations/lookup(code=${booking.code})} + '#booking-payment'">Thanh toán cọc</a>
           </div>
         </li>
       </ul>
@@ -54,7 +60,7 @@
           </div>
           <div class="account-record-actions">
             <span class="account-status" th:attr="data-status=${order.status}" th:text="${order.statusLabel}"></span>
-            <a class="account-text-action" th:href="@{/reservations/confirmation(code=${order.reservation.code})}">Xem món</a>
+            <a class="account-text-action" th:href="@{/reservations/lookup(code=${order.reservation.code})} + '#booking-order'">Xem món</a>
           </div>
         </li>
       </ul>
