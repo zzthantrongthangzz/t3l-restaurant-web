@@ -3,7 +3,7 @@
   <head th:replace="~{staff/fragments/shell :: head('Tổng quan nhân viên')}"></head>
   <body class="staff-page">
     <header th:replace="~{staff/fragments/shell :: header('dashboard')}"></header>
-    <main data-navigation class="staff-main">
+    <main id="main" data-navigation class="staff-main">
       <div class="staff-page-heading">
         <div><p class="staff-kicker" th:text="${#temporals.format(dashboard.date, 'dd/MM/yyyy')}"></p><h1>Tổng quan nhân viên</h1></div>
         <div class="staff-actions">

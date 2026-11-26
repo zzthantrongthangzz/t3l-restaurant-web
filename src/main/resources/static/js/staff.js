@@ -42,6 +42,68 @@ window.t3lPage.register(({ signal }) => {
     }
   }
 
+  const shiftTime = document.querySelector('[data-shift-seconds]');
+  if (shiftTime?.dataset.shiftRunning === 'true') {
+    const firstRender = performance.now();
+    const initialSeconds = Number(shiftTime.dataset.shiftSeconds);
+    const update = () => {
+      const seconds = initialSeconds + Math.floor((performance.now() - firstRender) / 1000);
+      const days = Math.floor(seconds / 86400);
+      const clock = [Math.floor(seconds / 3600) % 24, Math.floor(seconds / 60) % 60, seconds % 60]
+        .map(value => String(value).padStart(2, '0')).join(':');
+      shiftTime.textContent = days > 0 ? days + ' ngày · ' + clock : clock;
+      shiftTime.dateTime = 'PT' + seconds + 'S';
+    };
+    update();
+    const timer = window.setInterval(update, 1000);
+    signal.addEventListener('abort', () => window.clearInterval(timer), { once: true });
+  }
+
+  const shiftClose = document.querySelector('[data-shift-close]');
+  if (shiftClose) {
+    const counted = shiftClose.elements.countedCash;
+    const output = shiftClose.querySelector('[data-shift-difference]');
+    const confirmation = document.querySelector('[data-shift-confirm]');
+    const expected = BigInt(shiftClose.dataset.expectedCash);
+    const money = new Intl.NumberFormat('vi-VN');
+    const format = amount => money.format(amount) + ' đ';
+    const showDifference = (element, amount) => {
+      const difference = amount - expected;
+      element.dataset.cashBalance = difference === 0n ? 'equal' : (difference > 0n ? 'over' : 'under');
+      element.textContent = difference === 0n ? 'Khớp sổ' : (difference > 0n
+        ? 'Thừa ' + format(difference) : 'Thiếu ' + format(-difference));
+    };
+    const update = () => {
+      if (/^[0-9]{1,18}$/.test(counted.value)) {
+        showDifference(output, BigInt(counted.value));
+      } else {
+        delete output.dataset.cashBalance;
+        output.textContent = '—';
+      }
+    };
+    counted.addEventListener('input', update, { signal });
+    update();
+    if (typeof confirmation?.showModal === 'function') {
+      delete shiftClose.querySelector('[data-confirm]').dataset.confirm;
+      let confirmed = false;
+      shiftClose.addEventListener('submit', event => {
+        if (confirmed) return;
+        event.preventDefault();
+        const amount = BigInt(counted.value);
+        confirmation.querySelector('[data-confirm-counted]').textContent = format(amount);
+        showDifference(confirmation.querySelector('[data-confirm-difference]'), amount);
+        confirmation.returnValue = '';
+        confirmation.showModal();
+      }, { signal });
+      confirmation.addEventListener('close', () => {
+        if (confirmation.returnValue !== 'close-shift') return;
+        confirmed = true;
+        shiftClose.requestSubmit();
+        confirmed = false;
+      }, { signal });
+    }
+  }
+
   const tableType = document.querySelector('[data-inventory-kind]');
   if (tableType) {
     const capacity = tableType.form.elements.capacity;

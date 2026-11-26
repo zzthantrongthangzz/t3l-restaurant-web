@@ -5,6 +5,8 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -27,6 +29,7 @@ import t3l.restaurant.t3l_restaurant.repository.UserAccountRepository;
 @RequiredArgsConstructor
 @PreAuthorize("hasAnyRole('STAFF', 'ADMIN') and #username == authentication.name")
 public class StaffShiftService {
+  private static final int HISTORY_PAGE_SIZE = 20;
   private final StaffShiftRepository shifts;
   private final CashSaleRepository sales;
   private final UserAccountRepository accounts;
@@ -42,14 +45,14 @@ public class StaffShiftService {
   }
 
   public record ShiftView(StaffShift current, StaffShift selected, Totals totals,
-                          List<CashSale> sales, List<DiningPayment> payments, List<StaffShift> history) {}
+                          List<CashSale> sales, List<DiningPayment> payments, Page<StaffShift> history) {}
 
   @PreAuthorize("hasAnyRole('STAFF', 'ADMIN') and #username == authentication.name and (!#admin or hasRole('ADMIN'))")
   @Transactional(readOnly = true)
-  public ShiftView overview(String username, Long selectedId, boolean admin) {
+  public ShiftView overview(String username, Long selectedId, boolean admin, String status, int page) {
     var current = current(username);
-    var history = admin ? shifts.findTop20ByOrderByOpenedAtDesc()
-        : shifts.findTop20ByEmployee_UsernameOrderByOpenedAtDesc(username);
+    var history = shifts.findHistory(username, admin, status,
+        PageRequest.of(Math.clamp(page, 0, Integer.MAX_VALUE / HISTORY_PAGE_SIZE), HISTORY_PAGE_SIZE));
     StaffShift selected = selectedId == null ? current : shifts.findOneById(selectedId)
         .filter(shift -> admin || shift.getEmployee().getUsername().equals(username)).orElse(null);
     if (selected == null) return new ShiftView(current, null, null, List.of(), List.of(), history);

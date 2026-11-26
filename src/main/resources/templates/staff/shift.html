@@ -3,7 +3,7 @@
   <head th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: head('Ca làm và doanh thu')}"></head>
   <body class="staff-page" th:classappend="${opsBase == '/admin' ? 'admin-page' : ''}">
     <header th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: header('shift')}"></header>
-    <main data-navigation class="staff-main">
+    <main data-navigation class="staff-main staff-shift-page" th:id="${opsBase != '/admin' ? 'main' : null}">
       <div class="staff-page-heading">
         <div><h1>Ca làm &amp; doanh thu</h1><p>Theo dõi tiền thu, khách phục vụ và đối soát tiền mặt.</p></div>
         <a class="staff-button is-outline" th:if="${view.selected != view.current}" th:href="@{${opsBase + '/shift'}}">Xem ca của tôi</a>
@@ -19,45 +19,57 @@
         </section>
 
         <th:block th:if="${view.selected != null}" th:with="shift=${view.selected},totals=${view.totals},ownOpen=${view.current != null and view.current.id == view.selected.id}">
-          <section class="staff-panel">
-            <div class="staff-panel-heading"><h2 th:text="${'Ca #' + shift.id + ' · ' + shift.employee.username}"></h2>
+          <section class="staff-panel" aria-labelledby="shift-summary">
+            <div class="staff-panel-heading"><h2 id="shift-summary" th:text="${'Ca #' + shift.id + ' · ' + shift.employee.username}"></h2>
               <span class="staff-badge" th:attr="data-status=${shift.status}" th:text="${shift.status == 'OPEN' ? 'Đang mở' : 'Đã kết ca'}"></span></div>
-            <p class="staff-muted" th:text="${#temporals.format(shift.openedAt, 'dd/MM/yyyy HH:mm') + (shift.closedAt == null ? '' : ' – ' + #temporals.format(shift.closedAt, 'dd/MM/yyyy HH:mm'))}"></p>
-            <div class="staff-metrics staff-shift-metrics">
-              <div class="staff-metric"><span>Hóa đơn đã thu</span><strong th:text="${totals.paidOrders}"></strong></div>
-              <div class="staff-metric"><span>Khách đã nhận bàn</span><strong th:text="${totals.guests}"></strong></div>
-              <div class="staff-metric"><span>Khoản bán lẻ</span><strong th:text="${totals.directSales}"></strong></div>
-              <div class="staff-metric"><span>Doanh thu</span><strong th:text="${#numbers.formatInteger(totals.revenue, 1, 'POINT') + ' đ'}"></strong></div>
-            </div>
-            <dl class="staff-details staff-details-wide">
-              <div><dt>Tiền đầu ca</dt><dd th:text="${#numbers.formatInteger(shift.openingCash, 1, 'POINT') + ' đ'}"></dd></div>
+            <dl class="staff-shift-meta">
+              <div><dt>Mở ca</dt><dd><time th:datetime="${shift.openedAt}" th:text="${#temporals.format(shift.openedAt, 'dd/MM/yyyy · HH:mm')}"></time></dd></div>
+              <div><dt>Thời gian hoạt động</dt><dd><time th:datetime="${shiftElapsed}" th:attr="data-shift-seconds=${shiftElapsed.seconds},data-shift-running=${shift.closedAt == null}"
+                  th:text="${(shiftElapsed.toDays() > 0 ? shiftElapsed.toDays() + ' ngày ' : '') + shiftElapsed.toHoursPart() + ' giờ ' + shiftElapsed.toMinutesPart() + ' phút'}"></time></dd></div>
+              <div th:if="${shift.closedAt != null}"><dt>Kết ca</dt><dd><time th:datetime="${shift.closedAt}" th:text="${#temporals.format(shift.closedAt, 'dd/MM/yyyy · HH:mm')}"></time></dd></div>
+              <div><dt>Khách đã nhận bàn</dt><dd th:text="${totals.guests}"></dd></div>
+            </dl>
+            <p class="staff-shift-overnight" th:if="${shiftAcrossDays}">Ca đã qua ngày mở và vẫn đang hoạt động.</p>
+            <dl class="staff-shift-totals">
+              <div class="is-primary"><dt>Doanh thu trong ca</dt><dd th:text="${#numbers.formatInteger(totals.revenue, 1, 'POINT') + ' đ'}"></dd></div>
               <div><dt>Thu tiền mặt</dt><dd th:text="${#numbers.formatInteger(totals.cash, 1, 'POINT') + ' đ'}"></dd></div>
               <div><dt>Thu chuyển khoản</dt><dd th:text="${#numbers.formatInteger(totals.transfer, 1, 'POINT') + ' đ'}"></dd></div>
               <div><dt>Thu qua thẻ</dt><dd th:text="${#numbers.formatInteger(totals.card, 1, 'POINT') + ' đ'}"></dd></div>
-              <div><dt>Tiền mặt theo sổ</dt><dd th:text="${#numbers.formatInteger(totals.expectedCash, 1, 'POINT') + ' đ'}"></dd></div>
+            </dl>
+            <dl class="staff-shift-cash-summary">
+              <div><dt>Tiền đầu ca</dt><dd th:text="${#numbers.formatInteger(shift.openingCash, 1, 'POINT') + ' đ'}"></dd></div>
+              <div><dt>Tiền mặt theo sổ</dt><dd th:text="${#numbers.formatInteger(totals.expectedCash, 1, 'POINT') + ' đ'}"></dd>
+                <small>Tiền đầu ca + tiền mặt đã thu</small></div>
               <div th:if="${shift.countedCash != null}"><dt>Tiền mặt thực đếm</dt><dd th:text="${#numbers.formatInteger(shift.countedCash, 1, 'POINT') + ' đ'}"></dd></div>
-              <div th:if="${shift.cashDifference != null}"><dt>Chênh lệch cuối ca</dt><dd th:text="${#numbers.formatInteger(shift.cashDifference, 1, 'POINT') + ' đ'}"></dd></div>
+              <div th:if="${shift.cashDifference != null}"><dt>Chênh lệch cuối ca</dt>
+                <dd><span th:replace="~{::cashDifference(${shift.cashDifference})}"></span></dd></div>
             </dl>
           </section>
 
-          <section class="staff-panel">
-            <h2>Hóa đơn đã thanh toán trong ca</h2>
+          <div class="staff-shift-transactions">
+          <section class="staff-panel" aria-labelledby="shift-invoices">
+            <div class="staff-panel-heading"><h2 id="shift-invoices">Hóa đơn đã thanh toán</h2>
+              <span class="staff-result-count" th:text="${totals.paidOrders + ' hóa đơn'}"></span></div>
             <p class="staff-empty" th:if="${view.payments.isEmpty()}">Chưa có hóa đơn được thanh toán trong ca này.</p>
             <div class="staff-table-wrap" th:unless="${view.payments.isEmpty()}">
-              <table class="staff-table"><thead><tr><th scope="col">Hóa đơn</th><th scope="col">Thời điểm</th><th scope="col">Phương thức</th><th scope="col">Số tiền</th></tr></thead>
+              <table class="staff-table staff-ledger-table"><thead><tr><th scope="col">Hóa đơn</th><th scope="col">Đã thu lúc</th><th scope="col">Phương thức</th><th scope="col">Đã thu</th></tr></thead>
                 <tbody><tr th:each="payment : ${view.payments}">
-                  <td data-label="Hóa đơn"><a class="staff-link" th:href="@{${opsBase + '/orders/{id}'}(id=${payment.order.reservation.id})}" th:text="${payment.order.invoiceNumber}"></a></td>
-                  <td data-label="Thời điểm" th:text="${#temporals.format(payment.paidAt, 'dd/MM · HH:mm')}"></td>
-                  <td data-label="Phương thức"><span th:text="${payment.methodLabel}"></span><small th:if="${payment.transferReference}" th:text="${payment.transferReference}"></small></td>
-                  <td data-label="Số tiền" th:text="${#numbers.formatInteger(payment.amount, 1, 'POINT') + ' đ'}"></td>
+                  <td data-label="Hóa đơn"><div><a class="staff-link" th:href="@{${opsBase + '/orders/{id}'}(id=${payment.order.reservation.id})}" th:text="${payment.order.invoiceNumber}"></a>
+                    <small th:text="${payment.order.reservation.code}"></small></div></td>
+                  <td data-label="Đã thu lúc"><time th:datetime="${payment.paidAt}" th:text="${#temporals.format(payment.paidAt, 'dd/MM/yyyy · HH:mm')}"></time></td>
+                  <td data-label="Phương thức"><div><span class="staff-badge" th:text="${payment.methodLabel}"></span><small th:unless="${#strings.isEmpty(payment.transferReference)}" th:text="${payment.transferReference}"></small></div></td>
+                  <td data-label="Đã thu" class="staff-ledger-amount"><strong th:text="${#numbers.formatInteger(payment.amount, 1, 'POINT') + ' đ'}"></strong></td>
                 </tr></tbody>
               </table>
             </div>
           </section>
 
-          <details class="staff-panel staff-disclosure" th:if="${ownOpen or !view.sales.isEmpty()}">
-            <summary>Khoản bán lẻ ngoài hóa đơn bàn</summary>
-            <form class="staff-form" th:if="${ownOpen}" th:action="@{${opsBase + '/shift/sales'}}" th:object="${saleForm}" method="post">
+          <section class="staff-panel" aria-labelledby="shift-retail">
+            <div class="staff-panel-heading"><h2 id="shift-retail">Bán lẻ ngoài hóa đơn bàn</h2>
+              <span class="staff-result-count" th:text="${totals.directSales + ' khoản'}"></span></div>
+            <details class="staff-disclosure staff-shift-add-sale" th:if="${ownOpen}">
+              <summary>Ghi nhận khoản bán lẻ</summary>
+            <form class="staff-form" th:action="@{${opsBase + '/shift/sales'}}" th:object="${saleForm}" method="post">
               <div class="staff-form-grid">
                 <label class="staff-field">Món ăn <select th:field="*{dishId}" required>
                   <option value="">Chọn món</option><option th:each="dish : ${dishes}" th:value="${dish.id}" th:text="${dish.name + ' · ' + #numbers.formatInteger(dish.price, 1, 'POINT') + ' đ'}"></option>
@@ -68,39 +80,88 @@
               <label class="staff-checkbox"><input type="checkbox" name="received" value="true" required /> Tôi đã thực nhận số tiền của khoản bán lẻ.</label>
               <div class="staff-actions"><button class="staff-button is-outline" type="submit">Ghi nhận khoản bán lẻ</button></div>
             </form>
-            <ul class="staff-feed" th:unless="${view.sales.isEmpty()}">
-              <li th:each="sale : ${view.sales}"><div><strong th:text="${sale.dishName + ' × ' + sale.quantity}"></strong>
-                <p th:text="${#temporals.format(sale.createdAt, 'dd/MM · HH:mm') + ' · ' + (sale.paymentMethod == 'CASH' ? 'Tiền mặt' : (sale.paymentMethod == 'TRANSFER' ? 'Chuyển khoản' : 'Thẻ'))}"></p></div>
-                <strong th:text="${#numbers.formatInteger(sale.totalAmount, 1, 'POINT') + ' đ'}"></strong></li>
-            </ul>
-          </details>
+            </details>
+            <p class="staff-empty" th:if="${view.sales.isEmpty()}">Chưa có khoản bán lẻ trong ca này.</p>
+            <div class="staff-table-wrap" th:unless="${view.sales.isEmpty()}">
+              <table class="staff-table staff-ledger-table"><thead><tr><th scope="col">Món ăn</th><th scope="col">Thời điểm</th><th scope="col">Phương thức</th><th scope="col">Đã thu</th></tr></thead>
+                <tbody><tr th:each="sale : ${view.sales}" th:id="${'sale-' + sale.id}">
+                  <td data-label="Món ăn"><div><strong th:text="${sale.dishName}"></strong><small th:text="${sale.quantity + ' × ' + #numbers.formatInteger(sale.unitPrice, 1, 'POINT') + ' đ'}"></small></div></td>
+                  <td data-label="Thời điểm"><time th:datetime="${sale.createdAt}" th:text="${#temporals.format(sale.createdAt, 'dd/MM/yyyy · HH:mm')}"></time></td>
+                  <td data-label="Phương thức"><span class="staff-badge" th:text="${sale.paymentMethod == 'CASH' ? 'Tiền mặt' : (sale.paymentMethod == 'TRANSFER' ? 'Chuyển khoản' : 'Thẻ')}"></span></td>
+                  <td data-label="Đã thu" class="staff-ledger-amount"><strong th:text="${#numbers.formatInteger(sale.totalAmount, 1, 'POINT') + ' đ'}"></strong></td>
+                </tr></tbody>
+              </table>
+            </div>
+          </section>
+          </div>
 
           <section class="staff-panel staff-form-narrow" th:if="${ownOpen}">
             <h2>Đối soát và kết ca</h2>
-            <p th:text="${'Tiền mặt theo sổ: ' + #numbers.formatInteger(totals.expectedCash, 1, 'POINT') + ' đ.'}"></p>
-            <form class="staff-form" th:action="@{${opsBase + '/shift/close'}}" method="post">
-              <label class="staff-field">Tiền mặt thực đếm (đ) <input type="number" name="countedCash" min="0" max="999999999999999999" step="1" required /></label>
+            <form class="staff-form staff-shift-reconcile" th:action="@{${opsBase + '/shift/close'}}" method="post"
+                  data-shift-close th:attr="data-expected-cash=${totals.expectedCash.toPlainString()}">
+              <div class="staff-shift-cash-reference"><span>Tiền mặt theo sổ</span>
+                <strong th:text="${#numbers.formatInteger(totals.expectedCash, 1, 'POINT') + ' đ'}"></strong></div>
+              <label class="staff-field">Tiền mặt thực đếm (đ)
+                <input id="counted-cash" type="text" inputmode="numeric" name="countedCash" pattern="[0-9]{1,18}" maxlength="18" autocomplete="off" placeholder="Nhập số tiền" required />
+              </label>
+              <div class="staff-shift-cash-reference"><span>Chênh lệch dự kiến</span>
+                <output name="cashDifference" for="counted-cash" aria-live="polite" data-shift-difference>—</output></div>
               <div class="staff-actions"><button class="staff-button" data-confirm="Kết thúc ca và lưu số tiền mặt thực đếm?" type="submit">Kết ca</button></div>
             </form>
+            <dialog class="staff-shift-confirm" data-shift-confirm aria-labelledby="shift-close-title">
+              <h2 id="shift-close-title" th:text="${'Xác nhận kết ca #' + shift.id}"></h2>
+              <p>Kiểm tra số tiền thực đếm trước khi lưu đối soát.</p>
+              <dl class="staff-shift-cash-summary">
+                <div><dt>Tiền mặt theo sổ</dt><dd th:text="${#numbers.formatInteger(totals.expectedCash, 1, 'POINT') + ' đ'}"></dd></div>
+                <div><dt>Tiền mặt thực đếm</dt><dd data-confirm-counted></dd></div>
+                <div><dt>Chênh lệch dự kiến</dt><dd data-confirm-difference></dd></div>
+              </dl>
+              <form method="dialog" class="staff-actions">
+                <button type="submit" class="staff-button is-outline" value="back" autofocus>Kiểm tra lại</button>
+                <button type="submit" class="staff-button" value="close-shift">Xác nhận kết ca</button>
+              </form>
+            </dialog>
           </section>
         </th:block>
 
-        <section class="staff-panel">
-          <h2>Lịch sử ca</h2>
-          <p class="staff-empty" th:if="${view.history.isEmpty()}">Chưa có ca làm nào.</p>
+        <section class="staff-panel" aria-labelledby="shift-history-title">
+          <div class="staff-panel-heading"><h2 id="shift-history-title">Lịch sử ca</h2>
+            <span class="staff-result-count" th:text="${view.history.totalElements + ' ca'}"></span></div>
+          <form class="staff-shift-history-filters" th:action="@{${opsBase + '/shift'}}" method="get">
+            <input type="hidden" name="id" th:if="${view.selected != null}" th:value="${view.selected.id}" />
+            <label class="staff-field">Trạng thái ca <select name="status">
+              <option value="">Tất cả</option><option value="OPEN" th:selected="${historyStatus == 'OPEN'}">Đang mở</option>
+              <option value="CLOSED" th:selected="${historyStatus == 'CLOSED'}">Đã kết ca</option>
+            </select></label>
+            <button class="staff-button is-outline" type="submit">Lọc lịch sử</button>
+          </form>
+          <p class="staff-empty" th:if="${view.history.isEmpty()}"
+              th:text="${#strings.isEmpty(historyStatus) and view.history.number == 0 ? 'Chưa có ca làm nào.' : 'Không có ca phù hợp.'}"></p>
           <div class="staff-table-wrap" th:unless="${view.history.isEmpty()}">
-            <table class="staff-table"><thead><tr><th scope="col">Ca làm</th><th scope="col">Nhân viên</th><th scope="col">Mở ca</th><th scope="col">Trạng thái</th><th scope="col">Chênh lệch</th></tr></thead>
-              <tbody><tr th:each="entry : ${view.history}">
-                <td data-label="Ca làm"><a class="staff-link" th:href="@{${opsBase + '/shift'}(id=${entry.id})}" th:text="${'Ca #' + entry.id}"></a></td>
-                <td data-label="Nhân viên" th:text="${entry.employee.username}"></td>
-                <td data-label="Mở ca" th:text="${#temporals.format(entry.openedAt, 'dd/MM/yyyy · HH:mm')}"></td>
+            <table class="staff-table staff-ledger-table"><thead><tr><th scope="col">Ca làm</th><th scope="col">Mở ca</th><th scope="col">Kết ca</th><th scope="col">Trạng thái</th><th scope="col">Chênh lệch</th></tr></thead>
+              <tbody><tr th:each="entry : ${view.history.content}">
+                <td data-label="Ca làm"><div><a class="staff-link" th:href="@{${opsBase + '/shift'}(id=${entry.id},status=${historyStatus},page=${view.history.number})}"
+                      th:attr="aria-current=${view.selected != null and view.selected.id == entry.id ? 'true' : null}" th:text="${'Ca #' + entry.id}"></a>
+                  <small th:text="${entry.employee.username}"></small></div></td>
+                <td data-label="Mở ca"><time th:datetime="${entry.openedAt}" th:text="${#temporals.format(entry.openedAt, 'dd/MM/yyyy · HH:mm')}"></time></td>
+                <td data-label="Kết ca"><span th:if="${entry.closedAt == null}">—</span>
+                  <time th:if="${entry.closedAt != null}" th:datetime="${entry.closedAt}" th:text="${#temporals.format(entry.closedAt, 'dd/MM/yyyy · HH:mm')}"></time></td>
                 <td data-label="Trạng thái"><span class="staff-badge" th:attr="data-status=${entry.status}" th:text="${entry.status == 'OPEN' ? 'Đang mở' : 'Đã kết ca'}"></span></td>
-                <td data-label="Chênh lệch" th:text="${entry.cashDifference == null ? '—' : #numbers.formatInteger(entry.cashDifference, 1, 'POINT') + ' đ'}"></td>
+                <td data-label="Chênh lệch" class="staff-ledger-amount"><span th:replace="~{::cashDifference(${entry.cashDifference})}"></span></td>
               </tr></tbody>
             </table>
           </div>
+          <nav class="staff-pagination" aria-label="Phân trang lịch sử ca" th:if="${view.history.hasPrevious() or view.history.hasNext()}">
+            <a class="staff-link" th:if="${view.history.hasPrevious()}"
+                th:href="@{${opsBase + '/shift'}(id=${view.selected?.id},status=${historyStatus},page=${view.history.number - 1})}">Trang trước</a>
+            <span th:text="${'Trang ' + (view.history.number + 1) + ' / ' + view.history.totalPages}"></span>
+            <a class="staff-link" th:if="${view.history.hasNext()}"
+                th:href="@{${opsBase + '/shift'}(id=${view.selected?.id},status=${historyStatus},page=${view.history.number + 1})}">Trang sau</a>
+          </nav>
         </section>
       </div>
+      <template><span th:fragment="cashDifference(amount)" th:attr="data-cash-balance=${amount == null ? null : (amount.signum() > 0 ? 'over' : (amount.signum() < 0 ? 'under' : 'equal'))}"
+          th:text="${amount == null ? '—' : (amount.signum() == 0 ? 'Khớp sổ' : (amount.signum() > 0 ? 'Thừa ' : 'Thiếu ') + #numbers.formatInteger(amount.abs(), 1, 'POINT') + ' đ')}"></span></template>
     </main>
   </body>
 </html>

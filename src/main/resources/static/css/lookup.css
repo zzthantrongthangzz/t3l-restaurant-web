@@ -49,19 +49,6 @@
 .booking-detail-progress .is-current::before { background: var(--accent); }
 .booking-detail-progress .is-closed { color: var(--error); }
 .booking-detail-progress .is-closed::before { background: var(--error); }
-.booking-detail-grid { gap: clamp(14px, 2vw, 24px); }
-.booking-detail-main { display: grid; gap: clamp(14px, 2vw, 24px); min-width: 0; }
-.booking-detail-main .lookup-details { gap: .9rem 1rem; margin: 1rem 0 0; }
-.booking-detail-main .lookup-note { padding-top: .8rem; }
-.booking-detail-payment { min-width: 0; }
-.booking-detail-payment .deposit-payment { margin: 0; }
-.booking-detail-payment .deposit-transfer { grid-template-columns: minmax(0, 1fr); gap: .85rem; }
-.booking-detail-payment .deposit-qr { width: min(100%, 178px); margin-inline: auto; }
-.booking-detail-payment .receipt-deposit-form { grid-template-columns: minmax(0, 1fr); }
-.booking-detail-payment .receipt-deposit-form label { grid-column: auto; }
-.booking-detail-main h2, .booking-detail-payment h2, .booking-detail-payment h3 {
-  font: 500 1.3rem/1.3 var(--font-serif);
-}
 .booking-detail-order-head { justify-content: space-between; margin-bottom: .75rem; }
 .booking-detail-order-head .account-button { min-height: 40px; }
 .booking-item-details { margin-bottom: .65rem; }
@@ -72,14 +59,6 @@
 .booking-meal-list dd { margin: 0; font-weight: 650; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .booking-meal-list dt { color: var(--text-muted); }
 .booking-order-totals > div:last-child { padding-top: .55rem; border-top: 1px solid var(--border); font-weight: 700; }
-@media (min-width: 1091px) {
-  .lookup-result-grid.booking-detail-grid { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); }
-  .booking-detail-main { grid-column: 1; grid-row: 1; }
-  .booking-detail-payment { grid-column: 2; grid-row: 1; }
-}
-@media (max-width: 1090px) {
-  .lookup-result-grid.booking-detail-grid { grid-template-columns: minmax(0, 1fr); }
-}
 .lookup-receipt-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding-bottom: 23px; border-bottom: 1px solid var(--border); }
 .lookup-receipt-top h3 { font: 400 17px/1.7 ui-monospace, Consolas, monospace; letter-spacing: .4px; overflow-wrap: anywhere; }
 .lookup-status { display: inline-flex; align-items: center; padding: 5px 10px; border: 1px solid var(--warning-border); color: var(--warning); background: var(--warning-wash); font-size: var(--text-label); }
@@ -160,4 +139,156 @@
   .lookup-history-top h3 { font-size: 21px; }
   .lookup-history-schedule { grid-template-columns: 1fr; gap: 16px; }
   .lookup-bottom { flex-direction: column; gap: 8px; }
+}
+
+.booking-detail-container {
+  width: min(1280px, 100%);
+  margin-inline: auto;
+  color: var(--text);
+}
+.lookup-main.account-area.account-related { padding-top: clamp(20px, 2.6vw, 36px); }
+.lookup-main:not(.account-area) .booking-detail-container { width: min(1280px, calc(100% - 28px)); }
+.booking-detail-container .account-heading::before { display: none; }
+.booking-detail-container .lookup-alert + .booking-detail-status { margin-top: 12px; }
+.booking-detail-container :is(.account-heading h1, .booking-detail-heading h1) {
+  font: 500 clamp(2rem, 4.4vw, 3.45rem)/1.15 var(--font-serif);
+  color: var(--text);
+  margin: 0;
+}
+.booking-detail-heading { display: grid; justify-items: start; gap: 8px; margin-block: 16px 22px; }
+.booking-detail-heading > a { color: var(--accent-text); }
+.booking-detail-container :is(.lookup-receipt, .receipt-deposit) {
+  min-width: 0;
+  padding: clamp(16px, 2.25vw, 28px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+}
+.booking-detail-container .booking-detail-grid {
+  grid-template-columns: minmax(0, 1.3fr) minmax(320px, 1fr);
+  grid-template-areas: "info payment" "order payment";
+  grid-template-rows: auto 1fr;
+  gap: clamp(12px, 2vw, 24px);
+}
+.booking-detail-info { grid-area: info; }
+.booking-detail-order { grid-area: order; }
+.booking-detail-payment { grid-area: payment; min-width: 0; }
+.booking-detail-container .lookup-status { border-radius: 999px; }
+.booking-detail-container .lookup-details { gap: 12px 18px; margin: 13px 0 0; }
+.booking-detail-info > .lookup-details dd { font-size: 1.02rem; font-weight: 650; }
+.booking-detail-container :is(.booking-detail-info, .booking-detail-order) h2,
+.booking-detail-container .deposit-payment h3 { font: 500 clamp(1.25rem, 2.4vw, 1.55rem)/1.3 var(--font-serif); }
+.booking-detail-info > .home-text-link { margin-top: 12px; font-size: var(--text-label); }
+.booking-detail-disclosure > summary {
+  cursor: pointer;
+  padding-block: 8px;
+  font-size: var(--text-label);
+  font-weight: 650;
+  color: var(--text-muted);
+}
+.booking-detail-info > .booking-detail-disclosure { margin-top: 14px; border-top: 1px solid var(--border); }
+.booking-detail-container .booking-detail-disclosure dd { white-space: pre-wrap; }
+.booking-detail-container :is(.lookup-request-actions, .lookup-history) {
+  display: block;
+  margin-top: 14px;
+  padding: 4px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.booking-detail-container :is(.lookup-request-actions, .lookup-history)[open] { padding-bottom: 14px; }
+.booking-detail-container :is(.lookup-disclosure, .lookup-history-card, .lookup-request-actions .lookup-alert) { margin-top: 8px; }
+.booking-detail-container .lookup-disclosure summary { padding-block: 10px; color: var(--text); }
+.booking-detail-order .deposit-amounts > div { justify-content: space-between; }
+.booking-detail-order > :is(p, .booking-guest-order-total) { margin-top: 8px; }
+.booking-detail-order .booking-meal-list strong { overflow-wrap: anywhere; }
+.booking-detail-payment .deposit-payment { margin: 0; gap: 12px; scroll-margin-top: 118px; }
+.booking-detail-payment .deposit-payment-status {
+  justify-self: start;
+  margin: 0;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: var(--text-label);
+}
+.booking-detail-payment [data-status="WAITING"] .deposit-payment-status {
+  background: var(--info-wash);
+  color: var(--info);
+}
+.booking-detail-payment :is([data-status="PAID"], [data-status="APPLIED"], [data-status="REFUNDED"]) .deposit-payment-status {
+  background: var(--success-wash);
+  color: var(--success);
+}
+.booking-detail-payment :is([data-status="EXPIRED"], [data-status="REVIEW_REQUIRED"], [data-status="FORFEITED"]) .deposit-payment-status {
+  background: var(--error-wash);
+  color: var(--error);
+}
+.booking-payment-due {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 9px;
+  background: var(--surface-muted);
+  color: var(--text);
+}
+.booking-payment-due dt { color: var(--text-muted); font-size: var(--text-label); }
+.booking-payment-due dd {
+  margin: 0;
+  font-size: clamp(1.65rem, 4vw, 2.35rem);
+  line-height: 1.2;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.booking-detail-payment .deposit-amounts { gap: 5px; font-size: var(--text-label); }
+.booking-detail-payment [data-payable="true"] .deposit-amounts { order: 1; }
+.booking-detail-payment .deposit-amounts dt { color: var(--text-muted); }
+.booking-detail-payment .deposit-amounts dd { color: var(--text); }
+.booking-detail-payment .deposit-amounts > div { justify-content: space-between; }
+.booking-detail-payment .deposit-countdown { margin: 0; font-weight: 700; font-size: var(--text-compact); color: var(--info); }
+.booking-detail-payment .deposit-transfer { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.booking-detail-payment .deposit-qr { width: min(100%, 244px); margin-inline: auto; border: 0; }
+.booking-detail-payment .deposit-bank-info { gap: 7px; font-size: var(--text-label); }
+.booking-detail-payment .deposit-bank-info p { margin: 0; }
+.booking-detail-payment .deposit-bank-info strong { text-align: end; overflow-wrap: anywhere; }
+.booking-detail-payment .deposit-demo-form .home-button {
+  min-height: 42px;
+  width: auto;
+  justify-self: start;
+  padding: 7px 12px;
+  border: 1px solid var(--control-border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+}
+.booking-detail-payment .deposit-demo-form .home-button:hover { background: var(--surface-muted); }
+.booking-detail-payment .receipt-deposit-form { grid-template-columns: minmax(0, 1fr); margin-top: 0; }
+.booking-detail-payment .receipt-deposit-form label { color: var(--text); }
+.booking-payment-demo, .booking-detail-payment .deposit-refund-terms {
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-label);
+}
+.booking-payment-demo summary { cursor: pointer; }
+.booking-detail-payment [data-payable="true"] .deposit-refund-terms { order: 2; }
+.booking-detail-payment .deposit-demo-form { margin-top: 9px; }
+.booking-detail-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media (max-width: 760px) {
+  .booking-detail-container .booking-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "info" "payment" "order";
+    grid-template-rows: auto;
+  }
 }

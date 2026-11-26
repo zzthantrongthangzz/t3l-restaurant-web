@@ -3,37 +3,32 @@
   <head>
     <meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="robots" content="noindex,nofollow" />
-    <title>Món đặt trước | T3L Restaurant</title>
+    <title>Chỉnh sửa món đặt trước | T3L Restaurant</title>
     <th:block th:replace="~{web/fragments/theme :: start}"></th:block>
     <link rel="stylesheet" th:href="@{/css/home.css}" />
     <link rel="stylesheet" th:href="@{/css/account.css}" />
-    <link rel="stylesheet" th:href="@{/css/preorder.css}" />
-    <script data-page-script th:src="@{/js/preorder.js}" defer></script>
+    <link rel="stylesheet" th:href="@{/css/preorder.css(v=2)}" />
+    <script data-page-script th:src="@{/js/preorder.js(v=2)}" defer></script>
     <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
-    <script data-page-script defer th:src="@{/js/account.js}"></script>
   </head>
   <body class="home account-page">
     <a class="skip-link" href="#account-content">Chuyển đến nội dung</a>
     <header th:replace="~{web/fragments/restaurant-shell :: header('account')}"></header>
-    <main data-navigation class="account-area" id="main" aria-labelledby="account-title">
-      <div class="account-layout">
-        <aside th:replace="~{account/fragments/sidebar :: customer('reservations', ${booking.guestName})}"></aside>
+    <main class="account-area" id="main" aria-labelledby="account-title">
         <div class="account-content preorder-page account-stack" id="account-content" tabindex="-1">
           <header class="account-heading">
             <a class="account-text-action" th:href="@{/reservations/lookup(code=${booking.code})} + '#booking-order'">← Chi tiết đặt bàn</a>
-            <h1 id="account-title">Món đặt trước</h1>
+            <h1 id="account-title">Chỉnh sửa món đặt trước</h1>
             <p class="account-muted" th:text="${booking.code + ' · ' + #temporals.format(booking.startsAt,'dd/MM/yyyy HH:mm') + ' · ' + booking.statusLabel}"></p>
           </header>
-          <form class="account-form" th:action="@{/account/reservations/{code}/preorder(code=${booking.code})}" th:object="${preorderForm}" method="post" data-partial-submit>
+          <form class="account-form" th:action="@{/account/reservations/{code}/preorder(code=${booking.code})}" th:object="${preorderForm}" method="post"
+                th:attr="data-unsaved=${#fields.hasErrors('*')}">
             <div class="account-notice is-error" role="alert" th:if="${#fields.hasErrors('*')}">
               <p th:each="error : ${#fields.allErrors()}" th:text="${error}"></p>
             </div>
-            <p>Nhân viên sẽ duyệt giỏ mới. Số lượng giữ lại dùng giá đã xác nhận, phần thêm dùng giá hiện hành.</p>
-            <section th:replace="~{web/fragments/preorder-picker :: picker(${preorderCards},${minimumDeposit},${booking.depositPaid},true,${preorderForm.preorderNote})}"></section>
-            <div class="account-form-actions"><button class="account-button is-primary" type="submit">Gửi yêu cầu đổi món</button></div>
+            <section th:replace="~{web/fragments/preorder-picker :: picker(${preorderCards},${minimumDeposit},${booking},${preorderForm.preorderNote})}"></section>
           </form>
         </div>
-      </div>
     </main>
     <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
     <script th:replace="~{web/fragments/restaurant-shell :: navigation}"></script>

@@ -43,7 +43,7 @@ public class PaymentIntentService {
     }
   }
   public record CustomerDepositStatus(String status, String label, long remainingSeconds, boolean payable,
-                                      String reservationStatus) {}
+                                      String reservationStatus, String checkoutVersion) {}
   public record CustomerDeposit(CustomerDepositStatus status, Checkout checkout) {}
 
   public boolean usesQr() { return properties.enabled() || properties.demoAllowed(); }
@@ -88,7 +88,9 @@ public class PaymentIntentService {
       state = "UNAVAILABLE";
       label = "Chưa có hướng dẫn thanh toán khả dụng. Vui lòng liên hệ T3L.";
     }
-    return new CustomerDepositStatus(state, label, seconds, payable, booking.getStatus());
+    var version = String.join(":", booking.getDepositAmount().toPlainString(), booking.getDepositPaid().toPlainString(),
+        booking.getRefundRemaining().toPlainString(), intent == null ? "" : intent.getId().toString());
+    return new CustomerDepositStatus(state, label, seconds, payable, booking.getStatus(), version);
   }
 
   private boolean waitingForCustomerDeposit(Reservation booking, LocalDateTime now) {

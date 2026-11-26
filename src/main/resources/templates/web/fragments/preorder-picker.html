@@ -1,31 +1,44 @@
-<section xmlns:th="http://www.thymeleaf.org" th:fragment="picker(cards,minimum,paid,buyer,note)"
+<section xmlns:th="http://www.thymeleaf.org" th:fragment="picker(cards,minimum,booking,note)"
     class="preorder-picker" data-preorder-picker
-    th:attr="data-minimum=${minimum},data-paid=${paid},data-buyer=${buyer},data-placeholder=@{/images/dish-placeholder.svg}">
-  <h2>Món đặt trước</h2>
-  <p class="preorder-hint" th:unless="${buyer}">Bạn có thể chọn món ngay. Giỏ món sẽ được lưu khi đăng nhập hoặc đăng ký.</p>
+    th:attr="data-minimum=${minimum},data-paid=${booking.depositPaid},data-current-deposit=${booking.depositAmount},data-placeholder=@{/images/menu/dish-placeholder.svg}">
   <div class="preorder-layout">
-    <div th:replace="~{web/fragments/preorder-picker :: catalog(${cards}, @{/images/dish-placeholder.svg}, false)}"></div>
-    <aside class="preorder-cart" aria-label="Giỏ món ăn">
-      <h3>Giỏ món ăn</h3>
+    <section id="preorder-menu" aria-label="Thực đơn">
+      <a class="account-text-action preorder-cart-jump" href="#preorder-cart">Xem giỏ món <span data-preorder-count-summary></span></a>
+      <div th:replace="~{web/fragments/preorder-picker :: catalog(${cards}, @{/images/menu/dish-placeholder.svg}, true)}"></div>
+    </section>
+    <aside class="preorder-cart" id="preorder-cart" aria-labelledby="preorder-cart-title">
+      <header class="preorder-cart-heading">
+        <h2 id="preorder-cart-title">Giỏ món</h2>
+        <span class="preorder-hint" data-preorder-count-summary></span>
+      </header>
       <p data-preorder-empty class="preorder-hint">Chưa chọn món.</p>
       <ul data-preorder-lines></ul>
-      <th:block th:if="${buyer}">
-        <div th:replace="~{web/fragments/preorder-picker :: voucher(${voucherBookingCode})}"></div>
-      </th:block>
+      <div th:replace="~{web/fragments/preorder-picker :: voucher(${voucherBookingCode})}"></div>
       <dl class="preorder-totals" aria-live="polite">
-        <div><dt>Tiền món trước giảm</dt><dd data-preorder-total>0 đ</dd></div>
-        <div th:if="${buyer}"><dt>Giảm giá voucher</dt><dd data-voucher-discount>0 đ</dd></div>
-        <div th:if="${buyer}"><dt>Tiền món sau giảm</dt><dd data-voucher-net>0 đ</dd></div>
-        <div><dt>Cọc bắt buộc</dt><dd data-preorder-deposit th:text="${#numbers.formatInteger(minimum,1,'POINT') + ' đ'}"></dd></div>
-        <div th:if="${paid.signum() > 0}"><dt>Cọc đã nhận</dt><dd th:text="${#numbers.formatInteger(paid,1,'POINT') + ' đ'}"></dd></div>
-        <div th:if="${paid.signum() > 0}"><dt>Cần nộp thêm</dt><dd data-preorder-topup>0 đ</dd></div>
-        <div><dt>Dự kiến còn lại cho món</dt><dd data-preorder-balance>0 đ</dd></div>
+        <div><dt>Tạm tính</dt><dd data-preorder-total>0 đ</dd></div>
+        <div><dt>Giảm giá voucher</dt><dd data-voucher-discount>0 đ</dd></div>
+        <div><dt>Tiền món sau giảm</dt><dd data-voucher-net>0 đ</dd></div>
+        <div class="preorder-totals-divider"><dt>Cọc hiện tại</dt><dd th:text="${#numbers.formatInteger(booking.depositAmount,1,'POINT') + ' đ'}"></dd></div>
+        <div><dt>Cọc dự kiến</dt><dd data-preorder-deposit>—</dd></div>
+        <div class="preorder-deposit-change" data-preorder-deposit-change-row hidden><dt>Chênh lệch tiền cọc</dt><dd data-preorder-deposit-change></dd></div>
+        <div th:if="${booking.depositPaid.signum() > 0}"><dt>Cọc đã nhận</dt><dd th:text="${#numbers.formatInteger(booking.depositPaid,1,'POINT') + ' đ'}"></dd></div>
+        <div><dt>Cọc còn phải nộp nếu duyệt</dt><dd data-preorder-topup>—</dd></div>
+        <div class="preorder-totals-balance"><dt>Tiền món dự kiến còn lại</dt><dd data-preorder-balance>—</dd></div>
       </dl>
-      <p class="preorder-hint">Cọc là mức cao hơn giữa cọc tối thiểu của bàn và 70% tiền món sau giảm. Tiền còn lại tính riêng cho món đã chọn.</p>
+      <details class="preorder-policy">
+        <summary>Cách tính giá và tiền cọc</summary>
+        <p class="preorder-hint">Phần giữ lại dùng giá đã xác nhận, phần thêm dùng giá hiện hành. Cọc là mức cao hơn giữa cọc tối thiểu của bàn và 70% tiền món sau giảm.</p>
+      </details>
       <label>Ghi chú cho bếp
-        <textarea name="preorderNote" rows="2" maxlength="500" th:text="${note}" placeholder="Ví dụ: để sốt riêng"></textarea>
+        <textarea name="preorderNote" rows="2" maxlength="500" th:text="${note}" placeholder="Ví dụ: để sốt riêng, lưu ý dị ứng"></textarea>
       </label>
       <p class="preorder-hint" role="status" data-preorder-warning></p>
+      <p class="preorder-hint">Giỏ mới có hiệu lực sau khi nhân viên duyệt.</p>
+      <div class="preorder-actions">
+        <a class="account-text-action" th:href="@{/reservations/lookup(code=${booking.code})} + '#booking-order'">Quay lại</a>
+        <button class="account-button is-primary" type="submit">Gửi yêu cầu đổi món</button>
+      </div>
+      <a class="account-text-action preorder-cart-jump" href="#preorder-menu">Tiếp tục chọn món</a>
     </aside>
   </div>
   <th:block th:replace="~{web/fragments/preorder-picker :: formFields}"></th:block>
@@ -71,8 +84,10 @@
     </select>
   </label>
   <div class="preorder-voucher-entry">
-    <label>Mã voucher<input name="voucherCode" data-voucher-code maxlength="32" autocomplete="off" th:value="${selectedVoucher}" /></label>
-    <button class="home-button home-button-outline" type="button" data-voucher-preview>Kiểm tra mã</button>
+    <label>Mã voucher<input name="voucherCode" data-voucher-code maxlength="32" autocomplete="off"
+        th:placeholder="${bookingCode != null ? 'Nhập mã voucher' : null}" th:value="${selectedVoucher}" /></label>
+    <button class="home-button home-button-outline" type="button" data-voucher-preview
+        th:text="${bookingCode != null ? 'Áp dụng' : 'Kiểm tra mã'}"></button>
   </div>
   <p class="preorder-hint" role="status" data-voucher-message></p>
 </div>

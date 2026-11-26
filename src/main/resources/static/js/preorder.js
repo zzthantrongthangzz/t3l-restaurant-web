@@ -5,6 +5,9 @@ window.t3lPage.register(({ signal, state }) => {
     const format = (amount) => currency.format(amount) + ' đ';
     const minimum = BigInt(picker.dataset.minimum ?? 0);
     const paid = BigInt(picker.dataset.paid ?? 0);
+    const currentDeposit = BigInt(picker.dataset.currentDeposit ?? 0);
+    const editForm = booking ? null : picker.closest('form');
+    const kitchenNote = editForm?.elements.preorderNote;
     const voucher = booking ? null : picker.querySelector('[data-voucher-url]');
     const voucherCode = voucher?.querySelector('[data-voucher-code]');
     const voucherMessage = voucher?.querySelector('[data-voucher-message]');
@@ -40,6 +43,26 @@ window.t3lPage.register(({ signal, state }) => {
       });
       return [id, item];
     }));
+    const initialQuantities = [...items.values()].map(item => item.quantity);
+    const initialNote = kitchenNote?.value;
+    const initialVoucher = voucherCode?.value.trim();
+    const beforeLeave = event => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    function trackUnsavedChanges() {
+      if (!editForm) return;
+      const dirty = editForm.dataset.unsaved === 'true' || kitchenNote.value !== initialNote
+        || voucherCode.value.trim() !== initialVoucher
+        || [...items.values()].some((item, i) => item.quantity !== initialQuantities[i]);
+      if (dirty) window.addEventListener('beforeunload', beforeLeave);
+      else window.removeEventListener('beforeunload', beforeLeave);
+    }
+
+    kitchenNote?.addEventListener('input', trackUnsavedChanges);
+    editForm?.addEventListener('submit', () => window.removeEventListener('beforeunload', beforeLeave));
+    signal.addEventListener('abort', () => window.removeEventListener('beforeunload', beforeLeave), { once: true });
 
     const categoryValues = [...new Set([...items.values()].map((item) => item.category).filter(Boolean))];
     let selectedCategory = categoryValues.includes(saved?.category) ? saved.category : '';
@@ -98,27 +121,24 @@ window.t3lPage.register(({ signal, state }) => {
     }
 
     function showTotals(total, discount, net, deposit, topup, balance) {
+      const quoted = deposit != null;
       picker.querySelector('[data-preorder-total]').textContent = format(total);
-      picker.querySelector('[data-preorder-deposit]').textContent = format(deposit);
-      picker.querySelector('[data-preorder-balance]').textContent = format(balance);
-      const extra = picker.querySelector('[data-preorder-topup]');
-      if (extra) extra.textContent = format(topup);
-      if (voucher) {
-        const discountAmount = picker.querySelector('[data-voucher-discount]');
-        const netAmount = picker.querySelector('[data-voucher-net]');
-        if (discountAmount) discountAmount.textContent = format(discount);
-        if (netAmount) netAmount.textContent = format(net);
-      }
+      picker.querySelector('[data-preorder-deposit]').textContent = quoted ? format(deposit) : '—';
+      picker.querySelector('[data-preorder-balance]').textContent = quoted ? format(balance) : '—';
+      picker.querySelector('[data-preorder-topup]').textContent = quoted ? format(topup) : '—';
+      picker.querySelector('[data-voucher-discount]').textContent = quoted ? (discount > 0n ? '−' : '') + format(discount) : '—';
+      picker.querySelector('[data-voucher-net]').textContent = quoted ? format(net) : '—';
+      const difference = quoted ? deposit - currentDeposit : 0n;
+      const change = picker.querySelector('[data-preorder-deposit-change-row]');
+      change.hidden = difference === 0n;
+      const value = picker.querySelector('[data-preorder-deposit-change]');
+      value.textContent = difference < 0n ? '−' + format(-difference) : '+' + format(difference);
     }
 
     async function preview(requestedByUser = false) {
       clearTimeout(quoteTimer);
       quoteRequest?.abort();
       const code = voucherCode?.value.trim();
-      if (!code) {
-        if (voucherMessage) voucherMessage.textContent = '';
-        return;
-      }
       const ctrl = new AbortController();
       quoteRequest = ctrl;
       const form = picker.closest('form');
@@ -130,19 +150,26 @@ window.t3lPage.register(({ signal, state }) => {
       const table = form.querySelector('input[name="tableId"]');
       if (table) body.set('tableId',table.value);
       if (voucher.dataset.voucherBooking) body.set('bookingCode',voucher.dataset.voucherBooking);
+      voucherMessage.textContent = code ? 'Đang kiểm tra voucher…' : '';
+      voucherMessage.dataset.state = '';
       try {
         const response = await fetch(voucher.dataset.voucherUrl,{method:'POST',body,signal:ctrl.signal,credentials:'same-origin'});
         const result = await response.json();
         if (ctrl.signal.aborted || !picker.isConnected) return;
         if (!response.ok) {
-          voucherMessage.textContent = result.message || 'Chưa thể kiểm tra mã voucher.';
+          voucherMessage.textContent = result.message || 'Chưa thể kiểm tra giỏ món.';
+          voucherMessage.dataset.state = 'error';
           return;
         }
         showTotals(...['gross','discount','net','deposit','topup','balance'].map(key=>BigInt(result[key])));
-        voucherMessage.textContent = 'Mã hợp lệ với giỏ hiện tại. Lượt được giữ khi yêu cầu được lưu hoặc duyệt.';
-        if (requestedByUser) document.dispatchEvent(new Event('t3l:voucher-applied'));
+        voucherMessage.textContent = code ? 'Voucher áp dụng được cho giỏ hiện tại.' : '';
+        voucherMessage.dataset.state = code ? 'success' : '';
+        if (code && requestedByUser) document.dispatchEvent(new Event('t3l:voucher-applied'));
       } catch (error) {
-        if (error.name !== 'AbortError') voucherMessage.textContent = 'Chưa thể kiểm tra mã voucher.';
+        if (error.name !== 'AbortError') {
+          voucherMessage.textContent = 'Chưa thể kiểm tra giỏ món. Bạn có thể thử lại.';
+          voucherMessage.dataset.state = 'error';
+        }
       }
     }
 
@@ -167,7 +194,9 @@ window.t3lPage.register(({ signal, state }) => {
         unavailable ||= !item.available;
         const row = document.createElement('li');
         const description = document.createElement('span');
-        description.textContent = item.name + ' × ' + item.quantity + ' · ' + (item.available ? format(price) : 'Hết hoặc ngừng bán');
+        description.textContent = item.name + ' × ' + item.quantity;
+        const linePrice = document.createElement('strong');
+        linePrice.textContent = item.available ? format(price) : 'Hết hoặc ngừng bán';
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.dataset.preorderRemove = item.id;
@@ -175,16 +204,13 @@ window.t3lPage.register(({ signal, state }) => {
         remove.textContent = 'Bỏ';
         if (booking) {
           row.dataset.preorderCartId = item.id;
-          const linePrice = document.createElement('strong');
-          linePrice.textContent = item.available ? format(price) : 'Hết hoặc ngừng bán';
-          description.textContent = item.name + ' × ' + item.quantity;
           const summary = document.createElement('li');
           summary.append(description.cloneNode(true), linePrice.cloneNode(true));
           review.append(summary);
           const controls = item.element.querySelector('.preorder-stepper').cloneNode(true);
           controls.append(remove);
           row.append(description, linePrice, controls);
-        } else row.append(description, remove);
+        } else row.append(description, linePrice, remove);
         lines.append(row);
         const input = document.createElement('input');
         input.type = 'hidden';
@@ -215,13 +241,14 @@ window.t3lPage.register(({ signal, state }) => {
       const portion = (total * 70n + 99n) / 100n;
       const deposit = portion > minimum ? portion : minimum;
       const credit = paid > deposit ? paid : deposit;
-      showTotals(total,0n,total,deposit,deposit > paid ? deposit - paid : 0n,total > credit ? total - credit : 0n);
-      if (voucher) {
-        clearTimeout(quoteTimer);
-        quoteRequest?.abort();
-        voucherMessage.textContent = '';
-        if (voucherCode.value.trim()) quoteTimer = setTimeout(preview, 240);
-      }
+      picker.querySelectorAll('[data-preorder-count-summary]').forEach(label => { label.textContent = portions + ' phần'; });
+      if (voucherCode.value.trim() || initialVoucher) showTotals(total);
+      else showTotals(total, 0n, total, deposit, deposit > paid ? deposit - paid : 0n, total > credit ? total - credit : 0n);
+      clearTimeout(quoteTimer);
+      quoteRequest?.abort();
+      voucherMessage.textContent = '';
+      if (!unavailable) quoteTimer = setTimeout(preview, 240);
+      trackUnsavedChanges();
     }
 
     voucherCode?.addEventListener('input',render);
@@ -231,8 +258,25 @@ window.t3lPage.register(({ signal, state }) => {
       render();
       void preview(true);
     });
+    voucherCode?.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' || event.isComposing) return;
+      event.preventDefault();
+      void preview(true);
+    });
     voucher?.querySelector('[data-voucher-preview]').addEventListener('click',()=> void preview(true));
     signal.addEventListener('abort',()=> {clearTimeout(quoteTimer);quoteRequest?.abort();},{once:true});
+    if (editForm && 'ResizeObserver' in window) {
+      const cartPanel = cart.closest('aside');
+      const header = document.querySelector('.home-header');
+      const observer = new ResizeObserver(() => {
+        const headerHeight = header?.getBoundingClientRect().height ?? 0;
+        cartPanel.style.setProperty('--preorder-sticky-top', Math.ceil(headerHeight + 14) + 'px');
+        cartPanel.style.setProperty('--preorder-cart-height', Math.ceil(cartPanel.getBoundingClientRect().height) + 'px');
+      });
+      observer.observe(cartPanel);
+      if (header) observer.observe(header);
+      signal.addEventListener('abort', () => observer.disconnect(), { once: true });
+    }
 
     search.addEventListener('input', filter);
     category?.addEventListener('change', () => {

@@ -2,23 +2,77 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{staff/fragments/shell :: head('Lịch sử thao tác')}"></head>
 <body class="staff-page"><header th:replace="~{staff/fragments/shell :: header('activity')}"></header>
-<main data-navigation data-navigation-fragment class="staff-main">
+<main id="main" data-navigation data-navigation-fragment class="staff-main staff-activity-page">
   <div class="staff-page-heading"><div><h1>Lịch sử thao tác</h1><p>Các thao tác đã được ghi nhận trên tài khoản của bạn.</p></div></div>
-  <section class="staff-panel">
-    <p class="staff-empty" th:if="${rows.isEmpty()}">Chưa có thao tác nào được ghi nhận.</p>
-    <div class="staff-table-wrap" th:unless="${rows.isEmpty()}"><table class="staff-table"><thead><tr>
-      <th>Thời gian</th><th>Thao tác</th><th>Đối tượng</th><th>Chi tiết</th>
-    </tr></thead><tbody>
-      <tr th:each="row : ${rows.content}">
-        <td data-label="Thời gian" th:text="${#temporals.format(row.occurredAt,'dd/MM/yyyy HH:mm:ss')}"></td>
-        <td data-label="Thao tác" th:text="${row.operation}"></td>
-        <td data-label="Đối tượng" th:text="${row.targetLabel}"></td>
-        <td data-label="Chi tiết" th:text="${row.details == null or #strings.isEmpty(row.details) ? '—' : row.details}"></td>
-      </tr></tbody></table></div>
-    <nav class="staff-pagination" aria-label="Phân trang" th:if="${rows.hasPrevious() or rows.hasNext()}">
-      <a class="staff-link" th:if="${rows.hasPrevious()}" th:href="@{/staff/activity(page=${rows.number - 1})}">Trang trước</a>
-      <span th:text="${'Trang ' + (rows.number + 1)}"></span>
-      <a class="staff-link" th:if="${rows.hasNext()}" th:href="@{/staff/activity(page=${rows.number + 1})}">Trang sau</a>
+  <section class="staff-panel staff-activity-filters" aria-label="Bộ lọc lịch sử thao tác">
+    <form class="staff-activity-filter-form" th:action="@{/staff/activity}" method="get">
+      <label class="staff-field">Mã đặt bàn
+        <input type="search" name="code" th:value="${code}" placeholder="Nhập mã" maxlength="80" autocomplete="off" />
+      </label>
+      <label class="staff-field">Loại thao tác
+        <select name="operation">
+          <option value="">Tất cả</option>
+          <option th:each="option : ${operations}" th:value="${option}" th:selected="${option == operation}" th:text="${option}"></option>
+        </select>
+      </label>
+      <label class="staff-field">Từ ngày <input type="date" name="from" th:value="${from}" /></label>
+      <label class="staff-field">Đến ngày <input type="date" name="to" th:value="${to}" /></label>
+      <div class="staff-actions"><button class="staff-button" type="submit">Lọc kết quả</button>
+        <a class="staff-button is-outline" th:if="${filtered}" th:href="@{/staff/activity}">Xóa bộ lọc</a></div>
+    </form>
+    <p class="staff-notice is-error" role="alert" th:if="${invalidRange}">Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.</p>
+  </section>
+  <section class="staff-panel" aria-labelledby="activity-results">
+    <div class="staff-panel-heading">
+      <h2 id="activity-results">Nhật ký của bạn</h2>
+      <span class="staff-result-count" th:text="${rows.totalElements + ' thao tác · mới nhất trước'}"></span>
+    </div>
+    <p class="staff-empty" th:if="${rows.isEmpty() and !invalidRange}"
+        th:text="${filtered or rows.number > 0 ? 'Không tìm thấy thao tác phù hợp.' : 'Chưa có thao tác nào được ghi nhận.'}"></p>
+    <div class="staff-table-wrap" th:unless="${rows.isEmpty()}">
+      <table class="staff-table staff-activity-table"><thead><tr>
+        <th scope="col">Thời gian</th><th scope="col">Thao tác</th><th scope="col">Đối tượng</th>
+        <th scope="col">Kết quả</th><th scope="col">Chi tiết thay đổi</th>
+      </tr></thead><tbody>
+        <tr th:each="row : ${rows.content}" th:with="entry=${row.activity},
+            review=${entry.targetType == 'GENERAL' and entry.operation == 'Xét duyệt yêu cầu'},
+            order=${entry.targetType == 'DINING_ORDER' or entry.targetType == 'DINING_ORDER_ITEM'},
+            shiftId=${activityAdmin ? row.shiftId : row.ownShiftId},
+            outcome=${review and entry.targetLabel.endsWith(' · Đã từ chối') ? 'DECLINED'
+                : (review and entry.targetLabel.endsWith(' · Đã duyệt') ? 'APPROVED' : 'RECORDED')}">
+          <td data-label="Thời gian"><time th:datetime="${entry.occurredAt}">
+            <span th:text="${#temporals.format(entry.occurredAt, 'dd/MM/yyyy')}"></span>
+            <small th:text="${#temporals.format(entry.occurredAt, 'HH:mm:ss')}"></small>
+          </time></td>
+          <td data-label="Thao tác"><strong th:text="${entry.operation}"></strong></td>
+          <td data-label="Đối tượng"><div class="staff-activity-target">
+            <th:block th:with="label=${review and row.reservationCode != null ? row.reservationCode : entry.targetLabel}">
+              <a class="staff-link" th:if="${row.reservationId != null and !order}"
+                  th:href="@{/staff/reservations/{id}(id=${row.reservationId})}" th:text="${label}"></a>
+              <a class="staff-link" th:if="${row.reservationId != null and order}"
+                  th:href="@{/staff/orders/{id}(id=${row.reservationId})}" th:text="${label}"></a>
+              <a class="staff-link" th:if="${shiftId != null}"
+                  th:href="@{/staff/shift(id=${shiftId})} + ${entry.targetType == 'CASH_SALE' ? '#sale-' + entry.targetId : ''}"
+                  th:text="${label}"></a>
+              <a class="staff-link" th:if="${row.tableCode != null}"
+                  th:href="@{/staff/tables(table=${row.tableCode})}" th:text="${label}"></a>
+              <span th:if="${row.reservationId == null and shiftId == null and row.tableCode == null}"
+                    th:text="${#strings.isEmpty(label) ? '—' : label}"></span>
+            </th:block>
+            <small th:if="${order and row.reservationCode != null}" th:text="${row.reservationCode}"></small>
+          </div></td>
+          <td data-label="Kết quả"><span class="staff-badge" th:attr="data-activity-result=${outcome}"
+              th:text="${outcome == 'DECLINED' ? 'Đã từ chối' : (outcome == 'APPROVED' ? 'Đã duyệt' : 'Đã ghi nhận')}"></span></td>
+          <td data-label="Chi tiết thay đổi"><span th:text="${!#strings.isEmpty(entry.details) ? entry.details : (review ? entry.targetLabel : '—')}"></span></td>
+        </tr>
+      </tbody></table>
+    </div>
+    <nav class="staff-pagination" aria-label="Phân trang lịch sử thao tác" th:if="${rows.hasPrevious() or rows.hasNext()}">
+      <a class="staff-link" th:if="${rows.hasPrevious()}"
+          th:href="@{/staff/activity(code=${code},operation=${operation},from=${from},to=${to},page=${rows.number - 1})}">Trang trước</a>
+      <span th:text="${'Trang ' + (rows.number + 1) + ' / ' + rows.totalPages}"></span>
+      <a class="staff-link" th:if="${rows.hasNext()}"
+          th:href="@{/staff/activity(code=${code},operation=${operation},from=${from},to=${to},page=${rows.number + 1})}">Trang sau</a>
     </nav>
   </section>
 </main></body></html>

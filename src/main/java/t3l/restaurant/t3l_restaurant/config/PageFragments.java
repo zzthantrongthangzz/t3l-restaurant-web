@@ -13,7 +13,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class PageFragments implements WebMvcConfigurer {
   private static final String FRAGMENT_HEADER = "X-T3L-Fragment";
   private static final Set<String> FILTER_VIEWS = Set.of(
-      "staff/reservations", "staff/tables", "account/panel",
+      "staff/reservations", "staff/tables", "staff/activity", "account/panel",
       "admin/accounts", "admin/activity", "admin/contacts", "admin/inventory",
       "admin/invoices", "admin/revenue", "admin/shifts", "admin/analytics", "admin/vouchers");
 

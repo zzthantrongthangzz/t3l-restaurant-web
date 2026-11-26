@@ -4,10 +4,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.TransientDataAccessException;
@@ -26,7 +30,6 @@ import t3l.restaurant.t3l_restaurant.dto.ReservationForm;
 import t3l.restaurant.t3l_restaurant.dto.ReservationUpdateForm;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
 import t3l.restaurant.t3l_restaurant.entity.RestaurantTable;
-import t3l.restaurant.t3l_restaurant.entity.TableKind;
 import t3l.restaurant.t3l_restaurant.repository.DishRepository;
 import t3l.restaurant.t3l_restaurant.repository.RestaurantTableRepository;
 import t3l.restaurant.t3l_restaurant.service.BookingException;
@@ -73,21 +76,50 @@ public class StaffController {
   @GetMapping("/reservations")
   public String reservations(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
       @RequestParam(defaultValue = "") String status, @RequestParam(defaultValue = "") String q,
-      @RequestParam(defaultValue = "0") int page, Authentication actor, Model model) {
-    var results = workspace.searchQuick(date, status, q, page);
+      @RequestParam(defaultValue = "") String scope, @RequestParam(defaultValue = "0") int page,
+      Authentication actor, Model model) {
+    boolean staffList = "/staff".equals(operationsBase());
+    String selectedScope = staffList && ("upcoming".equals(scope) || "attention".equals(scope)) ? scope : "";
+    String selectedStatus = StaffWorkspaceService.STATUSES.contains(status) ? status : "";
+    var now = LocalDateTime.now(schedule.getClock());
+    var today = now.toLocalDate();
+    var results = workspace.searchQuick(date, selectedStatus, q, page, selectedScope, staffList, now);
     boolean shiftOpen = shifts.current(actor.getName()) != null;
-    var bookingActions = results.getContent().stream().collect(java.util.stream.Collectors.toMap(
-        Reservation::getId, booking -> workspace.actions(booking, shiftOpen)));
+    var pendingReviews = changes.pendingReviews();
+    if (staffList) {
+      model.addAttribute("reservationRows", workspace.reservationRows(results.getContent(), shiftOpen, now));
+      model.addAttribute("reviewByBooking", pendingReviews.stream().collect(Collectors.toMap(
+          item -> item.request().getReservation().getId(), item -> item.request().getId(), (first, next) -> first)));
+      String quick = selectedScope;
+      if (quick.isEmpty() && selectedStatus.isEmpty()) {
+        quick = date == null ? "all" : today.equals(date) ? "today" : "";
+      } else if (quick.isEmpty() && date == null && Reservation.PENDING.equals(selectedStatus)) {
+        quick = "pending";
+      }
+      model.addAttribute("quick", quick);
+      model.addAttribute("today", today);
+      model.addAttribute("scope", selectedScope);
+    } else {
+      model.addAttribute("bookingActions", results.getContent().stream().collect(Collectors.toMap(
+          Reservation::getId, booking -> workspace.actions(booking, shiftOpen))));
+    }
     var labels = new LinkedHashMap<String, String>();
     StaffWorkspaceService.STATUSES.forEach(value -> labels.put(value, Reservation.labelFor(value)));
     model.addAttribute("results", results);
     model.addAttribute("date", date);
-    model.addAttribute("status", status);
+    model.addAttribute("status", selectedStatus);
     model.addAttribute("q", q);
-    model.addAttribute("bookingActions", bookingActions);
     model.addAttribute("statuses", labels);
-    model.addAttribute("changeRequests", changes.pendingReviews());
+    model.addAttribute("changeRequests", pendingReviews);
     return "staff/reservations";
+  }
+
+  @GetMapping("/reservations/list-status")
+  @ResponseBody
+  public Map<Long, StaffWorkspaceService.ReservationRow> reservationListStatus(@RequestParam List<Long> ids,
+      Authentication actor) {
+    boolean shiftOpen = shifts.current(actor.getName()) != null;
+    return workspace.reservationRowUpdates(ids, shiftOpen, LocalDateTime.now(schedule.getClock()));
   }
 
   @GetMapping("/notifications/pending-bookings")
@@ -332,11 +364,23 @@ public class StaffController {
     LocalTime selectedTime = time != null && slots.contains(time) ? time : null;
     int selectedGuests = Math.clamp(guests, 1, 20);
     boolean shiftOpen = shifts.current(actor.getName()) != null;
+    boolean adminBoard = "/admin".equals(operationsBase());
+    var board = workspace.board(selectedDate, selectedTime, selectedGuests, shiftOpen);
+    var kinds = board.stream().map(item -> item.table().getKind()).distinct().toList();
+    if (adminBoard) {
+      board = board.stream().filter(item -> item.table().getCapacity() >= selectedGuests).toList();
+      model.addAttribute("boardCounts", board.stream().collect(Collectors.groupingBy(
+          StaffWorkspaceService.TableView::getSummaryCategory, Collectors.counting())));
+    }
+    var groups = board.stream().collect(Collectors.groupingBy(
+        item -> item.table().getKind(), LinkedHashMap::new, Collectors.toList()));
     model.addAttribute("shiftOpen", shiftOpen);
-    model.addAttribute("board", workspace.board(selectedDate, selectedTime, selectedGuests, shiftOpen));
-    model.addAttribute("tableKinds", TableKind.values());
+    model.addAttribute("board", board);
+    model.addAttribute("boardGroups", groups.values());
+    model.addAttribute("tableKinds", kinds);
     model.addAttribute("selectedDate", selectedDate);
     model.addAttribute("selectedTime", selectedTime);
+    model.addAttribute("selectedEnd", selectedTime == null ? null : selectedTime.plusMinutes(rules.duration()));
     model.addAttribute("selectedGuests", selectedGuests);
     model.addAttribute("timeSlots", slots);
     model.addAttribute("duration", rules.duration());
@@ -446,11 +490,23 @@ public class StaffController {
   }
 
   @GetMapping("/shift")
-  public String shift(@RequestParam(required = false) Long id, Authentication actor, Model model) {
+  public String shift(@RequestParam(required = false) Long id, @RequestParam(defaultValue = "") String status,
+      @RequestParam(defaultValue = "0") int page, Authentication actor, Model model) {
     boolean admin = actor.getAuthorities().stream().anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
-    var view = shifts.overview(actor.getName(), id, admin);
+    String historyStatus = "OPEN".equals(status) || "CLOSED".equals(status) ? status : "";
+    var view = shifts.overview(actor.getName(), id, admin, historyStatus, page);
     if (id != null && view.selected() == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
     model.addAttribute("view", view);
+    model.addAttribute("historyStatus", historyStatus);
+    var selected = view.selected();
+    if (selected != null) {
+      var until = selected.getClosedAt() == null ? LocalDateTime.now(schedule.getClock()) : selected.getClosedAt();
+      var elapsed = Duration.between(selected.getOpenedAt(), until);
+      if (elapsed.isNegative()) elapsed = Duration.ZERO;
+      model.addAttribute("shiftElapsed", elapsed);
+      model.addAttribute("shiftAcrossDays", selected.getClosedAt() == null
+          && selected.getOpenedAt().toLocalDate().isBefore(until.toLocalDate()));
+    }
     model.addAttribute("dishes", dishes.findByAvailableTrueOrderByCategoryNameAscNameAsc());
     model.addAttribute("saleForm", new CashSaleForm());
     return "staff/shift";

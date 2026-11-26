@@ -12,13 +12,19 @@ window.t3lPage.register(({ signal, state }) => {
   const searchTable = board.querySelector('[data-filter-table]');
   const searchGuest = board.querySelector('[data-filter-guest]');
   const kindFilter = board.querySelector('[data-filter-kind]');
-  let cards = [...grid.children];
+  const adminBoard = board.classList.contains('admin-table-board');
+  const total = board.querySelector('[data-board-total]');
+  const context = board.querySelector('[data-board-context]');
+  let cards = [...grid.querySelectorAll('.table-board-card')];
   let selectedButton;
   let statusFilter = state.board?.status ?? '';
   let pendingRead;
   let writing = false;
   let queuedHistory;
   let dialogLoad;
+  const scheduleFields = ['date', 'time', 'guests'];
+  const scheduleValues = () => scheduleFields.map(name => filters.elements[name].value).join('|');
+  let appliedSchedule = scheduleValues();
   searchTable.value = state.board?.table ?? searchTable.value;
   searchGuest.value = state.board?.guest ?? searchGuest.value;
   kindFilter.value = state.board?.kind ?? kindFilter.value;
@@ -36,26 +42,37 @@ window.t3lPage.register(({ signal, state }) => {
     });
   }
 
-  function category(card) {
-    return ['PENDING', 'RESERVED'].includes(card.dataset.state) ? 'WAITING' : card.dataset.state;
-  }
-
   function applyFilters() {
-    const counts = { FREE: 0, WAITING: 0, OCCUPIED: 0 };
+    const counts = Object.fromEntries(statusFilters.map(button => [button.dataset.boardState, 0]));
     const tableQuery = normalize(searchTable.value);
     const guestQuery = normalize(searchGuest.value);
+    let visibleCount = 0;
     for (const card of cards) {
-      const state = category(card);
+      const state = card.dataset.summaryState || card.dataset.state;
       const matches = (!kindFilter.value || card.dataset.kind === kindFilter.value)
         && normalize(card.dataset.search).includes(tableQuery) && matchesGuest(card, guestQuery);
       if (matches && Object.hasOwn(counts, state)) counts[state] += 1;
+      if (matches) counts[''] += 1;
       card.hidden = !matches || Boolean(statusFilter && statusFilter !== state);
+      if (!card.hidden) visibleCount += 1;
     }
     statusFilters.forEach(button => {
-      button.setAttribute('aria-pressed', String(button.dataset.boardState === statusFilter));
-      button.querySelector('[data-count]').textContent = counts[button.dataset.boardState];
+      const status = button.dataset.boardState;
+      const selected = status === statusFilter;
+      button.setAttribute('aria-pressed', String(selected));
+      button.querySelector('[data-count]').textContent = counts[status];
+      if (!adminBoard && ['INACTIVE', 'TOO_SMALL'].includes(status)) {
+        button.hidden = !selected && counts[status] === 0;
+      }
     });
-    board.querySelector('[data-board-empty]').hidden = cards.some(card => !card.hidden);
+    const label = visibleCount + ' bàn';
+    if (total.textContent !== label) total.textContent = label;
+    for (const group of grid.querySelectorAll('[data-board-group]')) {
+      const visible = group.querySelectorAll('.table-board-card:not([hidden])').length;
+      group.hidden = visible === 0;
+      group.querySelector('[data-board-group-count]').textContent = visible + ' bàn';
+    }
+    board.querySelector('[data-board-empty]').hidden = visibleCount > 0;
     state.board = { table: searchTable.value, guest: searchGuest.value, kind: kindFilter.value, status: statusFilter };
   }
 
@@ -83,6 +100,11 @@ window.t3lPage.register(({ signal, state }) => {
       if (!button.isConnected || !dialog.open) return;
       button.disabled = !status.receiveEnabled;
       button.title = status.receiveEnabled ? '' : status.receiveReason;
+      const reason = content.querySelector('[data-board-arrival-reason]');
+      if (reason) {
+        reason.textContent = status.receiveEnabled ? '' : status.receiveReason;
+        reason.hidden = status.receiveEnabled || !status.receiveReason;
+      }
       if (status.receiveEnabled && status.receiveReason) button.dataset.confirm = status.receiveReason;
       else delete button.dataset.confirm;
     } catch {
@@ -139,7 +161,7 @@ window.t3lPage.register(({ signal, state }) => {
         content.replaceChildren(form);
         (form.querySelector('input[type="radio"]') || form.querySelector('[data-table-dialog-back]')).focus();
       } else {
-        title.textContent = url.searchParams.get('walkIn') === 'true' ? 'Đặt bàn ngay' : 'Đặt bàn chờ';
+        title.textContent = url.searchParams.get('walkIn') === 'true' ? 'Nhận khách đến ngay' : 'Tạo đặt bàn';
         back.hidden = false;
         showBookingFlow(form);
       }
@@ -166,9 +188,6 @@ window.t3lPage.register(({ signal, state }) => {
   searchTable.addEventListener('input', applyFilters);
   searchGuest.addEventListener('input', applyFilters);
   kindFilter.addEventListener('change', applyFilters);
-  filters.addEventListener('change', event => {
-    if (event.target.name && filters.checkValidity()) filters.requestSubmit();
-  });
 
   async function refreshBoard(url, { body, bookingStep = false, fromHistory = false, quiet = false } = {}) {
     if (writing) {
@@ -207,10 +226,13 @@ window.t3lPage.register(({ signal, state }) => {
       const focusedCard = (selectedButton || document.activeElement).closest('.table-board-card');
       if (dialog.open) dialog.close();
       grid.replaceChildren(...nextGrid.children);
-      cards = [...grid.children];
-      for (const name of ['date', 'time', 'guests']) {
+      cards = [...grid.querySelectorAll('.table-board-card')];
+      context.textContent = page.querySelector('[data-board-context]').textContent;
+      filters.elements.time.options[0].textContent = nextFilters.elements.time.options[0].textContent;
+      for (const name of scheduleFields) {
         filters.elements[name].value = nextFilters.elements[name].value;
       }
+      appliedSchedule = scheduleValues();
       applyFilters();
       if (!quiet) messages.replaceChildren(...nextMessages.childNodes);
       if (focusedCard) {
@@ -279,7 +301,8 @@ window.t3lPage.register(({ signal, state }) => {
   window.addEventListener('t3l:inline-pop', () => refreshBoard(new URL(location.href), { fromHistory: true }), { signal });
   const arrivalTimer = window.setInterval(refreshArrivalAction, 15000);
   const boardTimer = window.setInterval(() => {
-    if (!document.hidden && !dialog.open && !writing && !pendingRead && !filters.contains(document.activeElement)) {
+    if (!document.hidden && !dialog.open && !writing && !pendingRead && !filters.contains(document.activeElement)
+        && appliedSchedule === scheduleValues()) {
       refreshBoard(new URL(location.href), { quiet: true });
     }
   }, 20000);

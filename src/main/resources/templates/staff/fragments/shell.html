@@ -8,42 +8,109 @@
     <th:block th:replace="~{web/fragments/theme :: start}"></th:block>
     <link rel="stylesheet" th:href="@{/css/site.css}" />
     <link rel="stylesheet" th:href="@{/css/reservation-requests.css}" />
-    <link rel="stylesheet" th:href="@{/css/staff.css(v=4)}" />
+    <th:block th:replace="~{staff/fragments/shell :: workspaceAssets}"></th:block>
     <link rel="stylesheet" th:href="@{/css/table-plan.css(v=table-commands)}" />
     <script data-page-script defer th:src="@{/js/staff.js}"></script>
-    <script data-page-script defer th:src="@{/js/staff-pending-bookings.js}"></script>
     <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
   </head>
+  <th:block th:fragment="workspaceAssets">
+    <script>
+      try {
+        const saved = localStorage.getItem('t3l-staff-sidebar');
+        if (saved === 'compact' || saved === 'expanded') document.documentElement.dataset.staffSidebar = saved;
+      } catch {}
+    </script>
+    <link rel="stylesheet" th:href="@{/css/staff.css(v=4)}" />
+    <link rel="stylesheet" th:href="@{/css/staff-workspace.css}" />
+    <script data-page-script defer th:src="@{/js/staff-workspace.js}"></script>
+    <script data-page-script defer th:src="@{/js/staff-pending-bookings.js(v=2)}"></script>
+  </th:block>
   <body>
-    <header class="staff-header" th:fragment="header(section)" data-nav-shell="staff">
-      <div class="staff-header-inner">
-        <a class="staff-brand" th:href="@{/staff/dashboard}" aria-label="Tổng quan T3L Restaurant">
-          <span class="staff-brand-mark">T3L<span>.</span></span>
-          <span>T3L Restaurant<small>Vận hành nhà hàng</small></span>
-        </a>
-        <div class="staff-user">
-          <a th:href="@{/}">Trang chủ</a>
+    <header class="staff-workspace-shell" th:fragment="header(section)" data-nav-shell="staff">
+      <a class="staff-skip-link" href="#main">Chuyển đến nội dung</a>
+      <div class="staff-topbar">
+        <div class="staff-topbar-location">
+          <button type="button" class="staff-icon-button staff-sidebar-toggle" data-staff-sidebar-toggle
+              aria-controls="staff-sidebar" aria-expanded="true" aria-label="Thu gọn thanh điều hướng" hidden>
+            <svg th:replace="~{staff/fragments/shell :: icon('sidebar')}"></svg>
+          </button>
+          <span class="staff-topbar-section" data-staff-section>Vận hành</span>
+        </div>
+        <div class="staff-topbar-actions">
+          <a class="staff-icon-button staff-notifications" data-pending-bookings data-staff-notification
+              th:href="@{/staff/reservations(status='PENDING_CONFIRMATION')}"
+              th:attr="data-endpoint=@{/staff/notifications/pending-bookings}"
+              aria-label="Thông báo đặt bàn" title="Thông báo đặt bàn">
+            <svg th:replace="~{staff/fragments/shell :: icon('bell')}"></svg>
+            <span class="staff-notification-count" data-pending-count aria-hidden="true" hidden></span>
+          </a>
+          <span class="staff-visually-hidden" data-staff-notification-status role="status"></span>
           <button th:replace="~{web/fragments/theme :: toggle}"></button>
-          <div th:replace="~{account/fragments/sidebar :: employee}"></div>
+          <div class="staff-topbar-account" th:if="${sidebarEmployee != null}">
+            <span class="staff-topbar-avatar" aria-hidden="true"
+                th:text="${#strings.isEmpty(sidebarEmployee.name) ? 'T' : #strings.toUpperCase(#strings.substring(sidebarEmployee.name, 0, 1))}"></span>
+            <div th:replace="~{account/fragments/sidebar :: employee}"></div>
+          </div>
         </div>
       </div>
-      <nav class="staff-nav" aria-label="Điều hướng nhân viên">
-        <a th:href="@{/menu}">Thực đơn</a>
-        <a th:href="@{/staff/dashboard}" th:attr="aria-current=${section == 'dashboard' ? 'page' : null}">Tổng quan</a>
-        <a th:href="@{/staff/reservations}" th:attr="aria-current=${section == 'reservations' ? 'page' : null}">Đặt bàn</a>
-        <a th:href="@{/staff/tables}" th:attr="aria-current=${section == 'tables' ? 'page' : null}">Quản lý đặt bàn</a>
-        <a th:href="@{/staff/orders}" th:attr="aria-current=${section == 'orders' ? 'page' : null}">Gọi món &amp; thanh toán</a>
-        <a th:href="@{/staff/shift}" th:attr="aria-current=${section == 'shift' ? 'page' : null}">Ca làm &amp; doanh thu</a>
-        <a th:href="@{/staff/activity}" th:attr="aria-current=${section == 'activity' ? 'page' : null}">Lịch sử thao tác</a>
-        <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/dashboard}">Quản trị</a>
-      </nav>
-      <a class="staff-pending-float" data-pending-bookings hidden
-          th:href="@{/staff/reservations(status='PENDING_CONFIRMATION')}"
-          th:attr="data-endpoint=@{/staff/notifications/pending-bookings}"
-          aria-live="polite" aria-label="Mở các yêu cầu đặt bàn đang chờ">
-        <span>Hiện có</span><strong data-pending-count>0</strong><span>yêu cầu đặt bàn đang chờ</span>
-      </a>
+      <aside class="staff-sidebar" id="staff-sidebar" aria-label="Thanh điều hướng nhân viên">
+        <div class="staff-sidebar-head">
+          <a class="staff-sidebar-brand" th:href="@{/staff/dashboard}" title="T3L Restaurant" aria-label="T3L Restaurant, tổng quan nhân viên">
+            <span class="staff-sidebar-mark" aria-hidden="true">T3L<span>.</span></span>
+            <span class="staff-rail-label"><strong>T3L Restaurant</strong><small>Vận hành nhà hàng</small></span>
+          </a>
+          <button type="button" class="staff-icon-button staff-sidebar-close" data-staff-sidebar-close aria-label="Đóng thanh điều hướng" hidden>
+            <svg th:replace="~{staff/fragments/shell :: icon('close')}"></svg>
+          </button>
+        </div>
+        <nav class="staff-sidebar-nav" aria-label="Điều hướng nhân viên">
+          <a th:replace="~{staff/fragments/shell :: navItem(@{/staff/dashboard}, 'Tổng quan', ${section == 'dashboard'}, 'dashboard')}"></a>
+          <a th:replace="~{staff/fragments/shell :: navItem(@{/staff/reservations}, 'Danh sách đặt bàn', ${section == 'reservations'}, 'calendar')}"></a>
+          <a th:replace="~{staff/fragments/shell :: navItem(@{/staff/tables}, 'Sơ đồ bàn', ${section == 'tables'}, 'tables')}"></a>
+          <a th:replace="~{staff/fragments/shell :: navItem(@{/staff/orders}, 'Gọi món &amp; thanh toán', ${section == 'orders'}, 'receipt')}"></a>
+          <a th:replace="~{staff/fragments/shell :: navItem(@{/menu}, 'Thực đơn', ${section == 'menu'}, 'menu')}"></a>
+          <a th:replace="~{staff/fragments/shell :: navItem(@{/staff/shift}, 'Ca làm &amp; doanh thu', ${section == 'shift'}, 'chart')}"></a>
+          <a th:replace="~{staff/fragments/shell :: navItem(@{/staff/activity}, 'Lịch sử thao tác', ${section == 'activity'}, 'history')}"></a>
+        </nav>
+        <div class="staff-sidebar-footer">
+          <th:block sec:authorize="hasRole('ADMIN')">
+            <a th:replace="~{staff/fragments/shell :: navItem(@{/admin/dashboard}, 'Quản trị', ${false}, 'settings')}"></a>
+          </th:block>
+          <a th:replace="~{staff/fragments/shell :: navItem(@{/}, 'Trang chủ', ${false}, 'home')}"></a>
+        </div>
+      </aside>
+      <div class="staff-sidebar-backdrop" data-staff-sidebar-backdrop aria-hidden="true"></div>
     </header>
+    <a class="staff-sidebar-link" th:fragment="navItem(target,label,active,iconId)" th:href="${target}"
+        th:title="${label}" th:attr="aria-current=${active ? 'page' : null}">
+      <svg th:replace="~{staff/fragments/shell :: icon(${iconId})}"></svg>
+      <span class="staff-rail-label" th:text="${label}"></span>
+    </a>
+    <svg th:fragment="icon(name)" class="staff-workspace-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <th:block th:switch="${name}">
+        <path th:case="'dashboard'" d="M3.5 3.5h7v8h-7zM13.5 3.5h7v5h-7zM13.5 11.5h7v9h-7zM3.5 14.5h7v6h-7z" />
+        <path th:case="'calendar'" d="M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V7A1.5 1.5 0 0 1 5 5.5ZM7.5 3.5v4m9-4v4m-13 3h17M8 15h3m-3 2.5h6" />
+        <path th:case="'tables'" d="M6 8h12v8H6zM9 5h6m-6 14h6M3 10v4m18-4v4" />
+        <path th:case="'receipt'" d="M6 3.5h12v17l-3-1.6-3 1.6-3-1.6L6 20.5v-17Zm3.5 5h5m-5 3.5h5m-5 3.5h3" />
+        <path th:case="'menu'" d="M12 6c-2.5-2-5-2.5-8.5-1v14.5C7 18 9.5 18.5 12 20c2.5-1.5 5-2 8.5-.5V5C17 3.5 14.5 4 12 6Zm0 0v14M7 9h2m6 0h2m-10 4h2m6 0h2" />
+        <path th:case="'chart'" d="M4 4v16h16M8.5 15v-3m4 3v-6m4 6V6" />
+        <path th:case="'history'" d="M3.5 12a8.5 8.5 0 1 1 2.2 5.7M3.5 6v6h6M12 8v4.5l3 2" />
+        <path th:case="'bell'" d="M18 9a6 6 0 0 0-12 0c0 4.5-1.6 6-2 7h16c-.4-1-2-2.5-2-7Zm-8 10a2.1 2.1 0 0 0 4 0" />
+        <path th:case="'sidebar'" d="M5 4.5h14A1.5 1.5 0 0 1 20.5 6v12a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 18V6A1.5 1.5 0 0 1 5 4.5Zm4 0v15" />
+        <path th:case="'close'" d="m6 6 12 12M18 6 6 18" />
+        <path th:case="'settings'" d="M12 3.5 20 7v5c0 4-3.3 6.6-8 8.5C7.3 18.6 4 16 4 12V7l8-3.5Zm-3 9 2 2 4-4" />
+        <path th:case="'home'" d="m3.5 11 8.5-7.5 8.5 7.5M6 10v10h12V10m-8 10v-6h4v6" />
+        <path th:case="'dining'" d="M3 17h18M5 15a7 7 0 0 1 14 0M12 6.5V5M9 19h6" />
+        <path th:case="'analytics'" d="M4 4v16h16M7 14l4-4 3 2.5 5-6M15 6.5h4v4" />
+        <path th:case="'clock'" d="M20.5 12a8.5 8.5 0 1 1-17 0 8.5 8.5 0 0 1 17 0ZM12 7.5V12l2.8 2" />
+        <path th:case="'ticket'" d="M4 6h16v4a2 2 0 0 0 0 4v4H4v-4a2 2 0 0 0 0-4V6Zm10 2v1m0 2.5v1m0 2.5v1" />
+        <path th:case="'person'" d="M15 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM5 19v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1H5Z" />
+        <path th:case="'inventory'" d="M4 5h16v14H4zM4 10h16M9 7.5h6M9 14.5h6" />
+        <path th:case="'mail'" d="M4 6h16v12H4zM4.5 7l7.5 6 7.5-6" />
+        <path th:case="'help'" d="M20.5 12a8.5 8.5 0 1 1-17 0 8.5 8.5 0 0 1 17 0ZM9 9a3 3 0 0 1 6 0c0 1.5-3 2.2-3 4m0 3v.1" />
+      </th:block>
+    </svg>
     <div th:fragment="messages" th:remove="tag">
       <p class="staff-notice is-success" th:if="${notice}" th:text="${notice}" role="status"></p>
       <p class="staff-notice is-error" th:if="${error}" th:text="${error}" role="alert"></p>

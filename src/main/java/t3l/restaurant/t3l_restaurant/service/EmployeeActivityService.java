@@ -1,6 +1,8 @@
 package t3l.restaurant.t3l_restaurant.service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -13,6 +15,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import t3l.restaurant.t3l_restaurant.entity.EmployeeActivity;
 import t3l.restaurant.t3l_restaurant.repository.EmployeeActivityRepository;
+import t3l.restaurant.t3l_restaurant.repository.EmployeeActivityRepository.HistoryEntry;
 
 @Service
 @RequiredArgsConstructor
@@ -35,8 +38,18 @@ public class EmployeeActivityService {
   }
 
   @Transactional(readOnly = true)
-  public Page<EmployeeActivity> myHistory(String actor, int page) {
-    return activities.findByActorOrderByOccurredAtDescIdDesc(actor, PageRequest.of(Math.max(page, 0), PAGE_SIZE));
+  public Page<HistoryEntry> myHistory(String actor, String code, String operation,
+      LocalDate from, LocalDate to, int page) {
+    var request = PageRequest.of(Math.clamp(page, 0, Integer.MAX_VALUE / PAGE_SIZE), PAGE_SIZE);
+    if (from != null && to != null && from.isAfter(to)) return Page.empty(request.first());
+    return activities.findHistory(actor, code.toLowerCase(Locale.ROOT), operation,
+        from == null ? null : from.atStartOfDay(),
+        to == null ? null : to.plusDays(1).atStartOfDay(), request);
+  }
+
+  @Transactional(readOnly = true)
+  public List<String> myOperations(String actor) {
+    return activities.findOperationsByActor(actor);
   }
 
   private String employeeRole(Authentication authentication) {

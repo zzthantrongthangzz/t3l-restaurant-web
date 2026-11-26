@@ -1,5 +1,6 @@
 <!doctype html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+    th:with="staffWorkspace=${#authorization.expression('hasRole(''STAFF'') and !hasRole(''ADMIN'')')}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -8,13 +9,17 @@
   <th:block th:replace="~{web/fragments/theme :: start}"></th:block>
   <link rel="stylesheet" th:href="@{/css/home.css}" />
   <link rel="stylesheet" th:href="@{/css/menu.css}" />
+  <th:block th:if="${staffWorkspace}"><th:block th:replace="~{staff/fragments/shell :: workspaceAssets}"></th:block></th:block>
   <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
   <link rel="stylesheet" sec:authorize="isAnonymous() or hasRole('BUYER')" th:href="@{/css/menu-luxury.css}" />
   <script data-page-script defer th:src="@{/js/menu.js}"></script>
 </head>
-<body class="home menu-page">
-  <a class="skip-link" href="#main">Chuyển đến thực đơn</a>
-  <header th:replace="~{web/fragments/restaurant-shell :: header('menu')}"></header>
+<body class="home menu-page" th:classappend="${staffWorkspace ? 'staff-page' : ''}">
+  <th:block th:if="${staffWorkspace}"><header th:replace="~{staff/fragments/shell :: header('menu')}"></header></th:block>
+  <th:block th:unless="${staffWorkspace}">
+    <a class="skip-link" href="#main">Chuyển đến thực đơn</a>
+    <header th:replace="~{web/fragments/restaurant-shell :: header('menu')}"></header>
+  </th:block>
   <main data-navigation class="menu-workspace" id="main">
     <section class="menu-catalog" aria-labelledby="menu-title">
       <div class="menu-heading">
@@ -54,7 +59,8 @@
          th:text="${dishCount == 0 ? 'Thực đơn đang được cập nhật.' : 'Chưa tìm thấy món phù hợp.'}"></p>
     </section>
 
-    <aside class="menu-booking" id="menu-booking" tabindex="-1" aria-labelledby="menu-booking-title">
+    <aside class="menu-booking" id="menu-booking" tabindex="-1" aria-labelledby="menu-booking-title"
+        th:if="${!staffWorkspace or menuBooking != null}">
       <h2 id="menu-booking-title" th:text="${menuBooking == null ? 'Đặt bàn tại T3L' : 'Đơn của lượt đặt bàn'}"></h2>
       <div th:if="${menuBooking != null}" class="menu-order-reference">
         <strong th:text="${menuBooking.code}"></strong>
@@ -86,9 +92,9 @@
     <a th:if="${menuBooking != null}" class="menu-selection-shortcut menu-primary" id="menu-selection-shortcut"
        href="#menu-booking" hidden>Xem món đã chọn (<span id="menu-selection-count">0</span>)</a>
   </main>
-  <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
+  <th:block th:unless="${staffWorkspace}"><footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer></th:block>
 
   <dialog th:replace="~{web/fragments/dish-cards :: detailDialog}"></dialog>
-  <script th:replace="~{web/fragments/restaurant-shell :: navigation}"></script>
+  <th:block th:unless="${staffWorkspace}"><script th:replace="~{web/fragments/restaurant-shell :: navigation}"></script></th:block>
 </body>
 </html>

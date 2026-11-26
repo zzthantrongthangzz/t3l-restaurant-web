@@ -1,11 +1,17 @@
 <section xmlns:th="http://www.thymeleaf.org" th:fragment="details(booking)" class="receipt-deposit deposit-payment" id="booking-payment"
-    th:if="${booking.depositAmount.signum() > 0 or booking.depositPaid.signum() > 0}"
+    th:if="${lookupDeposit == true or booking.depositAmount.signum() > 0 or booking.depositPaid.signum() > 0}"
     th:attr="data-payment-status-url=@{/reservations/{code}/payment-status(code=${booking.code})},data-status=${paymentStatus.status},
-      data-reservation-status=${booking.status},data-payable=${paymentStatus.payable}">
+      data-reservation-status=${booking.status},data-payable=${paymentStatus.payable},data-checkout-version=${lookupDeposit == true ? paymentStatus.checkoutVersion : null}"
+    th:with="hasDeposit=${booking.depositAmount.signum() > 0 or booking.depositPaid.signum() > 0}">
   <h3 th:text="${paymentStatus.payable ? 'Thanh toán tiền đặt cọc' : 'Tiền đặt cọc'}"></h3>
-  <p class="deposit-payment-status" data-payment-status-text role="status" th:text="${paymentStatus.label}"></p>
-  <dl class="deposit-amounts">
-    <div th:if="${preorder != null and ownedBooking != true}">
+  <p class="deposit-payment-status" data-payment-status-text role="status"
+      th:text="${hasDeposit ? paymentStatus.label : 'Không yêu cầu cọc'}"></p>
+  <dl class="booking-payment-due" th:if="${lookupDeposit == true and paymentStatus.payable}">
+    <dt>Cần thanh toán</dt>
+    <dd th:text="${#numbers.formatInteger(booking.depositRemaining,1,'POINT') + ' đ'}"></dd>
+  </dl>
+  <dl class="deposit-amounts" th:if="${hasDeposit}">
+    <div th:if="${preorder != null and ownedBooking != true and lookupDeposit != true}">
       <dt>Tổng món đặt trước</dt>
       <dd th:text="${#numbers.formatInteger(preorder.preorderTotal,1,'POINT') + ' đ'}"></dd>
     </div>
@@ -17,7 +23,7 @@
       <dt>Đã nhận</dt>
       <dd th:text="${#numbers.formatInteger(booking.depositPaid,1,'POINT') + ' đ'}"></dd>
     </div>
-    <div th:if="${booking.openBooking}">
+    <div th:if="${booking.openBooking and (lookupDeposit != true or !paymentStatus.payable)}">
       <dt>Còn phải cọc</dt>
       <dd th:text="${#numbers.formatInteger(booking.depositRemaining,1,'POINT') + ' đ'}"></dd>
     </div>
@@ -28,7 +34,8 @@
   </dl>
   <p class="deposit-countdown" data-payment-countdown
       th:if="${paymentStatus.payable}"
-      th:attr="data-seconds=${paymentStatus.remainingSeconds}"></p>
+      th:attr="data-seconds=${paymentStatus.remainingSeconds}"
+      th:text="${lookupDeposit == true ? 'Đang kiểm tra thời hạn thanh toán…' : ''}"></p>
 
   <div class="deposit-transfer" data-deposit-action th:if="${qrPayments and paymentStatus.payable and depositCheckout != null and depositCheckout.hasQr()}">
     <img class="deposit-qr" th:src="${depositCheckout.qrUrl}" alt="Mã QR chuyển khoản tiền đặt cọc" width="260" height="260" />
@@ -36,14 +43,16 @@
       <p><span>Ngân hàng</span><strong th:text="${depositCheckout.bankName}"></strong></p>
       <p><span>Số tài khoản</span><strong th:text="${depositCheckout.bankAccount}"></strong></p>
       <p><span>Chủ tài khoản</span><strong th:text="${depositCheckout.accountHolder}"></strong></p>
-      <p><span>Số tiền</span><strong th:text="${#numbers.formatInteger(depositCheckout.intent.amount,1,'POINT') + ' đ'}"></strong></p>
+      <p th:unless="${lookupDeposit == true}"><span>Số tiền</span><strong th:text="${#numbers.formatInteger(depositCheckout.intent.amount,1,'POINT') + ' đ'}"></strong></p>
       <p><span>Nội dung chuyển khoản</span><strong data-payment-code th:text="${depositCheckout.intent.paymentCode}"></strong></p>
-      <button class="home-button is-outline" type="button" data-copy-payment-code>Sao chép nội dung</button>
-      <form th:if="${demoEnabled}"
-          th:action="@{/reservations/{code}/payment-demo(code=${booking.code})}" method="post" class="deposit-demo-form">
-        <button class="home-button is-outline" type="submit">[DEMO] Giả lập đã thanh toán</button>
-        <small>Chỉ dùng để kiểm thử luồng thanh toán cọc.</small>
-      </form>
+      <button th:unless="${lookupDeposit == true}" class="home-button is-outline" type="button" data-copy-payment-code>Sao chép nội dung</button>
+      <details class="booking-payment-demo" th:if="${demoEnabled}" th:remove="${lookupDeposit == true ? 'none' : 'tag'}">
+        <summary th:if="${lookupDeposit == true}">Công cụ kiểm thử · DEMO</summary>
+        <form th:action="@{/reservations/{code}/payment-demo(code=${booking.code})}" method="post" class="deposit-demo-form">
+          <button class="home-button is-outline" type="submit">[DEMO] Giả lập đã thanh toán</button>
+          <small th:text="${lookupDeposit == true ? 'Giả lập xác minh giao dịch, không chuyển tiền.' : 'Chỉ dùng để kiểm thử luồng thanh toán cọc.'}"></small>
+        </form>
+      </details>
     </div>
   </div>
   <form th:if="${!qrPayments and paymentStatus.payable}" data-deposit-action
@@ -52,7 +61,7 @@
     <input id="deposit-reference" name="reference" minlength="4" maxlength="80" required />
     <button class="home-button" type="submit">Gửi mã giao dịch</button>
   </form>
-  <details class="deposit-refund-terms">
+  <details class="deposit-refund-terms" th:if="${hasDeposit}">
     <summary>Chính sách hoàn cọc</summary>
     <p th:text="${depositRefundTerms}"></p>
   </details>

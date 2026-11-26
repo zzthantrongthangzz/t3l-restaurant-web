@@ -20,6 +20,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
@@ -33,6 +34,7 @@ import t3l.restaurant.t3l_restaurant.entity.PaymentIntent;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
 import t3l.restaurant.t3l_restaurant.entity.ReservationEmail;
+import t3l.restaurant.t3l_restaurant.repository.EmployeeActivityRepository;
 import t3l.restaurant.t3l_restaurant.repository.ReservationRepository;
 import t3l.restaurant.t3l_restaurant.repository.UserAccountRepository;
 import t3l.restaurant.t3l_restaurant.repository.PaymentIntentRepository;
@@ -68,6 +70,7 @@ class StaffOperationsIntegrationTest {
   @Autowired PreorderService preorders;
   @Autowired VoucherService vouchers;
   @Autowired PaymentIntentRepository paymentIntents;
+  @Autowired EmployeeActivityRepository employeeActivities;
   private Long tableOne;
   private Long tableTwo;
   private Long smallTable;
@@ -93,7 +96,7 @@ class StaffOperationsIntegrationTest {
   @BeforeEach
   void prepare() {
     clock.at(TODAY.atTime(11, 0));
-    for (String table : List.of("payment_intents", "voucher_usages", "vouchers", "dining_payments", "dining_order_items", "dining_orders",
+    for (String table : List.of("employee_activity", "payment_intents", "voucher_usages", "vouchers", "dining_payments", "dining_order_items", "dining_orders",
         "reservation_events", "reservation_emails", "reservation_change_requests", "reservations",
         "cash_sales", "staff_shifts", "restaurant_tables", "dishes", "payment_reference_claims")) {
       jdbc.update("delete from " + table);
@@ -135,10 +138,37 @@ class StaffOperationsIntegrationTest {
   }
 
   @Test
+  void keepsUpcomingSearchAndStatusAcrossReservationPages() throws Exception {
+    for (int day = 1; day <= 21; day++) {
+      var booking = new Reservation("T3L-PAGE-" + day, "Khách phân trang", "0901234567", null, null,
+          TODAY.plusDays(day), LocalTime.of(12, 0), 3, null, true);
+      booking.updateStatus(Reservation.CONFIRMED);
+      reservations.save(booking);
+    }
+    staff(get("/staff/reservations").param("scope", "upcoming").param("status", "CONFIRMED").param("q", "PAGE"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Trang 1 / 2")))
+        .andExpect(content().string(containsString("q=PAGE&amp;scope=upcoming&amp;page=1")))
+        .andExpect(content().string(not(containsString("T3L-PAGE-21"))));
+    staff(get("/staff/reservations").param("scope", "upcoming").param("status", "CONFIRMED").param("q", "PAGE").param("page", "1"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Trang 2 / 2")))
+        .andExpect(content().string(containsString("T3L-PAGE-21")));
+  }
+
+  @Test
   void receiveAllowsEarlyArrivalTodayWithWarningButRejectsAnotherDate() throws Exception {
     long booking = createPhone("Khách đến trước giờ", "16:00", tableOne, 3);
     staff(post("/staff/shift/open").param("openingCash", "0")).andExpect(flash().attributeExists("notice"));
     clock.at(TODAY.minusDays(1).atTime(18, 0));
+    String row = "$['" + booking + "']";
+    staff(get("/staff/reservations").param("scope", "upcoming").param("q", "Khách đến trước giờ"))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Chỉ nhận bàn trong ngày đặt.")))
+        .andExpect(content().string(containsString("data-reservation-row=\"" + booking + "\"")));
+    staff(get("/staff/reservations/list-status").param("ids", Long.toString(booking)))
+        .andExpect(jsonPath(row + ".receive.visible").value(true))
+        .andExpect(jsonPath(row + ".receive.enabled").value(false))
+        .andExpect(jsonPath(row + ".receive.reason").value("Chỉ nhận bàn trong ngày đặt."));
     step(booking, "RECEIVE").andExpect(flash().attributeExists("error"));
     assertEquals("CONFIRMED", reservations.findOneById(booking).orElseThrow().getStatus());
 
@@ -154,18 +184,41 @@ class StaffOperationsIntegrationTest {
   void showsMorningServiceAndEveningReservationOnTheSameTableAndBlocksOverruns() throws Exception {
     clock.at(TODAY.atTime(7, 0));
     long evening = createPhone("Khách hẹn buổi tối", "18:00", tableOne, 3);
-    staff(get("/staff/tables")).andExpect(content().string(containsString("Trống hiện tại")))
+    staff(get("/staff/tables")).andExpect(staffTable("FREE", null, evening))
         .andExpect(content().string(containsString("Cần trả bàn trước lịch 18:00")));
     staff(post("/staff/shift/open").param("openingCash", "0")).andExpect(flash().attributeExists("notice"));
     long morning = walkIn("Khách ăn buổi sáng", tableOne);
-    staff(get("/staff/tables")).andExpect(content().string(containsString("Lịch tiếp theo 18:00")))
+    staff(get("/staff/tables")).andExpect(staffTable("OCCUPIED", morning, evening))
+        .andExpect(content().string(containsString("Lịch tiếp theo 18:00")))
         .andExpect(content().string(containsString("Dự kiến trả bàn 09:00")));
+    mvc.perform(get("/admin/tables").with(user("admin").roles("ADMIN")))
+        .andExpect(status().isOk()).andExpect(staffTable("OCCUPIED", morning, evening))
+        .andExpect(content().string(containsString("class=\"table-board-card-line is-serving-end\"")))
+        .andExpect(content().string(containsString("Lịch tiếp theo 18:00")))
+        .andExpect(content().string(not(containsString(">Mở ca làm việc<"))));
+    staff(get("/staff/tables").param("time", "17:00")).andExpect(staffTable("RESERVED", evening, null))
+        .andExpect(content().string(not(containsString("data-table-action=\"checkout\""))));
+    mvc.perform(get("/admin/tables").param("time", "17:00").with(user("admin").roles("ADMIN")))
+        .andExpect(staffTable("RESERVED", evening, null))
+        .andExpect(content().string(not(containsString("data-table-action=\"checkout\""))));
     clock.at(TODAY.atTime(18, 0));
     staff(get("/staff/tables")).andExpect(content().string(containsString("Bàn sắp đến giờ hẹn tiếp theo")));
     step(evening, "RECEIVE").andExpect(flash().attributeExists("error"));
     assertEquals("CONFIRMED", reservations.findOneById(evening).orElseThrow().getStatus());
     step(morning, "COMPLETED").andExpect(flash().attributeExists("notice"));
+    staff(get("/staff/tables")).andExpect(staffTable("ARRIVING", evening, null));
     step(evening, "RECEIVE").andExpect(flash().attributeExists("notice"));
+  }
+
+  private org.springframework.test.web.servlet.ResultMatcher staffTable(String state, Long current, Long next) {
+    return result -> {
+      var rows = (List<?>) result.getModelAndView().getModel().get("board");
+      var table = rows.stream().map(StaffWorkspaceService.TableView.class::cast)
+          .filter(row -> row.table().getId().equals(tableOne)).findFirst().orElseThrow();
+      assertEquals(state, table.state().name());
+      assertEquals(current, table.current() == null ? null : table.current().getId());
+      assertEquals(next, table.nextBooking() == null ? null : table.nextBooking().getId());
+    };
   }
 
   @Test
@@ -245,6 +298,10 @@ class StaffOperationsIntegrationTest {
   }
 
   private void assertBoardState(String time, String state) throws Exception {
+    assertBoardState(time, state, state);
+  }
+
+  private void assertBoardState(String time, String state, String workspaceState) throws Exception {
     var customer = accounts.findByUsername("booking-board-buyer").orElseGet(() -> accounts.save(
         UserAccount.customer("Booking QA", null, "0911111111", "booking-board-buyer", "unused")));
     for (boolean signedIn : List.of(false, true)) {
@@ -265,7 +322,8 @@ class StaffOperationsIntegrationTest {
           .andExpect(status().isOk()).andExpect(result -> {
             var board = (List<?>) result.getModelAndView().getModel().get("board");
             var cards = board.stream().map(StaffWorkspaceService.TableView.class::cast).toList();
-            assertEquals(state, cards.stream().filter(card -> card.table().getId().equals(tableOne)).findFirst().orElseThrow().state().name());
+            assertEquals(workspaceState,
+                cards.stream().filter(card -> card.table().getId().equals(tableOne)).findFirst().orElseThrow().state().name());
           });
     }
   }
@@ -276,7 +334,7 @@ class StaffOperationsIntegrationTest {
     long booking = walkIn("Khách ở lại lâu", tableOne);
     assertEquals(Reservation.SEATED, reservations.findOneById(booking).orElseThrow().getStatus());
     clock.at(TODAY.atTime(13, 5));
-    assertBoardState("13:30", "OCCUPIED");
+    assertBoardState("13:30", "OCCUPIED", "RESERVED");
     assertBoardState("14:00", "FREE");
     step(booking, "COMPLETED").andExpect(flash().attributeExists("notice"));
     assertBoardState("13:30", "FREE");
@@ -342,6 +400,16 @@ class StaffOperationsIntegrationTest {
 
     var deadline = reservations.findOneById(booking.getId()).orElseThrow().getDepositDueAt();
     clock.at(deadline.plusSeconds(1));
+    String list = "/staff/reservations";
+    String row = "$['" + booking.getId() + "']";
+    staff(get(list).param("scope", "upcoming").param("q", booking.getCode()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Không có lượt đặt phù hợp.")));
+    staff(get(list).param("scope", "attention").param("q", booking.getCode()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Đã hết hạn thanh toán cọc")));
+    staff(get(list + "/list-status").param("ids", booking.getId().toString()))
+        .andExpect(jsonPath(row + ".status").value(Reservation.CONFIRMED))
+        .andExpect(jsonPath(row + ".depositStatus").value("EXPIRED"))
+        .andExpect(jsonPath(row + ".receive.enabled").value(false));
     mvc.perform(get("/account/reservations?tab=past").with(owner)).andExpect(status().isOk())
         .andExpect(content().string(containsString(booking.getCode())))
         .andExpect(content().string(containsString("Đã hết hạn thanh toán cọc")))
@@ -349,6 +417,12 @@ class StaffOperationsIntegrationTest {
     var expired = reservations.findOneById(booking.getId()).orElseThrow();
     assertEquals(Reservation.CANCELLED, expired.getStatus());
     assertEquals("EXPIRED", expired.getDepositStatus());
+    staff(get(list + "/list-status").param("ids", booking.getId().toString()))
+        .andExpect(jsonPath(row + ".status").value(Reservation.CANCELLED))
+        .andExpect(jsonPath(row + ".statusLabel").value("Đã hủy"))
+        .andExpect(jsonPath(row + ".depositLabel").value("Đã hết hạn thanh toán cọc"))
+        .andExpect(jsonPath(row + ".confirm.visible").value(false))
+        .andExpect(jsonPath(row + ".receive.visible").value(false));
     assertEquals("VOID", preorders.order(booking.getId()).getStatus());
     assertBoardState("14:00", "FREE");
     mvc.perform(get(detail).with(owner)).andExpect(status().isOk())
@@ -510,8 +584,9 @@ class StaffOperationsIntegrationTest {
         .param("preorderQuantities[" + dishId + "]", "3").param("preorderNote", "Không hành")
         .param("preorderExpectedTotal", "800000")).andExpect(redirectedUrl("/reservations/lookup?code=" + code));
     long requestId = id("select id from reservation_change_requests");
-    staff(get("/staff/reservations")).andExpect(status().isOk())
-        .andExpect(content().string(containsString("Giỏ món đề nghị")));
+    staff(get("/staff/reservations").param("scope", "attention").param("q", code)).andExpect(status().isOk())
+        .andExpect(content().string(containsString("Giỏ món đề nghị")))
+        .andExpect(content().string(containsString("href=\"#review-" + requestId + "\"")));
     staff(post("/staff/reservations/requests/" + requestId + "/review").param("decision", "APPROVE"))
         .andExpect(flash().attributeExists("notice"));
 
@@ -832,15 +907,40 @@ class StaffOperationsIntegrationTest {
 
     staff(post("/staff/shift/sales").param("dishId", dishId.toString()).param("quantity", "1")
         .param("paymentMethod", "TRANSFER").param("received", "true")).andExpect(flash().attributeExists("notice"));
-    staff(get("/staff/shift")).andExpect(status().isOk()).andExpect(content().string(containsString("800.000 đ")));
+    clock.at(TODAY.plusDays(2).atTime(13, 15));
+    staff(get("/staff/shift")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("800.000 đ")))
+        .andExpect(content().string(containsString("2 ngày 2 giờ 15 phút")))
+        .andExpect(content().string(containsString("data-expected-cash=\"700000\"")));
+    assertEquals("OPEN", jdbc.queryForObject("select status from staff_shifts", String.class));
     staff(post("/staff/shift/close").param("countedCash", "695000")).andExpect(flash().attributeExists("notice"));
     var shift = id("select id from staff_shifts");
-    staff(get("/staff/shift").param("id", shift.toString())).andExpect(status().isOk())
-        .andExpect(content().string(containsString("695.000 đ")));
+    staff(get("/staff/shift").param("id", shift.toString()).param("status", "CLOSED")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("695.000 đ")))
+        .andExpect(content().string(containsString("Thiếu 5.000 đ")));
     assertEquals(new BigDecimal("-5000"), jdbc.queryForObject("select cash_difference from staff_shifts", BigDecimal.class));
     assertEquals(new BigDecimal("500000"), jdbc.queryForObject("select cash_sales from staff_shifts", BigDecimal.class));
     assertEquals(new BigDecimal("300000"), jdbc.queryForObject("select other_sales from staff_shifts", BigDecimal.class));
     assertEquals(3L, id("select sum(guest_count) from reservations where service_shift_id=" + shift));
+
+    String code = seated.getCode().toLowerCase(java.util.Locale.ROOT);
+    staff(get("/staff/activity").param("code", code).param("operation", "Đổi số lượng món")
+        .param("from", TODAY.toString()).param("to", TODAY.toString()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("1 thao tác")))
+        .andExpect(content().string(containsString("href=\"" + order + "\"")))
+        .andExpect(content().string(not(containsString("Đã kết ca và lưu"))));
+    staff(get("/staff/activity").param("operation", "Kết ca").param("from", TODAY.plusDays(2).toString()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("1 thao tác")))
+        .andExpect(content().string(containsString("href=\"/staff/shift?id=" + shift + "\"")));
+    mvc.perform(get("/staff/activity").with(user("staff-two").roles("STAFF")).param("code", code))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("0 thao tác")));
+    var firstPage = employeeActivities.findHistory(STAFF, code, "", TODAY.atStartOfDay(),
+        TODAY.plusDays(1).atStartOfDay(), PageRequest.of(0, 2));
+    assertTrue(firstPage.hasNext());
+    var nextPage = employeeActivities.findHistory(STAFF, code, "", TODAY.atStartOfDay(),
+        TODAY.plusDays(1).atStartOfDay(), firstPage.nextPageable());
+    assertEquals(firstPage.getTotalElements(), nextPage.getTotalElements());
+    assertTrue(firstPage.getContent().getLast().getActivity().getId() > nextPage.getContent().getFirst().getActivity().getId());
   }
 
   @Test
@@ -955,7 +1055,9 @@ class StaffOperationsIntegrationTest {
         .andExpect(content().string(containsString("table-board-confirm")))
         .andExpect(content().string(not(containsString("Sửa thông tin bàn"))));
     mvc.perform(get("/admin/tables").with(user("admin").roles("ADMIN")))
-        .andExpect(status().isOk()).andExpect(content().string(containsString("Sửa thông tin bàn")));
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Danh mục bàn")))
+        .andExpect(content().string(containsString("data-board-state=\"WAITING\"")))
+        .andExpect(content().string(not(containsString("Sửa thông tin bàn"))));
     step(rejected, "CANCELLED").andExpect(flash().attributeExists("notice"));
     assertEquals(List.of("RECEIVED", "REJECTED"),
         jdbc.queryForList("select kind from reservation_emails where reservation_id=? order by id", String.class, rejected));

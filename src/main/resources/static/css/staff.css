@@ -309,3 +309,200 @@ a.staff-metric:hover { border-color: var(--accent-text); background: var(--surfa
 @media (max-width: 540px) {
   .staff-pending-float { right: 12px; bottom: 12px; left: 12px; justify-content: center; padding: 11px 13px; }
 }
+
+.staff-shift-page :is(.staff-shift-meta, .staff-shift-totals, .staff-shift-cash-summary) {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0 0;
+}
+.staff-shift-page :is(.staff-shift-meta, .staff-shift-totals, .staff-shift-cash-summary) dt,
+.staff-shift-cash-reference span {
+  color: var(--staff-muted);
+  font-size: var(--text-label);
+}
+.staff-shift-page :is(.staff-shift-meta, .staff-shift-totals, .staff-shift-cash-summary) dd {
+  margin: 3px 0 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.staff-shift-page .staff-shift-meta {
+  padding-block: 4px 14px;
+  border-bottom: 1px solid var(--staff-line);
+}
+.staff-shift-overnight { margin: 12px 0 0; color: var(--warning); font-size: var(--text-label); }
+.staff-shift-totals > div {
+  padding: 12px;
+  border: 1px solid var(--staff-line);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+.staff-shift-totals > .is-primary { border-color: var(--accent); background: var(--accent-wash); }
+.staff-shift-totals dd { font-size: clamp(1.05rem, 1.7vw, 1.45rem); }
+.staff-shift-cash-summary small { color: var(--staff-muted); }
+.staff-shift-transactions { display: grid; gap: 16px; align-items: start; }
+.staff-shift-add-sale {
+  margin-block: 13px;
+  padding: 11px 13px;
+  border: 1px solid var(--staff-line);
+  border-radius: 8px;
+}
+.staff-shift-add-sale > summary { color: var(--staff-gold); }
+.staff-shift-page .staff-ledger-table tr:target { background: var(--accent-wash); }
+.staff-shift-page .staff-ledger-table tr[id] { scroll-margin-top: 86px; }
+.staff-shift-page .staff-ledger-table th:last-child,
+.staff-shift-page .staff-ledger-table .staff-ledger-amount { text-align: end; font-variant-numeric: tabular-nums; }
+.staff-shift-page :is([data-cash-balance="over"], [data-cash-balance="equal"]) { color: var(--success); }
+.staff-shift-page [data-cash-balance="under"] { color: var(--staff-danger); }
+.staff-shift-reconcile {
+  grid-template-columns: minmax(120px, .8fr) minmax(155px, 1.25fr) minmax(140px, 1fr) auto;
+  align-items: end;
+}
+.staff-shift-cash-reference { display: grid; gap: 3px; min-width: 0; }
+.staff-shift-cash-reference :is(strong, output) { font-weight: 700; overflow-wrap: anywhere; }
+.staff-shift-reconcile .staff-actions { margin: 0; }
+.staff-shift-confirm {
+  width: min(560px, calc(100% - 28px));
+  max-height: 90dvh;
+  padding: clamp(16px, 4vw, 24px);
+  border: 1px solid var(--staff-line);
+  border-radius: 12px;
+  background: var(--staff-paper);
+  color: var(--staff-ink);
+}
+.staff-shift-confirm::backdrop { background: var(--backdrop); }
+.staff-shift-confirm p { color: var(--staff-muted); }
+.staff-shift-page .staff-shift-confirm .staff-shift-cash-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 12px;
+  background: var(--surface-muted);
+  border-radius: 8px;
+}
+.staff-shift-confirm .staff-actions { justify-content: end; margin-top: 16px; }
+.staff-shift-history-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-top: 12px; }
+.staff-shift-history-filters label { flex: 0 1 215px; }
+.staff-activity-page .staff-activity-filters { margin-bottom: 16px; }
+.staff-activity-filter-form {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(155px, 1.2fr) repeat(2, minmax(125px, .85fr)) auto;
+  align-items: end;
+  gap: 12px;
+}
+.staff-activity-filter-form .staff-actions { margin: 0; }
+.staff-activity-filter-form :is(input, select) { min-width: 0; width: 100%; }
+.staff-activity-page .staff-activity-table th:last-child { width: 29%; }
+.staff-activity-table strong { font-weight: 650; }
+.staff-activity-target small, .staff-activity-table time small { color: var(--staff-muted); }
+.staff-activity-table :is([data-activity-result="RECORDED"], [data-activity-result="APPROVED"]) {
+  color: var(--success);
+  background: var(--success-wash);
+}
+.staff-activity-table [data-activity-result="DECLINED"] { color: var(--staff-danger); background: var(--error-wash); }
+@media (min-width: 1440px) {
+  .staff-shift-transactions { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+}
+@media (max-width: 1280px) {
+  .staff-activity-filter-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .staff-activity-filter-form .staff-actions { grid-column: 1 / -1; }
+}
+@media (max-width: 750px) {
+  .staff-shift-page :is(.staff-shift-meta, .staff-shift-totals, .staff-shift-cash-summary, .staff-shift-reconcile) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 680px) {
+  .staff-shift-page .staff-ledger-table .staff-ledger-amount { text-align: start; }
+}
+@media (max-width: 420px) {
+  .staff-shift-page .staff-shift-reconcile,
+  .staff-shift-page .staff-shift-confirm .staff-shift-cash-summary { grid-template-columns: minmax(0, 1fr); }
+  .staff-shift-reconcile .staff-actions .staff-button { width: 100%; }
+}
+
+.staff-reservations-page .staff-panel { container-type: inline-size; }
+.staff-reservation-filter-head, .staff-reservation-quick, .staff-reservation-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.staff-reservation-filter-head { justify-content: space-between; }
+.staff-reservation-quick { gap: 6px; }
+.staff-reservation-quick a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 5px 10px;
+  border: 1px solid var(--staff-line);
+  border-radius: 7px;
+  color: var(--staff-ink);
+  font-size: var(--text-label);
+  font-weight: 650;
+  text-decoration: none;
+}
+.staff-reservation-quick a:is([aria-current="true"], :hover) {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  color: var(--accent-text);
+}
+.staff-reservation-quick a[aria-current="true"] { box-shadow: inset 0 -2px var(--accent); }
+.staff-reservation-review-link {
+  display: inline-flex;
+  width: fit-content;
+  padding: 4px 8px;
+  border: 1px solid var(--warning-border);
+  border-radius: 6px;
+  background: var(--warning-wash);
+  color: var(--warning);
+  font-size: var(--text-label);
+  font-weight: 650;
+}
+.staff-reservations-page .staff-reservation-filters {
+  grid-template-columns: minmax(128px, .85fr) minmax(135px, 1fr) minmax(160px, 1.65fr) auto;
+  gap: 10px;
+  margin: 15px 0 12px;
+}
+.staff-reservation-filters .staff-actions { margin: 0; }
+.staff-reservation-result {
+  justify-content: space-between;
+  padding-block: 7px;
+  border-top: 1px solid var(--staff-line);
+}
+.staff-reservation-result p { margin: 0; }
+.staff-reservations-page .staff-table-wrap { margin-block: 6px 0; }
+.staff-reservation-list .has-pending-review td:first-child { box-shadow: inset 3px 0 var(--warning-border); }
+.staff-reservation-cell, .staff-reservation-row-actions {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  min-width: 0;
+}
+.staff-reservation-list :is(.staff-reservation-cell, .staff-reservation-row-actions) small {
+  grid-column: auto;
+  margin: 0;
+}
+.staff-reservation-list :is(time, .staff-reservation-money) { font-variant-numeric: tabular-nums; }
+.staff-reservation-list .staff-reservation-late { color: var(--warning); }
+.staff-reservation-deposit { color: var(--staff-muted); }
+.staff-reservation-deposit:is([data-status="PAID"], [data-status="APPLIED"], [data-status="REFUNDED"]) { color: var(--success); }
+.staff-reservation-deposit:is([data-status="WAITING_PAYMENT"], [data-status="TRANSFER_SUBMITTED"],
+    [data-status="PAYMENT_REVIEW_REQUIRED"], [data-status="REFUND_PENDING"], [data-status="CLOSED_TRANSFER_PENDING"]) { color: var(--warning); }
+.staff-reservation-deposit[data-status="EXPIRED"] { color: var(--staff-danger); }
+.staff-reservation-row-actions { gap: 7px; }
+.staff-reservation-row-actions form { display: grid; gap: 3px; }
+.staff-reservation-row-actions .staff-button { min-height: 36px; padding: 6px 9px; text-align: start; }
+.staff-reservation-row-actions .staff-action-reason { max-width: 210px; }
+.staff-reservation-list [hidden] { display: none; }
+.staff-reservations-page .staff-request-queue { margin-block: 22px 28px; }
+.staff-reservations-page .staff-request-card { padding: clamp(14px, 2vw, 22px); }
+@container (max-width: 660px) {
+  .staff-reservations-page .staff-reservation-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .staff-reservation-filters .staff-reservation-search { grid-column: 1 / -1; }
+  .staff-reservation-list :is(thead, tbody, tr, td) { display: block; }
+  .staff-reservation-list thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .staff-reservation-list tr { padding: 9px 0; border-block-start: 1px solid var(--staff-line); }
+  .staff-reservation-list td { display: grid; grid-template-columns: minmax(70px, .65fr) minmax(0, 1.35fr); gap: 6px 9px; padding: 4px 0; border: 0; }
+  .staff-reservation-list td::before { content: attr(data-label); color: var(--staff-muted); }
+  .staff-reservation-list .has-pending-review td:first-child { box-shadow: none; }
+}

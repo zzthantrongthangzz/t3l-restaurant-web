@@ -66,7 +66,8 @@ public class ReservationLookupController {
     var customer = customers.signedInCustomer(authentication);
     Reservation booking = visibleBooking(code, request, customer);
     if (booking != null) {
-      if (addDetails(model, booking, customer) && !booking.isDepositDemo()) {
+      if (addDetails(model, booking, customer) && !booking.isDepositDemo()
+          && !"checkout".equals(request.getHeader("X-T3L-Booking-Refresh"))) {
         tracking.depositOpened(request, authentication, booking.getId());
       }
     } else if (access.canView(request.getSession(false), code)) {

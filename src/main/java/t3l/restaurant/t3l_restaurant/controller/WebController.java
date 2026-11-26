@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.dao.TransientDataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -29,6 +31,7 @@ import t3l.restaurant.t3l_restaurant.dto.MenuOrderForm;
 import t3l.restaurant.t3l_restaurant.dto.ReservationForm;
 import t3l.restaurant.t3l_restaurant.dto.CustomerProfileForm;
 import t3l.restaurant.t3l_restaurant.entity.Dish;
+import t3l.restaurant.t3l_restaurant.entity.PaymentIntent;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.repository.*;
@@ -50,6 +53,8 @@ import t3l.restaurant.t3l_restaurant.service.TrackingService;
 
 @Controller
 public class WebController {
+  private static final Logger log = LoggerFactory.getLogger(WebController.class);
+
   private final DishRepository dishes;
   private final RestaurantTableRepository restaurantTables;
   private final ReservationService reservationService;
@@ -304,13 +309,17 @@ public class WebController {
     try {
       var checkout = paymentIntents.customerDeposit(booking).checkout();
       if (checkout == null) throw new BookingException(null, "Lượt đặt không còn chờ thanh toán cọc.");
-      paymentVerification.simulateDepositAsPaid(checkout.intent().getPaymentCode());
+      var intent = paymentVerification.simulateDepositAsPaid(checkout.intent().getPaymentCode());
+      if (!List.of(PaymentIntent.RECEIVED, PaymentIntent.APPLIED).contains(intent.getStatus())) {
+        throw new BookingException(null, "Chưa ghi nhận cọc DEMO. Hãy kiểm tra trạng thái thanh toán của lượt đặt.");
+      }
       redirect.addFlashAttribute("notice", "Đã ghi nhận khoản cọc; nhân viên có thể xác nhận đặt bàn.");
     } catch (org.springframework.web.server.ResponseStatusException exception) {
       throw exception;
     } catch (BookingException exception) {
       redirect.addFlashAttribute("error", exception.getMessage());
     } catch (RuntimeException exception) {
+      log.warn("Could not simulate a deposit for reservation {}", booking.getId(), exception);
       redirect.addFlashAttribute("error", "Chưa thể ghi nhận khoản cọc. Vui lòng tải lại trang và thử lại.");
     }
     redirect.addAttribute("code", code);

@@ -1,29 +1,107 @@
 <!doctype html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
-  <head th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: head('Quản lý đặt bàn')}"></head>
+  <head th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: head(${opsBase == '/admin' ? 'Danh sách &amp; duyệt đặt bàn' : 'Danh sách đặt bàn'})}"></head>
   <body class="staff-page" th:classappend="${opsBase == '/admin' ? 'admin-page' : ''}">
     <header th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: header('reservations')}"></header>
-    <main data-navigation data-navigation-fragment class="staff-main">
+    <main data-navigation data-navigation-fragment class="staff-main" th:with="staffList=${opsBase != '/admin'}"
+          th:id="${staffList ? 'main' : null}" th:classappend="${staffList ? 'staff-reservations-page' : ''}"
+          th:attr="data-reservation-list-url=${staffList} ? @{/staff/reservations/list-status} : null">
       <div class="staff-page-heading">
-        <div><h1>Quản lý đặt bàn</h1><p>Tìm nhanh theo tên, số điện thoại hoặc mã đặt bàn; xử lý trực tiếp tại danh sách.</p></div>
+        <div><h1 id="reservation-page-title" th:text="${staffList ? 'Danh sách đặt bàn' : 'Danh sách &amp; duyệt đặt bàn'}"></h1><p th:unless="${staffList}">Tìm nhanh theo tên, số điện thoại hoặc mã đặt bàn; xử lý trực tiếp tại danh sách.</p></div>
         <a class="staff-button" th:href="@{${opsBase + '/reservations/new'}}">Tạo đặt bàn</a>
       </div>
       <div th:replace="~{staff/fragments/shell :: messages}"></div>
-      <section class="staff-panel" aria-labelledby="reservation-list-title">
-        <div class="staff-panel-heading"><h2 id="reservation-list-title">Danh sách đặt bàn</h2>
+      <section class="staff-panel" th:attr="aria-labelledby=${staffList ? 'reservation-page-title' : 'reservation-list-title'}">
+        <div class="staff-panel-heading" th:unless="${staffList}"><h2 id="reservation-list-title">Danh sách đặt bàn</h2>
           <a class="staff-link" href="#request-queue-title" th:text="${'Yêu cầu thay đổi (' + #lists.size(changeRequests) + ')'}"></a>
         </div>
-        <form class="staff-filters" th:action="@{${opsBase + '/reservations'}}" method="get">
+        <div class="staff-reservation-filter-head" th:if="${staffList}">
+          <nav class="staff-reservation-quick" aria-label="Lọc nhanh lượt đặt">
+            <a th:href="@{/staff/reservations(date=${today},q=${q})}" th:attr="aria-current=${quick == 'today' ? 'true' : null}">Hôm nay</a>
+            <a th:href="@{/staff/reservations(scope='upcoming',q=${q})}" th:attr="aria-current=${quick == 'upcoming' ? 'true' : null}">Sắp tới</a>
+            <a th:href="@{/staff/reservations(status='PENDING_CONFIRMATION',q=${q})}" th:attr="aria-current=${quick == 'pending' ? 'true' : null}">Chờ xác nhận</a>
+            <a th:href="@{/staff/reservations(scope='attention',q=${q})}" th:attr="aria-current=${quick == 'attention' ? 'true' : null}">Cần xử lý</a>
+            <a th:href="@{/staff/reservations(q=${q})}" th:attr="aria-current=${quick == 'all' ? 'true' : null}">Tất cả</a>
+          </nav>
+          <a class="staff-reservation-review-link" href="#request-queue-title" th:unless="${changeRequests.isEmpty()}"
+             th:text="${changeRequests.size() + ' yêu cầu thay đổi chờ duyệt'}"></a>
+        </div>
+        <form class="staff-filters" th:classappend="${staffList ? 'staff-reservation-filters' : ''}"
+              th:action="@{${opsBase + '/reservations'}}" method="get">
+          <input type="hidden" name="scope" th:if="${staffList and !#strings.isEmpty(scope)}" th:value="${scope}" />
           <label class="staff-field">Ngày đến <input type="date" name="date" th:value="${date}" /></label>
           <label class="staff-field">Trạng thái <select name="status"><option value="">Tất cả</option>
             <option th:each="option : ${statuses}" th:value="${option.key}" th:text="${option.value}" th:selected="${option.key == status}"></option>
           </select></label>
-          <label class="staff-field staff-full">Tìm theo tên, số điện thoại hoặc mã đặt bàn <input name="q" th:value="${q}" maxlength="120" autocomplete="off" /></label>
-          <div class="staff-actions"><button class="staff-button" type="submit">Lọc</button><a class="staff-link" th:href="@{${opsBase + '/reservations'}}">Bỏ lọc</a></div>
+          <label class="staff-field" th:classappend="${staffList ? 'staff-reservation-search' : 'staff-full'}">
+            <span th:text="${staffList ? 'Tìm lượt đặt' : 'Tìm theo tên, số điện thoại hoặc mã đặt bàn'}"></span>
+            <input name="q" th:type="${staffList ? 'search' : 'text'}" th:value="${q}" maxlength="120" autocomplete="off"
+                th:placeholder="${staffList ? 'Tên, số điện thoại hoặc mã đặt bàn' : null}" />
+          </label>
+          <div class="staff-actions"><button class="staff-button" type="submit">Lọc</button>
+            <a class="staff-link" th:if="${!staffList or date != null or !#strings.isEmpty(status) or !#strings.isEmpty(q) or !#strings.isEmpty(scope)}"
+                th:href="@{${opsBase + '/reservations'}}">Bỏ lọc</a></div>
         </form>
-        <p class="staff-result-count" th:text="${results.totalElements + ' lượt đặt bàn'}"></p>
+        <div class="staff-reservation-result">
+          <p class="staff-result-count" th:text="${results.totalElements + ' lượt đặt bàn'}"></p>
+          <p class="staff-muted" th:if="${staffList and scope == 'attention'}">Lượt quá hạn, cọc cần đối soát hoặc hoàn, và yêu cầu chờ duyệt.</p>
+        </div>
         <p class="staff-empty" th:if="${results.empty}">Không có lượt đặt phù hợp.</p>
-        <div class="staff-table-wrap" th:unless="${results.empty}">
+        <div class="staff-table-wrap" th:if="${staffList and !results.empty}">
+          <table class="staff-table staff-reservation-list">
+            <thead><tr><th scope="col">Khách / mã đặt</th><th scope="col">Lịch đến</th><th scope="col">Bàn</th>
+              <th scope="col">Đặt bàn</th><th scope="col">Tiền cọc</th><th scope="col">Thao tác</th></tr></thead>
+            <tbody>
+              <tr th:each="booking : ${results.content}" th:with="row=${reservationRows.get(booking.id)},reviewId=${reviewByBooking.get(booking.id)}"
+                  th:attr="data-reservation-row=${booking.id}" th:classappend="${reviewId != null ? 'has-pending-review' : ''}">
+                <td data-label="Khách / mã đặt"><div class="staff-reservation-cell">
+                  <strong th:text="${booking.guestName}"></strong>
+                  <a class="staff-link staff-code" th:href="@{/staff/reservations/{id}(id=${booking.id})}" th:text="${booking.code}"></a>
+                  <small th:unless="${#strings.isEmpty(booking.guestPhone)}" th:text="${booking.guestPhone}"></small>
+                </div></td>
+                <td data-label="Lịch đến"><div class="staff-reservation-cell">
+                  <time th:datetime="${booking.startsAt}" th:text="${#temporals.format(booking.startsAt, 'dd/MM/yyyy · HH:mm')}"></time>
+                  <small th:text="${booking.guestCount + ' khách'}"></small>
+                </div></td>
+                <td data-label="Bàn" th:text="${booking.table == null ? 'Chưa phân bàn' : booking.table.code}"></td>
+                <td data-label="Đặt bàn"><div class="staff-reservation-cell">
+                  <span class="staff-badge" data-booking-state th:attr="data-status=${row.status}" th:text="${row.statusLabel}"></span>
+                  <small class="staff-reservation-late" data-booking-late th:hidden="${!row.late}">Đã qua giờ hẹn</small>
+                  <a class="staff-reservation-review-link" th:if="${reviewId != null}" th:href="${'#review-' + reviewId}">Yêu cầu chờ duyệt</a>
+                </div></td>
+                <td data-label="Tiền cọc"><div class="staff-reservation-cell">
+                  <strong class="staff-reservation-money" data-deposit-amount th:hidden="${row.depositAmount.signum() == 0}"
+                      th:text="${#numbers.formatInteger(row.depositAmount, 1, 'POINT') + ' đ'}"></strong>
+                  <span class="staff-reservation-deposit" data-list-deposit-state th:attr="data-status=${row.depositStatus}" th:text="${row.depositLabel}"></span>
+                  <small data-deposit-paid th:hidden="${row.depositPaid.signum() == 0 or row.depositPaid == row.depositAmount}"
+                      th:text="${'Đã thu ' + #numbers.formatInteger(row.depositPaid, 1, 'POINT') + ' đ'}"></small>
+                  <small data-deposit-remaining th:hidden="${row.depositRemaining.signum() == 0 or row.depositPaid.signum() == 0}"
+                      th:text="${'Còn ' + #numbers.formatInteger(row.depositRemaining, 1, 'POINT') + ' đ'}"></small>
+                </div></td>
+                <td data-label="Thao tác"><div class="staff-reservation-row-actions">
+                  <form data-list-action="confirm" th:hidden="${!row.confirm.visible}"
+                        th:action="@{/staff/reservations/{id}/status(id=${booking.id})}" method="post" data-partial-submit>
+                    <button class="staff-button" name="status" value="CONFIRMED" th:disabled="${!row.confirm.enabled}"
+                        th:attr="aria-describedby=${'confirm-note-' + booking.id}">Xác nhận đặt bàn</button>
+                    <small class="staff-action-reason" th:id="${'confirm-note-' + booking.id}"
+                        th:hidden="${row.confirm.enabled or #strings.isEmpty(row.confirm.reason)}" th:text="${row.confirm.reason}"></small>
+                  </form>
+                  <form data-list-action="receive" th:hidden="${!row.receive.visible}"
+                        th:action="@{/staff/reservations/{id}/status(id=${booking.id})}" method="post" data-partial-submit>
+                    <button class="staff-button is-outline" name="status" value="RECEIVE" th:disabled="${!row.receive.enabled}"
+                        th:attr="aria-describedby=${'receive-note-' + booking.id},data-confirm=${row.receive.enabled and !#strings.isEmpty(row.receive.reason) ? row.receive.reason : null}">Nhận khách &amp; bàn</button>
+                    <small class="staff-action-reason" th:id="${'receive-note-' + booking.id}"
+                        th:hidden="${row.receive.enabled or #strings.isEmpty(row.receive.reason)}" th:text="${row.receive.reason}"></small>
+                  </form>
+                  <a class="staff-link" data-list-order th:hidden="${row.status != 'SEATED'}"
+                     th:href="@{/staff/orders/{id}(id=${booking.id})}">Gọi món &amp; thanh toán</a>
+                  <a class="staff-link" data-list-detail th:href="@{/staff/reservations/{id}(id=${booking.id})}">Chi tiết</a>
+                </div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="staff-table-wrap" th:if="${!staffList and !results.empty}">
           <table class="staff-table">
             <thead><tr><th scope="col">Đặt bàn</th><th scope="col">Khách</th><th scope="col">Lịch đến</th><th scope="col">Bàn</th><th scope="col">Trạng thái / cọc</th><th scope="col">Thao tác</th></tr></thead>
             <tbody><tr th:each="booking : ${results.content}"
@@ -54,9 +132,9 @@
           </table>
         </div>
         <nav class="staff-pagination" aria-label="Phân trang đặt bàn" th:if="${results.totalPages > 1}">
-          <a class="staff-link" th:if="${results.hasPrevious()}" th:href="@{${opsBase + '/reservations'}(date=${date},status=${status},q=${q},page=${results.number - 1})}">Trang trước</a>
+          <a class="staff-link" th:if="${results.hasPrevious()}" th:href="@{${opsBase + '/reservations'}(date=${date},status=${status},q=${q},scope=${scope},page=${results.number - 1})}">Trang trước</a>
           <span th:text="${'Trang ' + (results.number + 1) + ' / ' + results.totalPages}"></span>
-          <a class="staff-link" th:if="${results.hasNext()}" th:href="@{${opsBase + '/reservations'}(date=${date},status=${status},q=${q},page=${results.number + 1})}">Trang sau</a>
+          <a class="staff-link" th:if="${results.hasNext()}" th:href="@{${opsBase + '/reservations'}(date=${date},status=${status},q=${q},scope=${scope},page=${results.number + 1})}">Trang sau</a>
         </nav>
       </section>
       <section th:replace="~{staff/fragments/reservation-requests :: queue}"></section>

@@ -86,6 +86,8 @@ SOURCE /docker-entrypoint-initdb.d/20_sepay_payments.sql;
 
 Script 17 đồng bộ link ảnh theo tên món mẫu. Có thể bỏ qua script 17 nếu muốn giữ các ảnh đã thay trên database hiện tại.
 
+Với database đã có bảng `reservation_emails`, chạy `26_reservation_email_checks.sql` để đồng bộ các giá trị hợp lệ của loại và trạng thái email. Với container hiện có, chép riêng script vào container bằng `docker compose cp database/mysql/26_reservation_email_checks.sql mysql:/tmp/26_reservation_email_checks.sql`. Trong dấu nhắc MySQL, chọn database bằng `USE t3l_restaurant;` rồi chạy `SOURCE /tmp/26_reservation_email_checks.sql;`. Có thể chạy lại script. Docker Compose tự nạp script khi khởi tạo volume mới.
+
 Mỗi thành viên dùng `.env` riêng. Các giá trị MySQL trong file đó được dùng cho cả Docker Compose và Spring Boot. Đặt mật khẩu nhân viên/admin qua `APP_STAFF_PASSWORD` và `APP_ADMIN_PASSWORD`, rồi đăng nhập tại `/staff/login`. Với bản chạy dùng chung, thay `APP_JWT_SECRET` bằng khóa ngẫu nhiên tối thiểu 32 byte, mã hóa Base64.
 
 Nếu cần cùng nhìn thấy các lượt đặt và thay đổi thực đơn mới phát sinh, dùng MySQL và MongoDB dành riêng cho nhóm. Chia sẻ trực tiếp `MYSQL_URL`, `MYSQL_USER`, `MYSQL_PASSWORD` và `MONGODB_URI` qua kênh riêng. Chỉ đưa `.env.example` và dữ liệu giả định vào Git.

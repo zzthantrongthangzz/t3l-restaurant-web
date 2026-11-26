@@ -1,4 +1,71 @@
 window.t3lPage.register(({ signal }) => {
+  const reservationList = document.querySelector('[data-reservation-list-url]');
+  if (reservationList) {
+    const rows = [...reservationList.querySelectorAll('[data-reservation-row]')];
+    if (!rows.length) return;
+    const url = new URL(reservationList.dataset.reservationListUrl, location.href);
+    url.searchParams.set('ids', rows.map(row => row.dataset.reservationRow).join(','));
+    const number = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 });
+    const money = amount => number.format(amount) + ' đ';
+
+    const updateAmount = (row, selector, text, visible) => {
+      const element = row.querySelector(selector);
+      element.hidden = !visible;
+      if (element.textContent !== text) element.textContent = text;
+    };
+    const updateBooking = (row, state) => {
+      const booking = row.querySelector('[data-booking-state]');
+      const deposit = row.querySelector('[data-list-deposit-state]');
+      booking.dataset.status = state.status;
+      deposit.dataset.status = state.depositStatus;
+      if (booking.textContent !== state.statusLabel) booking.textContent = state.statusLabel;
+      if (deposit.textContent !== state.depositLabel) deposit.textContent = state.depositLabel;
+      row.querySelector('[data-booking-late]').hidden = !state.late;
+      row.querySelector('[data-list-order]').hidden = state.status !== 'SEATED';
+      updateAmount(row, '[data-deposit-amount]', money(state.depositAmount), state.depositAmount > 0);
+      updateAmount(row, '[data-deposit-paid]', 'Đã thu ' + money(state.depositPaid),
+        state.depositPaid > 0 && state.depositPaid !== state.depositAmount);
+      updateAmount(row, '[data-deposit-remaining]', 'Còn ' + money(state.depositRemaining),
+        state.depositPaid > 0 && state.depositRemaining > 0);
+      for (const name of ['confirm', 'receive']) {
+        const form = row.querySelector('[data-list-action="' + name + '"]');
+        const button = form.querySelector('button');
+        const note = form.querySelector('.staff-action-reason');
+        const action = state[name];
+        form.hidden = !action.visible;
+        button.disabled = !action.enabled;
+        note.hidden = action.enabled || !action.reason;
+        if (note.textContent !== action.reason) note.textContent = action.reason;
+        if (name === 'receive' && action.enabled && action.reason) button.dataset.confirm = action.reason;
+        else delete button.dataset.confirm;
+      }
+    };
+
+    let loading = false;
+    const pollList = async () => {
+      if (loading || document.hidden) return;
+      loading = true;
+      try {
+        const result = await fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store', signal });
+        if (!result.ok || result.redirected) return;
+        const updates = await result.json();
+        rows.forEach(row => {
+          const state = updates[row.dataset.reservationRow];
+          if (state) updateBooking(row, state);
+        });
+      } catch {
+        // The last server-rendered or verified state stays visible if a refresh fails.
+      } finally {
+        loading = false;
+      }
+    };
+    pollList();
+    const timer = window.setInterval(pollList, 5000);
+    signal.addEventListener('abort', () => window.clearInterval(timer), { once: true });
+    document.addEventListener('visibilitychange', pollList, { signal });
+    return;
+  }
+
   const containers = [...document.querySelectorAll('[data-payment-status-url]')];
   if (!containers.length) return;
 

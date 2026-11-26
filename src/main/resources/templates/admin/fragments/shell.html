@@ -28,32 +28,32 @@
   </div>
   <div class="admin-navigation" id="admin-navigation">
     <nav aria-label="Điều hướng quản trị">
-      <a th:href="@{/admin/dashboard}" th:attr="aria-current=${section == 'dashboard' ? 'page' : null}">Tổng quan</a>
+      <a th:replace="~{:: navItem(${section}, 'dashboard', '/admin/dashboard', 'Tổng quan', 'dashboard')}"></a>
       <section class="admin-nav-group" aria-labelledby="admin-nav-operations">
       <h2 id="admin-nav-operations" class="admin-nav-label">Vận hành</h2>
-      <a th:href="@{/admin/tables}" th:attr="aria-current=${section == 'tables' ? 'page' : null}">Quản lý đặt bàn</a>
-      <a th:href="@{/admin/reservations}" th:attr="aria-current=${section == 'reservations' ? 'page' : null}">Danh sách &amp; duyệt đặt bàn</a>
-      <a th:href="@{/admin/orders}" th:attr="aria-current=${section == 'orders' ? 'page' : null}">Đơn đang phục vụ</a>
-      <a th:href="@{/admin/invoices}" th:attr="aria-current=${section == 'invoices' ? 'page' : null}">Hóa đơn</a>
-      <a th:href="@{/admin/revenue}" th:attr="aria-current=${section == 'revenue' ? 'page' : null}">Doanh thu</a>
-      <a th:href="@{/admin/analytics}" th:attr="aria-current=${section == 'analytics' ? 'page' : null}">Phân tích hành vi</a>
-      <a th:href="@{/admin/shifts}" th:attr="aria-current=${section == 'shift' ? 'page' : null}">Ca làm &amp; đối soát</a>
+      <a th:replace="~{:: navItem(${section}, 'tables', '/admin/tables', 'Sơ đồ bàn', 'tables')}"></a>
+      <a th:replace="~{:: navItem(${section}, 'reservations', '/admin/reservations', 'Danh sách &amp; duyệt đặt bàn', 'calendar')}"></a>
+      <a th:replace="~{:: navItem(${section}, 'orders', '/admin/orders', 'Đơn đang phục vụ', 'dining')}"></a>
+      <a th:replace="~{:: navItem(${section}, 'invoices', '/admin/invoices', 'Hóa đơn', 'receipt')}"></a>
+      <a th:replace="~{:: navItem(${section}, 'revenue', '/admin/revenue', 'Doanh thu', 'chart')}"></a>
+      <a th:replace="~{:: navItem(${section}, 'analytics', '/admin/analytics', 'Phân tích hành vi', 'analytics')}"></a>
+      <a th:replace="~{:: navItem(${section}, 'shift', '/admin/shifts', 'Ca làm &amp; đối soát', 'clock')}"></a>
       </section>
       <section class="admin-nav-group" aria-labelledby="admin-nav-management">
       <h2 id="admin-nav-management" class="admin-nav-label">Quản lý</h2>
-      <a th:href="@{/admin/vouchers}" th:attr="aria-current=${section == 'vouchers' ? 'page' : null}">Voucher &amp; khuyến mãi</a>
-      <a th:href="@{/admin/accounts}" th:attr="aria-current=${section == 'accounts' ? 'page' : null}">Tài khoản</a>
-      <a th:href="@{/admin/inventory}" th:attr="aria-current=${section == 'inventory' ? 'page' : null}">Danh mục bàn</a>
-      <a th:href="@{/menu}" th:attr="aria-current=${section == 'dishes' ? 'page' : null}">Thực đơn</a>
-      <a th:href="@{/admin/contacts}" th:attr="aria-current=${section == 'contacts' ? 'page' : null}">Liên hệ</a>
-      <a th:href="@{/admin/faqs}" th:attr="aria-current=${section == 'faqs' ? 'page' : null}">Quản lý FAQ</a>
-      <a th:href="@{/admin/settings}" th:attr="aria-current=${section == 'settings' ? 'page' : null}">Cấu hình</a>
-      <a th:href="@{/admin/activity}" th:attr="aria-current=${section == 'activity' ? 'page' : null}">Nhật ký thao tác</a>
+      <a th:replace="~{:: navItem(${section}, 'vouchers', '/admin/vouchers', 'Voucher &amp; khuyến mãi', 'ticket')}"></a>
+      <a th:replace="~{:: navItem(${section}, 'accounts', '/admin/accounts', 'Tài khoản', 'person')}"></a>
+      <a th:replace="~{:: navItem(${section}, 'inventory', '/admin/inventory', 'Danh mục bàn', 'inventory')}"></a>
+      <a th:replace="~{:: navItem(${section}, 'dishes', '/menu', 'Thực đơn', 'menu')}"></a>
+      <a th:replace="~{:: navItem(${section}, 'contacts', '/admin/contacts', 'Liên hệ', 'mail')}"></a>
+      <a th:replace="~{:: navItem(${section}, 'faqs', '/admin/faqs', 'Quản lý FAQ', 'help')}"></a>
+      <a th:replace="~{:: navItem(${section}, 'settings', '/admin/settings', 'Cấu hình', 'settings')}"></a>
+      <a th:replace="~{:: navItem(${section}, 'activity', '/admin/activity', 'Nhật ký thao tác', 'history')}"></a>
       </section>
     </nav>
   </div>
   <div class="admin-nav-actions">
-    <a th:href="@{/}">Trang khách hàng</a>
+    <a th:href="@{/}"><svg th:replace="~{staff/fragments/shell :: icon('home')}"></svg><span>Trang khách hàng</span></a>
     <div class="admin-account-controls">
       <div th:replace="~{account/fragments/sidebar :: employee}"></div>
       <button th:replace="~{web/fragments/theme :: toggle}"></button>
@@ -66,6 +66,10 @@
     <span>Hiện có</span><strong data-pending-count>0</strong><span>yêu cầu đặt bàn đang chờ</span>
   </a>
 </header>
+<a th:fragment="navItem(section, key, path, label, icon)" class="admin-nav-link" th:href="@{${path}}"
+   th:attr="aria-current=${section == key ? 'page' : null}">
+  <svg th:replace="~{staff/fragments/shell :: icon(${icon})}"></svg><span th:text="${label}"></span>
+</a>
 <div th:fragment="messages" th:remove="tag">
   <div th:replace="~{staff/fragments/shell :: messages}"></div>
 </div>

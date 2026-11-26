@@ -8,7 +8,7 @@
       <strong th:text="${booking.code}"></strong>
     </div>
     <span class="lookup-status" th:attr="data-status=${booking.status}" th:text="${booking.statusLabel}"></span>
-    <a class="account-text-action" th:href="@{/reservations/lookup(code=${booking.code})}">Cập nhật trạng thái <span aria-hidden="true">↻</span></a>
+    <a class="account-text-action" th:if="${payment.payable}" href="#booking-payment">Đến phần thanh toán</a>
   </div>
   <ol class="booking-detail-progress">
     <li class="is-done">Đã tiếp nhận</li>
@@ -29,11 +29,8 @@
   <div class="booking-detail-order-head">
     <h2 id="booking-order-title">Món trong lượt đặt</h2>
     <div class="account-record-actions">
-      <a class="account-button" th:if="${canAddMenuItems}" th:href="@{/menu(booking=${booking.code})}"
-          th:text="${order != null and order.hasItems() ? 'Thêm món' : 'Chọn món đặt trước'}"></a>
-      <a class="account-button" th:if="${editable and (!canAddMenuItems or (order != null and order.hasItems()))}"
-          th:href="@{/account/reservations/{code}/preorder(code=${booking.code})}"
-          th:text="${order != null and order.hasItems() ? 'Chỉnh sửa món' : 'Chọn món đặt trước'}"></a>
+      <a class="account-button" th:if="${editable or canAddMenuItems}" data-native-navigation
+          th:href="${editable} ? @{/account/reservations/{code}/preorder(code=${booking.code})} : @{/menu(booking=${booking.code})}">Chỉnh sửa món</a>
     </div>
   </div>
   <p class="account-muted" th:if="${order == null or !order.hasItems()}">Chưa có món đặt trước.</p>

@@ -3,7 +3,7 @@
   <head th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: head('Tạo đặt bàn')}"></head>
   <body class="staff-page" th:classappend="${opsBase == '/admin' ? 'admin-page' : ''}">
     <header th:replace="~{${opsBase == '/admin' ? 'admin/fragments/shell' : 'staff/fragments/shell'} :: header('reservations')}"></header>
-    <main data-navigation class="staff-main">
+    <main data-navigation class="staff-main" th:id="${opsBase != '/admin' ? 'main' : null}">
       <a class="staff-link staff-back" th:href="@{${opsBase + '/tables'}(date=${bookingForm.date?.toString()})}">← Sơ đồ bàn</a>
       <div class="staff-page-heading"><h1 th:text="${walkIn ? 'Đặt bàn ngay' : 'Đặt bàn chờ'}"></h1></div>
       <section th:replace="~{staff/fragments/booking-form :: flow}"></section>

@@ -3,7 +3,7 @@
   const shellSelector = '[data-nav-shell]';
   const region = {
     public: /^(?:\/|\/(?:menu|about|contact|faq|reservations\/(?:new|lookup)|account(?:\/.*)?))$/,
-    staff: /^\/staff(?:\/(?!login(?:\/|$))[^.]+)?$/,
+    staff: /^(?:\/menu|\/staff(?:\/(?!login(?:\/|$))[^.]+)?)$/,
     admin: /^\/admin(?:\/[^.]+)?$/
   };
   const initializers = new Map();

@@ -43,7 +43,7 @@ window.t3lPage.register(({ signal, state }) => {
     search.closest('.menu-search').hidden = false;
     const categories = document.querySelector('.menu-categories');
     categories.hidden = false;
-    const header = document.getElementById('home-header');
+    const header = document.querySelector('#home-header, .staff-topbar');
     const workspace = categories.closest('.menu-workspace');
     const syncHeaderHeight = () => {
       workspace.style.setProperty('--menu-header-height', Math.ceil(header.getBoundingClientRect().height) + 'px');

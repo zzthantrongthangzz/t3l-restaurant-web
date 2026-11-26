@@ -18,18 +18,25 @@ body.admin-page { --admin-sidebar-width: 16.25rem; min-height: 100vh; padding-in
 .admin-brand-row { display: flex; gap: 12px; justify-content: space-between; align-items: center; padding: 4px 6px 17px; }
 .admin-toggle[hidden] { display: none; }
 .admin-navigation { flex: 1; min-height: 0; overflow-y: auto; }
-.admin-navigation nav { display: grid; gap: 2px; }
-.admin-navigation nav a {
-  padding: 8px 10px; border-radius: 6px; font-size: var(--text-compact); line-height: 1.35;
+.admin-navigation nav { display: grid; gap: 3px; }
+.admin-navigation .admin-nav-link {
+  display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 9px;
+  min-height: 36px; padding: 7px 10px; border-radius: 7px;
+  font-size: var(--text-label); line-height: 1.35;
 }
-.admin-nav-group { display: grid; gap: 2px; padding-block-start: 8px; margin-block: 8px 2px; border-block-start: 1px solid var(--border); }
+.admin-sidebar :is(.admin-nav-link, .admin-nav-actions > a) svg { display: block; width: 18px; height: 18px; }
+.admin-navigation .admin-nav-link svg { color: var(--text-muted); }
+.admin-navigation .admin-nav-link:is(:hover, [aria-current="page"]) svg { color: var(--accent-text); }
+body.admin-page .admin-navigation .admin-nav-link[aria-current="page"] {
+  background: var(--accent-wash); box-shadow: inset 3px 0 var(--accent); color: var(--accent-text);
+}
+.admin-nav-group { display: grid; gap: 3px; margin-block: 9px 2px; }
 .admin-navigation .admin-nav-label {
-  margin: 0 0 4px; padding: 6px 10px; border-inline-start: 3px solid var(--accent);
-  border-radius: 4px; background: var(--surface-muted); color: var(--text);
+  margin: 0 0 2px; padding: 8px 10px 5px; border-block-start: 1px solid var(--border); color: var(--text-muted);
   font: 750 var(--text-caption)/1.35 var(--font-sans); letter-spacing: .06em; text-transform: uppercase;
 }
 .admin-nav-actions { display: grid; gap: 6px; padding: 9px 5px 0; border-top: 1px solid var(--border); font-size: var(--text-label); }
-.admin-nav-actions > a { justify-self: start; padding: 5px; border-radius: 7px; }
+.admin-nav-actions > a { display: inline-flex; align-items: center; gap: 8px; justify-self: start; padding: 5px; border-radius: 7px; }
 .admin-nav-actions > a:hover { background: var(--accent-wash); color: var(--accent-text); }
 .admin-account-controls { display: flex; align-items: center; gap: 8px; }
 .admin-account-controls .sidebar-employee { flex: 1; justify-content: space-between; }
@@ -95,6 +102,68 @@ body.admin-page { --admin-sidebar-width: 16.25rem; min-height: 100vh; padding-in
 @media (max-width: 480px) {
   .admin-nav-actions { padding-inline: 0; }
   .admin-account-controls .sidebar-account-label { max-width: 80px; }
+}
+
+.admin-page .admin-table-board {
+  width: min(1700px, calc(100% - clamp(24px, 3vw, 54px)));
+  padding-block-start: clamp(18px, 3vw, 36px);
+}
+.admin-table-board .staff-page-heading { margin-bottom: 16px; }
+.admin-table-board .staff-page-heading h1 { font-family: var(--font-sans); }
+.admin-table-board .staff-page-heading .staff-actions { margin: 0; }
+.admin-table-board .table-board-tools { container-type: inline-size; padding: 12px 14px; }
+.admin-table-board .table-board-filters {
+  grid-template-columns: minmax(100px, 1.15fr) minmax(115px, 1.3fr) minmax(100px, .9fr)
+    minmax(132px, 1fr) minmax(98px, .7fr) minmax(80px, .6fr);
+}
+.admin-table-board .table-board-summary { margin-block: 12px 17px; }
+.admin-table-board .admin-board-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr));
+  gap: 8px;
+}
+.admin-table-board .admin-board-stats button {
+  position: relative; display: grid; align-content: start; justify-items: start; min-height: 68px;
+  gap: 5px; padding: 9px 11px; text-align: start; line-height: 1.2;
+}
+.admin-table-board .admin-board-stats button::before {
+  position: absolute; inset-block-start: 12px; inset-inline-end: 10px;
+}
+.admin-table-board .admin-board-stats button > span { padding-inline-end: 10px; }
+.admin-table-board .admin-board-stats strong {
+  min-width: 0; padding: 0; background: transparent; color: var(--board-tone, var(--text));
+  font-size: clamp(1.1rem, 2vw, 1.45rem); line-height: 1;
+}
+.admin-table-board .admin-board-stats [data-board-state="WAITING"] { --board-tone: var(--warning); }
+.admin-table-board :is([data-state="INACTIVE"], [data-board-state="INACTIVE"]) {
+  --board-tone: var(--text-muted); --board-wash: var(--surface-muted);
+}
+.admin-table-board [data-state="INACTIVE"] .table-board-card-icon { opacity: .55; }
+.admin-table-board [data-state="INACTIVE"] .table-board-select { background: var(--surface-muted); }
+.admin-table-board .table-board-groups { gap: 16px; }
+.admin-table-board .table-board-group-heading h2 { font: 700 1.15rem/1.35 var(--font-sans); }
+.admin-table-board .table-board-grid { grid-template-columns: repeat(auto-fill, minmax(min(188px, 100%), 1fr)); }
+.admin-table-board .table-board-card-head { grid-template-columns: minmax(0, .85fr) minmax(83px, 1fr); }
+.admin-table-board :is(.table-board-card-icon, .table-board-card-icon img) { height: 68px; }
+.admin-table-board .table-board-card-icon img { transform: scale(1.62); }
+.admin-table-board .table-board-card-line.is-serving-end { color: var(--text-muted); }
+@container (max-width: 690px) {
+  .admin-table-board .table-board-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container (max-width: 450px) {
+  .admin-table-board .table-board-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 540px) {
+  .admin-table-board .table-board-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-table-board .table-board-card-head { grid-template-columns: minmax(0, .8fr) minmax(0, 1fr); }
+  .admin-table-board .admin-board-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .admin-table-board .admin-board-stats button { min-height: 62px; padding: 8px; }
+  .admin-table-board .admin-board-stats button > span { padding-inline-end: 0; }
+  .admin-table-board .admin-board-stats button::before { inset-block-start: auto; inset-block-end: 10px; }
+}
+@media (max-width: 350px) {
+  .admin-table-board .table-board-grid { grid-template-columns: minmax(0, 1fr); }
+  .admin-table-board .admin-board-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .analytics-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
