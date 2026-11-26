@@ -188,6 +188,47 @@ class AdminWorkspaceIntegrationTest {
   }
 
   @Test
+  void filtersAuditByActorAndDisplaysReasonsOnlyInConfirmationDialogs() throws Exception {
+    var now = schedule.today().atTime(12, 0);
+    long adminId = accounts.findByUsername("admin").orElseThrow().getId();
+    jdbc.update("""
+        insert into employee_activity(actor,actor_id,actor_role,operation,target_type,target_label,occurred_at)
+        values (?,?,'ADMIN','Cập nhật đặt bàn','RESERVATION','FILTER-ADMIN',?)
+        """, "admin", adminId, now);
+    jdbc.update("insert into admin_activity(actor,operation,target,occurred_at) values (?,?,?,?)",
+        "other-staff", "Cập nhật đặt bàn", "FILTER-OTHER", now);
+    jdbc.update("""
+        insert into employee_activity(actor,actor_id,actor_role,operation,target_type,target_label,occurred_at,details)
+        values (?,?,'ADMIN','Mở khóa tài khoản','ACCOUNT','FILTER-OLD',?,?)
+        """, "admin", adminId, now, "Trước: hoạt động=false → Sau: hoạt động=true; lý do: không cung cấp");
+    for (String actor : List.of("ADM", "admin (#" + adminId + ")")) {
+      admin(get("/admin/activity").param("employee", actor).param("action", "đặt bàn")
+          .header("X-T3L-Fragment", "main"))
+          .andExpect(status().isOk()).andExpect(header().string("X-T3L-Fragment", "main"))
+          .andExpect(content().string(containsString("FILTER-ADMIN")))
+          .andExpect(content().string(containsString("ID tài khoản: " + adminId)))
+          .andExpect(content().string(not(containsString("FILTER-OTHER"))));
+    }
+    admin(get("/admin/accounts")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("data-reason-open")))
+        .andExpect(content().string(containsString("data-reason-dialog")));
+    admin(get("/admin/dishes/" + dish + "/edit")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("id=\"delete-dish-reason\"")));
+    long staffId = accounts.findByUsername("staff").orElseThrow().getId();
+    admin(post("/admin/accounts/" + staffId + "/availability").param("enabled", "false")
+        .param("reason", "Tạm nghỉ kiểm thử")).andExpect(flash().attributeExists("notice"));
+    admin(post("/admin/accounts/" + staffId + "/availability").param("enabled", "true"))
+        .andExpect(flash().attributeExists("notice"));
+    admin(post("/admin/dishes/" + dish + "/delete").param("reason", "Gỡ món kiểm thử"))
+        .andExpect(flash().attributeExists("notice"));
+    admin(get("/admin/activity").param("employee", "ADM"))
+        .andExpect(content().string(containsString("Tạm nghỉ kiểm thử")))
+        .andExpect(content().string(containsString("Gỡ món kiểm thử")))
+        .andExpect(content().string(containsString("Đã mở khóa tài khoản. Người dùng có thể đăng nhập lại.")))
+        .andExpect(content().string(not(containsString("hoạt động=false"))));
+  }
+
+  @Test
   void protectsLastAdminAndRevokesSessionsAndTokensWhenAnEmployeeIsLocked() throws Exception {
     admin(post("/admin/accounts").param("username", "qa-staff").param("fullName", "Nhân viên Kiểm thử")
         .param("role", "STAFF").param("enabled", "true").param("password", PASSWORD))
@@ -270,7 +311,7 @@ class AdminWorkspaceIntegrationTest {
 
   @Test
   void enforcesCanonicalTableCapacityAndAcceptsThirtyGuestsInVip() throws Exception {
-    for (var kind : java.util.Map.of("SMALL", 4, "MEDIUM", 8, "LARGE", 16, "VIP", 30).entrySet()) {
+    for (var kind : java.util.Map.of("SMALL", 4, "MEDIUM", 8, "LARGE", 15, "VIP", 30).entrySet()) {
       admin(post("/admin/inventory").param("code", "QA-" + kind.getKey()).param("classification", kind.getKey())
           .param("capacity", "10").param("active", "true")).andExpect(redirectedUrl("/admin/inventory"));
       assertEquals(kind.getValue(), jdbc.queryForObject("select capacity from restaurant_tables where code=?", Integer.class,
@@ -281,6 +322,8 @@ class AdminWorkspaceIntegrationTest {
     String date = schedule.today().plusDays(2).toString();
     mvc.perform(get("/reservations/new").param("date", date).param("guests", "30"))
         .andExpect(status().isOk()).andExpect(content().string(containsString("max=\"30\"")));
+    mvc.perform(post("/reservations/quote").with(csrf()).param("date", date).param("time", "18:00").param("guests", "15"))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.deposit").value("300000"));
     mvc.perform(post("/reservations/quote").with(csrf()).param("date", date).param("time", "18:00").param("guests", "30"))
         .andExpect(status().isOk()).andExpect(jsonPath("$.deposit").value("500000"));
     mvc.perform(post("/reservations").with(csrf()).param("date", date).param("time", "18:00").param("guests", "30")

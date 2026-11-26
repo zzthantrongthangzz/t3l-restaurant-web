@@ -116,7 +116,7 @@ public class TrackingReportService {
     var funnel = new ArrayList<Step>();
     add(funnel, "Truy cập website", cohort.traffic().size());
     add(funnel, "Bắt đầu đặt bàn", counted(cohort, f -> true));
-    add(funnel, "Chọn bàn", counted(cohort, Flow::selected));
+    add(funnel, "Đã xếp bàn", counted(cohort, Flow::selected));
     add(funnel, "Gửi yêu cầu đặt bàn", counted(cohort, f -> f.reservation() != null));
     add(funnel, "Đạt điều kiện cọc", counted(cohort, f -> f.reservation() != null && (!f.required() || f.paid())));
     add(funnel, "Đặt bàn được xác nhận", counted(cohort, f -> f.confirmed() && (!f.required() || f.paid())));

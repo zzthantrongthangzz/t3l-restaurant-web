@@ -222,6 +222,31 @@ class StaffOperationsIntegrationTest {
   }
 
   @Test
+  void waitingBookingsRemainVisibleWhenATableIsFreeAndAdminCanConfirmThem() throws Exception {
+    var form = new ReservationForm();
+    form.setGuestName("Khách chờ xác nhận");
+    form.setGuestPhone("0901234567");
+    form.setDate(TODAY);
+    form.setTime(LocalTime.of(18, 0));
+    form.setGuests(3);
+    form.setTableId(tableOne);
+    form.setConsentAccepted(true);
+    var booking = bookings.create(form);
+    var administrator = user("admin").roles("ADMIN");
+    mvc.perform(get("/admin/tables").with(administrator))
+        .andExpect(status().isOk()).andExpect(model().attribute("boardCounts", org.hamcrest.Matchers.hasEntry("WAITING", 1L)))
+        .andExpect(content().string(containsString("Có lịch chờ")))
+        .andExpect(content().string(containsString("Chờ xác nhận")))
+        .andExpect(content().string(containsString("Xác nhận lịch tiếp theo")));
+    mvc.perform(get("/admin/tables").with(administrator).param("time", "12:00"))
+        .andExpect(model().attribute("boardCounts", org.hamcrest.Matchers.hasEntry("WAITING", 0L)));
+    mvc.perform(post("/admin/reservations/" + booking.getId() + "/status").with(administrator).with(csrf())
+        .param("status", "CONFIRMED").param("from", "table").param("returnDate", TODAY.toString()))
+        .andExpect(flash().attributeExists("notice"));
+    assertEquals("CONFIRMED", reservations.findOneById(booking.getId()).orElseThrow().getStatus());
+  }
+
+  @Test
   void acceptsEveningOnlineRequestWhileMorningTableIsServing() throws Exception {
     clock.at(TODAY.atTime(9, 0));
     staff(post("/staff/shift/open").param("openingCash", "0")).andExpect(flash().attributeExists("notice"));
@@ -256,6 +281,8 @@ class StaffOperationsIntegrationTest {
         .param("email", "minh.tu@example.test").param("tableId", tableOne.toString()).param("popup", "true"))
         .andExpect(status().isOk()).andExpect(content().string(containsString("Lê Minh Tú")));
     var customer = accounts.findByUsername("desk:" + phone).orElseThrow();
+    assertEquals(1L, id("select count(*) from employee_activity where operation='Tạo hồ sơ khách' and actor='staff'"
+        + " and actor_id is not null and target_id=" + customer.getId()));
     staff(post("/staff/reservations/customer/lookup").param("phone", "+84 999 999 541")
         .param("tableId", tableOne.toString()).param("popup", "true"))
         .andExpect(status().isOk()).andExpect(content().string(containsString("minh.tu@example.test")))
@@ -818,6 +845,13 @@ class StaffOperationsIntegrationTest {
         .andExpect(status().isForbidden());
     var buyer = preorderBuyer();
     vouchers.save(null, voucher("SAFEQUOTE", "FIXED", "50000"));
+    mvc.perform(post("/admin/vouchers/" + vouchers.list("SAFEQUOTE", "").getFirst().voucher().getId() + "/status")
+        .with(user("admin").roles("ADMIN")).with(csrf()).param("enabled", "false"))
+        .andExpect(status().is3xxRedirection());
+    assertEquals(1L, id("select count(*) from employee_activity where operation='Tắt voucher' and actor='admin' and target_label='SAFEQUOTE'"));
+    mvc.perform(post("/admin/vouchers/" + vouchers.list("SAFEQUOTE", "").getFirst().voucher().getId() + "/status")
+        .with(user("admin").roles("ADMIN")).with(csrf()).param("enabled", "true"))
+        .andExpect(status().is3xxRedirection());
     mvc.perform(post("/account/vouchers/quote").with(user(buyer.getUsername()).roles("BUYER")).with(csrf())
         .param("tableId", tableOne.toString()).param("preorderQuantities[" + dishId + "]", "2")
         .param("voucherCode", "SAFEQUOTE").param("discount", "500000"))

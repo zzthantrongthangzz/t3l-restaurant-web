@@ -49,11 +49,13 @@ window.t3lPage.register(({ signal, state }) => {
     let visibleCount = 0;
     for (const card of cards) {
       const state = card.dataset.summaryState || card.dataset.state;
+      const hasWaiting = card.dataset.hasWaiting === 'true';
       const matches = (!kindFilter.value || card.dataset.kind === kindFilter.value)
         && normalize(card.dataset.search).includes(tableQuery) && matchesGuest(card, guestQuery);
-      if (matches && Object.hasOwn(counts, state)) counts[state] += 1;
+      if (matches && state !== 'WAITING' && Object.hasOwn(counts, state)) counts[state] += 1;
+      if (matches && hasWaiting) counts.WAITING += 1;
       if (matches) counts[''] += 1;
-      card.hidden = !matches || Boolean(statusFilter && statusFilter !== state);
+      card.hidden = !matches || Boolean(statusFilter && (statusFilter === 'WAITING' ? !hasWaiting : statusFilter !== state));
       if (!card.hidden) visibleCount += 1;
     }
     statusFilters.forEach(button => {

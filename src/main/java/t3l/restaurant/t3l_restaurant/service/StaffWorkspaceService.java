@@ -67,7 +67,7 @@ public class StaffWorkspaceService {
   public record TableView(RestaurantTable table, TableState state, Reservation current,
                           List<Reservation> otherBookings, BookingActions actions, boolean canOrder, boolean canWalkIn,
                           Reservation nextBooking, LocalDateTime servingUntil, boolean serviceAtRisk,
-                          BookingActions nextActions, boolean operational) {
+                          BookingActions nextActions, boolean operational, boolean hasWaitingBooking) {
     public String getBoardLabel() {
       return switch (state) {
         case RESERVED -> "Đã đặt";
@@ -190,10 +190,14 @@ public class StaffWorkspaceService {
       LocalDateTime servingUntil = state == TableState.OCCUPIED ? current.effectiveEndsAt(rules.duration()) : null;
       boolean serviceAtRisk = servingUntil != null && next != null
           && (servingUntil.isAfter(next.getStartsAt()) || !now.plusMinutes(rules.slot()).isBefore(next.getStartsAt()));
+      boolean hasWaitingBooking = state != TableState.INACTIVE
+          && ((current != null && (SCHEDULED.contains(current.getStatus()) || CHECKED_IN.equals(current.getStatus())))
+              || (slotStart == null && next != null));
       board.add(new TableView(table, state, current, others, current == null ? null : actions(current, now, shiftOpen, rules),
           current != null && (operational || !SEATED.equals(current.getStatus()))
               && bookings.canAddMenuItems(current, boardOrders.get(current.getId()), true), canWalkIn,
-          next, servingUntil, serviceAtRisk, staffTimeline && next != null ? actions(next, now, shiftOpen, rules) : null, operational));
+          next, servingUntil, serviceAtRisk, staffTimeline && next != null ? actions(next, now, shiftOpen, rules) : null,
+          operational, hasWaitingBooking));
     }
     return board;
   }

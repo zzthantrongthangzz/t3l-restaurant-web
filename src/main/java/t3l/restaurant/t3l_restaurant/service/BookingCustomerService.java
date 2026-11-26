@@ -18,6 +18,7 @@ public class BookingCustomerService {
   private final CustomerProfileRepository profiles;
   private final CustomerAccountService customers;
   private final PasswordEncoder passwords;
+  private final EmployeeActivityService activity;
 
   public record Contact(Long id, String fullName, String email, String phone) {
     public boolean complete() { return fullName != null && !fullName.isBlank(); }
@@ -51,6 +52,8 @@ public class BookingCustomerService {
       if (account.getEmail() != null) address = account.getEmail();
     }
     long existingId = account == null ? 0L : account.getId();
+    boolean hadName = account != null && account.getFullName() != null && !account.getFullName().isBlank();
+    boolean hadEmail = account != null && account.getEmail() != null && !account.getEmail().isBlank();
     if (address != null && (accounts.existsByEmailIgnoreCaseAndIdNot(address, existingId)
         || profiles.existsByGoogleEmailIgnoreCaseAndIdNot(address, existingId))) {
       throw new IllegalArgumentException("Email này đã được dùng cho một tài khoản khác. Hãy kiểm tra thông tin khách.");
@@ -60,7 +63,13 @@ public class BookingCustomerService {
           passwords.encode(UUID.randomUUID().toString()));
     } else account.updateCustomerContact(name, address, account.getPhone());
     try {
-      return contact(accounts.saveAndFlush(account));
+      var saved = accounts.saveAndFlush(account);
+      String details = existingId == 0 ? "Đã tạo hồ sơ khách tại quầy." : "Đã bổ sung thông tin cho hồ sơ khách tại quầy.";
+      if (!hadName) details += " Đã lưu họ tên.";
+      if (!hadEmail && saved.getEmail() != null) details += " Đã lưu email liên hệ.";
+      activity.record(existingId == 0 ? "Tạo hồ sơ khách" : "Bổ sung hồ sơ khách", "CUSTOMER", saved.getId(),
+          "Khách #" + saved.getId(), details);
+      return contact(saved);
     } catch (DataIntegrityViolationException conflict) {
       throw new IllegalArgumentException("Thông tin vừa được lưu hoặc bị trùng. Hãy tra cứu lại bằng số điện thoại.", conflict);
     }
@@ -84,4 +93,5 @@ public class BookingCustomerService {
   private Contact contact(UserAccount account) {
     return new Contact(account.getId(), account.getFullName(), account.getEmail(), account.getPhone());
   }
+
 }

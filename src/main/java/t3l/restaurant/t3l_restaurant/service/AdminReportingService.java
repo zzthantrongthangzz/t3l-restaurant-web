@@ -32,10 +32,10 @@ public class AdminReportingService {
 
   private static final int PAGE_SIZE = 20;
   private static final String ACTIVITY_ROWS = """
-      (SELECT id, occurred_at AS happened, actor_role, actor, operation, target_type, target_id,
+      (SELECT id, occurred_at AS happened, actor_role, actor, actor_id, operation, target_type, target_id,
           target_label, details, 1 AS source_order FROM employee_activity
        UNION ALL
-       SELECT id, occurred_at AS happened, 'ADMIN' AS actor_role, actor, operation, 'GENERAL' AS target_type,
+       SELECT id, occurred_at AS happened, 'ADMIN' AS actor_role, actor, CAST(NULL AS SIGNED) AS actor_id, operation, 'GENERAL' AS target_type,
           CAST(NULL AS SIGNED) AS target_id, target AS target_label, '' AS details, 0 AS source_order FROM admin_activity) activity
       """;
   private static final String RECEIPTS = """
@@ -85,7 +85,7 @@ public class AdminReportingService {
   public record ChartPoint(String label, BigDecimal amount, int height) {}
   public record Bestseller(String name, long quantity) {}
   public record Activity(LocalDateTime time, String actor, String operation, String target) {}
-  public record AuditEntry(LocalDateTime time, String actorRole, String actor, String operation,
+  public record AuditEntry(LocalDateTime time, String actorRole, String actor, Long actorId, String operation,
                            String targetType, Long targetId, String targetLabel, String details) {}
   public record Dashboard(Filter filter, String grain, BigDecimal revenue, long bookings, long served,
                           long occupied, long pending, long cancellations, long noShows,
@@ -208,16 +208,20 @@ public class AdminReportingService {
   @Transactional(readOnly = true)
   public PageRows<AuditEntry> auditHistory(Filter filter, String action, int page) {
     String criteria = " FROM " + ACTIVITY_ROWS + " WHERE happened >= :start AND happened < :end"
-        + " AND (:employee='' OR actor=:employee) AND (:action='' OR LOWER(operation) LIKE :action ESCAPE '!')";
+        + " AND (:actorSearch='' OR LOWER(actor) LIKE :actorSearch ESCAPE '!')"
+        + " AND (:action='' OR LOWER(operation) LIKE :action ESCAPE '!')";
+    String actor = filter.employee().replaceFirst("\\s+\\(#\\d+\\)$", "");
     String actionFilter = action == null ? "" : action.strip();
     if (actionFilter.length() > 80) actionFilter = actionFilter.substring(0, 80);
-    var args = paged(filter, page).addValue("action", actionFilter.isEmpty() ? "" : AdminInput.like(actionFilter));
+    var args = paged(filter, page).addValue("actorSearch", actor.isEmpty() ? "" : AdminInput.like(actor))
+        .addValue("action", actionFilter.isEmpty() ? "" : AdminInput.like(actionFilter));
     return page("", criteria,
-        "SELECT happened,actor_role,actor,operation,target_type,target_id,target_label,details",
+        "SELECT happened,actor_role,actor,actor_id,operation,target_type,target_id,target_label,details",
         " ORDER BY happened DESC,source_order DESC,id DESC", args, page,
         (row, index) -> new AuditEntry(row.getObject("happened", LocalDateTime.class), row.getString("actor_role"),
-            row.getString("actor"), row.getString("operation"), row.getString("target_type"),
-            row.getObject("target_id", Long.class), row.getString("target_label"), row.getString("details")));
+            row.getString("actor"), row.getObject("actor_id", Long.class), row.getString("operation"), row.getString("target_type"),
+            row.getObject("target_id", Long.class), row.getString("target_label"),
+            AdminAudit.displayDetails(row.getString("operation"), row.getString("details"))));
   }
 
   @Transactional(readOnly = true)

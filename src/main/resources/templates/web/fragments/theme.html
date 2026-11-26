@@ -14,7 +14,7 @@
           th:href="@{/fonts/be-vietnam-pro-regular.woff2}" />
     <link rel="stylesheet" th:href="@{/css/fonts.css}" />
     <link rel="stylesheet" th:href="@{/css/typography.css}" />
-    <script defer th:src="@{/js/navigation.js}"></script>
+    <script defer th:src="@{/js/navigation.js(v=form-attributes)}"></script>
     <script async sec:authorize="isAnonymous() or hasRole('BUYER')"
             th:src="@{/js/tracking.js}" th:attr="data-endpoint=@{/tracking/}"></script>
   </th:block>
@@ -22,7 +22,7 @@
     <link rel="stylesheet" th:href="@{/css/theme.css}" />
     <link rel="stylesheet" th:href="@{/css/customer-menu.css}" />
     <link rel="stylesheet" th:href="@{/css/navigation.css}" />
-    <link rel="stylesheet" sec:authorize="isAnonymous() or hasRole('BUYER')" th:if="${hideChat != true}" th:href="@{/css/chatbox.css}" />
+    <link rel="stylesheet" sec:authorize="isAnonymous() or hasAnyRole('BUYER', 'ADMIN')" th:if="${hideChat != true}" th:href="@{/css/chatbox.css}" />
     <script defer th:src="@{/js/theme.js}"></script>
   </th:block>
 </head>

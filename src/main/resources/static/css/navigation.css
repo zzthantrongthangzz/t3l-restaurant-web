@@ -88,3 +88,17 @@ main[data-navigation]:focus { outline: none; }
 .tracking-actions button:hover { background: var(--accent-wash); }
 .tracking-choice button:is(.tracking-toggle, [data-tracking-choice="allow"]):hover { background: var(--action-hover); }
 .tracking-choice button:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+.tracking-report-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-decoration: none;
+}
+.tracking-report-link:hover { background: var(--accent-wash); }
+.tracking-report-link:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }

@@ -84,6 +84,7 @@ public class ReservationEmailQueue {
 
   static String mailbox(String value) {
     if (value == null || value.length() > 254 || !value.matches("^[^\\s@<>(),;:]+@[^\\s@<>(),;:]+\\.[^\\s@<>(),;:]+$")) return null;
+    if (value.toLowerCase(java.util.Locale.ROOT).matches("t3l\\.886413\\+[a-z.]+@gmail\\.com")) return null;
     try {
       var address = new InternetAddress(value, true);
       return value.equals(address.getAddress()) && !address.isGroup() ? value : null;

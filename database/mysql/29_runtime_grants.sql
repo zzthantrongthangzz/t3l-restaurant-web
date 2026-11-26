@@ -1,0 +1,28 @@
+-- Run as DBA after migrations. Assign this role to a fresh runtime user with no other grants.
+CREATE ROLE IF NOT EXISTS 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE ON t3l_restaurant.app_users TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE ON t3l_restaurant.cash_sales TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE ON t3l_restaurant.contact_messages TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE ON t3l_restaurant.customer_profiles TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE ON t3l_restaurant.dining_order_items TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE ON t3l_restaurant.dining_orders TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE ON t3l_restaurant.dining_payments TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE ON t3l_restaurant.payment_intents TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE ON t3l_restaurant.payment_reference_claims TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE ON t3l_restaurant.reservation_change_requests TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE ON t3l_restaurant.reservation_emails TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE ON t3l_restaurant.reservation_events TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE ON t3l_restaurant.reservations TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE ON t3l_restaurant.restaurant_sections TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE ON t3l_restaurant.restaurant_settings TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE ON t3l_restaurant.restaurant_tables TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE ON t3l_restaurant.staff_shifts TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE ON t3l_restaurant.voucher_usages TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE ON t3l_restaurant.vouchers TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE, DELETE ON t3l_restaurant.customer_addresses TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE, DELETE ON t3l_restaurant.dishes TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE, DELETE ON t3l_restaurant.sms_otp_limits TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE, DELETE ON t3l_restaurant.tracking_events TO 't3l_runtime';
+GRANT SELECT, INSERT, UPDATE, DELETE ON t3l_restaurant.tracking_sessions TO 't3l_runtime';
+GRANT SELECT, INSERT ON t3l_restaurant.employee_activity TO 't3l_runtime';
+GRANT SELECT ON t3l_restaurant.admin_activity TO 't3l_runtime';

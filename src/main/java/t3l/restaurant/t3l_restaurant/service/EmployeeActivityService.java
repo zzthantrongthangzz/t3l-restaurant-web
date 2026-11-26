@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
@@ -13,17 +14,28 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import t3l.restaurant.t3l_restaurant.entity.EmployeeActivity;
+import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.repository.EmployeeActivityRepository;
+import t3l.restaurant.t3l_restaurant.repository.UserAccountRepository;
 import t3l.restaurant.t3l_restaurant.repository.EmployeeActivityRepository.HistoryEntry;
 
 @Service
 @RequiredArgsConstructor
 public class EmployeeActivityService {
   private static final int PAGE_SIZE = 20;
+  private static final org.slf4j.Logger SECURITY_AUDIT = LoggerFactory.getLogger("audit.security");
 
   private final EmployeeActivityRepository activities;
   private final ReservationSchedule schedule;
+  private final UserAccountRepository accounts;
+
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void recordStandalone(String operation, String targetType, String targetLabel, String details) {
+    record(operation, targetType, null, targetLabel, details);
+  }
 
   @Transactional(propagation = Propagation.MANDATORY)
   public void record(String operation, String targetType, Long targetId, String targetLabel, String details) {
@@ -33,8 +45,17 @@ public class EmployeeActivityService {
 
     String actor = clean(authentication.getName(), 80);
     if (actor.isBlank()) return;
-    activities.save(new EmployeeActivity(actor, role, clean(operation, 80), cleanType(targetType), targetId,
-        clean(targetLabel, 250), clean(details, 500), LocalDateTime.now(schedule.getClock())));
+    Long actorId = accounts.findByUsername(actor).map(UserAccount::getId).orElse(null);
+    var entry = new EmployeeActivity(actor, actorId, role, clean(operation, 80), cleanType(targetType), targetId,
+        clean(targetLabel, 250), clean(details, 500), LocalDateTime.now(schedule.getClock()));
+    TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+      @Override public void afterCompletion(int status) {
+        SECURITY_AUDIT.info("status={} actorId={} actor={} role={} action={} targetType={} targetId={} target={} details={}",
+            status == STATUS_COMMITTED ? "COMMITTED" : status == STATUS_ROLLED_BACK ? "ROLLED_BACK" : "UNKNOWN",
+            actorId, actor, role, entry.getOperation(), entry.getTargetType(), targetId, entry.getTargetLabel(), clean(details, 4000));
+      }
+    });
+    activities.save(entry);
   }
 
   @Transactional(readOnly = true)

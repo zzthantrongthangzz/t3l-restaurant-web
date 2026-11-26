@@ -13,7 +13,8 @@
       <tr th:each="row : ${rows.content}">
         <td data-label="Thời gian" th:text="${#temporals.format(row.time,'dd/MM/yyyy HH:mm:ss')}"></td>
         <td data-label="Vai trò" th:text="${row.actorRole == 'STAFF' ? 'Nhân viên' : 'Quản trị viên'}"></td>
-        <td data-label="Người thao tác" th:text="${row.actor}"></td>
+        <td data-label="Người thao tác"><span th:text="${row.actor}"></span>
+          <small th:if="${row.actorId != null}" th:text="${'ID tài khoản: ' + row.actorId}"></small></td>
         <td data-label="Thao tác" th:text="${row.operation}"></td>
         <td data-label="Đối tượng" th:text="${row.targetLabel}"></td>
         <td data-label="Chi tiết" th:text="${row.details == null or #strings.isEmpty(row.details) ? '—' : row.details}"></td>

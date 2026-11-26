@@ -70,7 +70,6 @@ class ChatWebIntegrationTest {
   void protectsChatWithCsrfRolesIsolatedHistoryAndRateLimits() throws Exception {
     var guest = new MockHttpSession();
     mvc.perform(get("/chat/session").with(user("staff").roles("STAFF"))).andExpect(status().isForbidden());
-    mvc.perform(get("/chat/session").with(user("admin").roles("ADMIN"))).andExpect(status().isForbidden());
     mvc.perform(post("/chat/messages").session(guest).contentType(MediaType.APPLICATION_JSON)
         .content("{\"text\":\"Chào\"}")).andExpect(status().isForbidden());
     mvc.perform(post("/chat/messages").session(guest).with(csrf()).contentType(MediaType.APPLICATION_JSON)
@@ -86,6 +85,8 @@ class ChatWebIntegrationTest {
     mvc.perform(get("/chat/session").session(guest)).andExpect(status().isOk())
         .andExpect(header().string("Cache-Control", containsString("no-store"))).andExpect(jsonPath("$.history[0].user").value("Chào"));
     mvc.perform(get("/chat/session")).andExpect(status().isOk()).andExpect(jsonPath("$.history").isEmpty());
+    mvc.perform(get("/chat/session").session(guest).with(user("admin").roles("ADMIN")))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.history").isEmpty());
     var buyer = customer();
     mvc.perform(get("/chat/session").session(guest).with(user(buyer.getUsername()).roles("BUYER")))
         .andExpect(status().isOk()).andExpect(jsonPath("$.history").isEmpty());
@@ -94,6 +95,23 @@ class ChatWebIntegrationTest {
     when(store.allow(anyString(), any(), anyInt())).thenReturn(false);
     mvc.perform(post("/chat/messages").with(csrf()).contentType(MediaType.APPLICATION_JSON)
         .content("{\"text\":\"Chào\"}")).andExpect(status().isTooManyRequests());
+  }
+
+  @Test
+  void adminCanTryThePublicChatAndOpenAnalyticsWithoutCustomerTracking() throws Exception {
+    var admin = user("admin").roles("ADMIN");
+    mvc.perform(get("/").with(admin)).andExpect(status().isOk())
+        .andExpect(content().string(containsString("t3l-chat-launcher")))
+        .andExpect(content().string(containsString("class=\"tracking-report-link\" href=\"/admin/analytics\"")))
+        .andExpect(content().string(not(containsString("data-endpoint=\"/tracking/\""))));
+    mvc.perform(get("/tracking/preferences").with(admin)).andExpect(status().isForbidden());
+    mvc.perform(post("/chat/messages").with(admin).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+        .content("{\"text\":\"Nhà hàng mở cửa lúc nào?\"}"))
+        .andExpect(status().isOk());
+    mvc.perform(get("/")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("t3l-chat-launcher")))
+        .andExpect(content().string(containsString("data-endpoint=\"/tracking/\"")))
+        .andExpect(content().string(not(containsString("tracking-report-link"))));
   }
 
   @Test

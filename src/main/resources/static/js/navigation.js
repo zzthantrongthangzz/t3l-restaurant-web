@@ -344,13 +344,13 @@
     if (event.defaultPrevented) return;
     const form = event.target;
     const submitter = event.submitter;
-    const method = (submitter?.getAttribute('formmethod') || form.method).toLowerCase();
-    const encoding = submitter?.getAttribute('formenctype') || form.enctype;
+    const method = (submitter?.getAttribute('formmethod') || form.getAttribute('method') || 'get').toLowerCase();
+    const encoding = submitter?.getAttribute('formenctype') || form.getAttribute('enctype') || 'application/x-www-form-urlencoded';
     if (!['get', 'post'].includes(method)
         || method === 'post' && (!form.matches('[data-partial-submit]') || encoding !== 'application/x-www-form-urlencoded')) return;
-    const target = submitter?.getAttribute('formtarget') || form.target;
+    const target = submitter?.getAttribute('formtarget') || form.getAttribute('target');
     if (target && target !== '_self' || form.closest('[data-native-navigation]')) return;
-    const action = new URL(submitter?.getAttribute('formaction') ?? form.action, location.href);
+    const action = new URL(submitter?.getAttribute('formaction') ?? form.getAttribute('action') ?? '', location.href);
     if (!canVisit(action)) return;
     const fields = new FormData(form, submitter);
     const keepScroll = action.pathname === shownUrl.pathname || method === 'post';

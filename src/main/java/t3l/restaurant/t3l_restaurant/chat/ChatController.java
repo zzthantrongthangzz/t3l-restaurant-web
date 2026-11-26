@@ -67,7 +67,7 @@ class ChatController {
   record SessionView(String csrfHeader, String csrfToken, List<Entry> history,
                      boolean conversationAvailable, boolean aiConfigured, boolean draftAvailable, String draftToken) {}
   record MessageView(@JsonUnwrapped ChatAssistant.Reply reply, String draftToken) {}
-  private record Scope(String id, Long accountId) implements Serializable {}
+  private record Scope(String id, Long accountId, boolean adminPreview) implements Serializable {}
   private record DraftReady(String scopeId, String token) implements Serializable {}
   private static final String SCOPE = ChatController.class.getName();
   private static final String DRAFT_READY = SCOPE + ".draft";
@@ -77,7 +77,7 @@ class ChatController {
     var session = request.getSession();
     var customer = customers.signedInCustomer(auth);
     synchronized (session) {
-      var scope = scope(session, customer);
+      var scope = scope(session, customer, auth);
       try {
         var history = store.history(scope.id()).stream().map(turn -> new Entry(turn.user(), turn.reply())).toList();
         String token = history.isEmpty() ? null : draftToken(session, scope);
@@ -97,7 +97,7 @@ class ChatController {
     var minute = Duration.ofMinutes(1);
     if (!store.allow("ip:" + ChatStore.hash(request.getRemoteAddr()), minute, settings.requestsPerMinute * 6)) return limited();
     synchronized (session) {
-      var scope = scope(session, customer);
+      var scope = scope(session, customer, auth);
       if (!store.allow(customer == null ? "guest:" + scope.id() : "customer:" + customer.getId(),
           minute, settings.requestsPerMinute)) return limited();
       var result = assistant.reply(message.text().strip(), store.history(scope.id()), customer);
@@ -115,7 +115,7 @@ class ChatController {
     var session = request.getSession();
     var customer = customers.signedInCustomer(auth);
     synchronized (session) {
-      var scope = scope(session, customer);
+      var scope = scope(session, customer, auth);
       if (!store.allow("draft:" + scope.id(), Duration.ofMinutes(1), 5)) return limited();
       var history = store.history(scope.id());
       var intent = history.isEmpty() ? null : ChatIntent.stored(history.getLast().context());
@@ -137,18 +137,20 @@ class ChatController {
     var session = request.getSession();
     var customer = customers.signedInCustomer(auth);
     synchronized (session) {
-      store.clear(scope(session, customer).id());
+      store.clear(scope(session, customer, auth).id());
       session.removeAttribute(DRAFT_READY);
     }
     return response(HttpStatus.OK, Map.of());
   }
 
-  private Scope scope(HttpSession session, UserAccount customer) {
+  private Scope scope(HttpSession session, UserAccount customer, Authentication auth) {
     Long account = customer == null ? null : customer.getId();
-    if (session.getAttribute(SCOPE) instanceof Scope current && Objects.equals(current.accountId(), account)) {
+    boolean adminPreview = auth != null && auth.getAuthorities().stream().anyMatch(role -> "ROLE_ADMIN".equals(role.getAuthority()));
+    if (session.getAttribute(SCOPE) instanceof Scope current && Objects.equals(current.accountId(), account)
+        && current.adminPreview() == adminPreview) {
       return current;
     }
-    var scope = new Scope(UUID.randomUUID().toString(), account);
+    var scope = new Scope(UUID.randomUUID().toString(), account, adminPreview);
     session.setAttribute(SCOPE, scope);
     session.removeAttribute(DRAFT_READY);
     return scope;

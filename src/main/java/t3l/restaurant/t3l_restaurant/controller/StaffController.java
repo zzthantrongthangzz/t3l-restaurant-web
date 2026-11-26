@@ -370,8 +370,10 @@ public class StaffController {
     var kinds = board.stream().map(item -> item.table().getKind()).distinct().toList();
     if (adminBoard) {
       board = board.stream().filter(item -> item.table().getCapacity() >= selectedGuests).toList();
-      model.addAttribute("boardCounts", board.stream().collect(Collectors.groupingBy(
-          StaffWorkspaceService.TableView::getSummaryCategory, Collectors.counting())));
+      var counts = board.stream().collect(Collectors.groupingBy(
+          StaffWorkspaceService.TableView::getSummaryCategory, Collectors.counting()));
+      counts.put("WAITING", board.stream().filter(StaffWorkspaceService.TableView::hasWaitingBooking).count());
+      model.addAttribute("boardCounts", counts);
     }
     var groups = board.stream().collect(Collectors.groupingBy(
         item -> item.table().getKind(), LinkedHashMap::new, Collectors.toList()));

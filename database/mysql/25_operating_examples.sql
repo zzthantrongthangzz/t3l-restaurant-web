@@ -67,7 +67,8 @@ seed: BEGIN
   SET paid_reservation=LAST_INSERT_ID();
   -- Chỉ dùng cấu hình voucher gốc cho hóa đơn giả định nếu mã chưa được quản trị viên thay đổi.
   SET discount=COALESCE((SELECT discount_value FROM vouchers WHERE code='BANBE80' AND discount_type='FIXED'
-    AND discount_value=80000 AND minimum_total=700000 AND paid_at BETWEEN starts_at AND ends_at),0);
+    AND discount_value=80000 AND minimum_total=700000 AND paid_at BETWEEN starts_at AND ends_at
+    AND minimum_total <= (SELECT SUM(price * IF(id=shrimp_id,8,6)) FROM dishes WHERE id IN (shrimp_id,drink_id))),0);
   INSERT INTO dining_orders(reservation_id,status,opened_by,opened_at,finalized_at,voucher_code,voucher_discount)
   VALUES (paid_reservation,'PAID','tran.minh.binh',paid_at - INTERVAL 80 MINUTE,paid_at,IF(discount>0,'BANBE80',NULL),discount);
   SET paid_order=LAST_INSERT_ID();
@@ -96,11 +97,11 @@ seed: BEGIN
 
   INSERT INTO contact_messages(name,email,phone,subject,message,status,created_at,updated_at,handled_by,admin_note)
   VALUES
-    ('Vũ Minh Châu','vu.minh.chau@example.test','0900000023','Chỗ ngồi cho trẻ em','Nhà hàng có ghế ăn cho bé hai tuổi không?','NEW',local_now,local_now,NULL,NULL),
-    ('Đỗ Hoàng Nam','do.hoang.nam@example.test','0900000025','Đặt tiệc nhóm 12 người','Tôi muốn hỏi về bàn và các món phù hợp cho nhóm 12 người.','IN_PROGRESS',
+    ('Vũ Minh Châu','t3l.886413+vu.minh.chau@gmail.com','0900000023','Chỗ ngồi cho trẻ em','Nhà hàng có ghế ăn cho bé hai tuổi không?','NEW',local_now,local_now,NULL,NULL),
+    ('Đỗ Hoàng Nam','t3l.886413+do.hoang.nam@gmail.com','0900000025','Đặt tiệc nhóm 12 người','Tôi muốn hỏi về bàn và các món phù hợp cho nhóm 12 người.','IN_PROGRESS',
       local_now - INTERVAL 1 DAY,local_now,'admin','Đang kiểm tra sức chứa và gửi thực đơn nhóm.'),
-    ('Lê Thanh Tâm','le.thanh.tam@example.test','0900000024','Xuất hóa đơn cho công ty','Tôi cần xuất hóa đơn cho bữa ăn đã thanh toán.','RESOLVED',
-      local_now - INTERVAL 4 DAY,local_now - INTERVAL 3 DAY,'admin','Đã tiếp nhận thông tin xuất hóa đơn.');
+    ('Trần Ngọc Mai','t3l.886413+tran.ngoc.mai@gmail.com','0900000014','Xuất hóa đơn cho công ty','Tôi cần xuất hóa đơn cho bữa ăn đã thanh toán.','RESOLVED',
+      paid_at + INTERVAL 25 MINUTE,paid_at + INTERVAL 50 MINUTE,'admin','Đã tiếp nhận thông tin xuất hóa đơn.');
 
   INSERT INTO reservations(code,guest_name,guest_phone,guest_email,table_id,customer_id,reservation_date,reservation_time,
     ends_at,guest_count,consent_accepted,status,created_at)
@@ -118,9 +119,6 @@ seed: BEGIN
     'Thêm một người và dời giờ đến 30 phút.',local_now - INTERVAL 15 MINUTE FROM reservations WHERE id=request_reservation;
   INSERT INTO reservation_events(reservation_id,actor,description,created_at)
   VALUES (paid_reservation,'tran.minh.binh','Đã thanh toán hóa đơn.',paid_at);
-  INSERT INTO admin_activity(actor,operation,target,occurred_at)
-  VALUES ('admin','Xử lý liên hệ','Đặt tiệc nhóm 12 người',local_now),
-    ('tran.minh.binh','Xác nhận thanh toán','Bàn 018 · Đã thu tiền mặt',paid_at);
 
   SET waiting_reservation=(SELECT id FROM reservations WHERE code='T3L-9AF02ED64163CD76');
   CREATE TEMPORARY TABLE t3l_journeys (n INT PRIMARY KEY, sid VARCHAR(36), bid VARCHAR(36), flow VARCHAR(36),
@@ -131,10 +129,13 @@ seed: BEGIN
     CASE n
       WHEN 2 THEN paid_at - INTERVAL 1 DAY - INTERVAL 5 MINUTE
       WHEN 4 THEN COALESCE((SELECT created_at FROM reservations WHERE id=waiting_reservation) - INTERVAL 5 MINUTE,local_now - INTERVAL 1 DAY)
-      WHEN 6 THEN local_now - INTERVAL 125 MINUTE
+      WHEN 6 THEN COALESCE((SELECT created_at FROM reservations WHERE id=request_reservation) - INTERVAL 5 MINUTE,local_now - INTERVAL 1 DAY)
       ELSE local_now - INTERVAL (15 + n*450) MINUTE
     END,
-    IF(MOD(n,2)=0,'BUYER','GUEST'),IF(MOD(n,2)=0,buyer_id,NULL)
+    IF(MOD(n,2)=0,'BUYER','GUEST'),CASE n
+      WHEN 4 THEN COALESCE((SELECT customer_id FROM reservations WHERE id=waiting_reservation),buyer_id)
+      WHEN 6 THEN COALESCE((SELECT customer_id FROM reservations WHERE id=request_reservation),buyer_id)
+      ELSE IF(MOD(n,2)=0,buyer_id,NULL) END
   FROM (SELECT 1 n UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6
         UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11 UNION ALL SELECT 12) steps;
 
@@ -153,10 +154,12 @@ seed: BEGIN
     UNION ALL SELECT 5,'SEARCH','menu',2 UNION ALL SELECT 6,'CATEGORY','menu',3 UNION ALL SELECT 7,'CHAT_OPEN','chat',3
     UNION ALL SELECT 8,'CHAT_MESSAGE','chat',4 UNION ALL SELECT 9,'CART_ADD','menu',2 UNION ALL SELECT 10,'CART_QUANTITY','menu',4
     UNION ALL SELECT 11,'CART_REMOVE','menu',6 UNION ALL SELECT 12,'BOOKING_START','booking',1
-    UNION ALL SELECT 13,'TABLE_MAP_VIEW','booking',1 UNION ALL SELECT 14,'TABLE_SELECTED','booking',2
     UNION ALL SELECT 15,'PAGE_VIEW','vouchers',4 UNION ALL SELECT 16,'VOUCHER_VIEW','vouchers',4
     UNION ALL SELECT 17,'VOUCHER_QUOTE','vouchers',6
   ) s ON MOD(j.n,s.cadence)=0;
+  INSERT INTO tracking_events(session_id,event_key,event_type,occurred_at,actor_kind,page_key,flow_key)
+  SELECT sid,CONCAT('hanh-trinh:',n,':xep-ban'),'TABLE_SELECTED',start_at + INTERVAL 299 SECOND,kind,'booking',flow
+  FROM t3l_journeys WHERE n=2 OR (n=4 AND waiting_reservation IS NOT NULL) OR (n=6 AND request_reservation IS NOT NULL);
   INSERT INTO tracking_events(session_id,event_key,event_type,occurred_at,actor_kind,page_key,flow_key,reservation_id,requires_deposit)
   SELECT sid,CONCAT('hanh-trinh:',n,':gui'), 'BOOKING_SUBMITTED',start_at + INTERVAL 5 MINUTE,kind,'booking',flow,
     CASE n WHEN 2 THEN paid_reservation WHEN 4 THEN waiting_reservation ELSE request_reservation END,n=4

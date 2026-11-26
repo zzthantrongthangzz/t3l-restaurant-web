@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 public enum TableKind {
   SMALL("Bàn nhỏ", 4),
   MEDIUM("Bàn vừa", 8),
-  LARGE("Bàn lớn", 16),
+  LARGE("Bàn lớn", 15),
   VIP("Phòng VIP", TableKind.MAX_CAPACITY);
 
   public static final int MAX_CAPACITY = 30;

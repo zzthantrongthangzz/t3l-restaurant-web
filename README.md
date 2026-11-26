@@ -88,19 +88,23 @@ Script 17 đồng bộ link ảnh theo tên món mẫu. Có thể bỏ qua scrip
 
 Với database đã có bảng `reservation_emails`, chạy `26_reservation_email_checks.sql` để đồng bộ các giá trị hợp lệ của loại và trạng thái email. Với container hiện có, chép riêng script vào container bằng `docker compose cp database/mysql/26_reservation_email_checks.sql mysql:/tmp/26_reservation_email_checks.sql`. Trong dấu nhắc MySQL, chọn database bằng `USE t3l_restaurant;` rồi chạy `SOURCE /tmp/26_reservation_email_checks.sql;`. Có thể chạy lại script. Docker Compose tự nạp script khi khởi tạo volume mới.
 
-Chạy `27_table_capacities.sql` theo cùng cách để chuẩn hóa sức chứa trên database hiện có. Bàn nhỏ có 4 chỗ, bàn vừa 8 chỗ, bàn lớn 16 chỗ và phòng VIP 30 chỗ. Script giữ mã bàn và lịch đặt. Nếu một lượt đặt đang mở vượt sức chứa mới, cần xử lý lượt đó trước khi chạy lại. Docker Compose tự nạp script trên volume mới.
+Chạy `27_table_capacities.sql` nếu chưa chạy, rồi chạy `30_large_tables.sql` theo cùng cách để chuẩn hóa sức chứa trên database hiện có. Danh mục mặc định có 10 bàn nhỏ (4 chỗ), 5 bàn vừa (8 chỗ), 5 bàn lớn (15 chỗ) và 4 phòng VIP (30 chỗ). Script thêm các bàn lớn từ Bàn 019 đến Bàn 023 và bàn nhỏ Bàn 024, giữ các mã bàn và lịch đặt hiện có. Nếu một lượt đặt đang mở vượt sức chứa mới, cần xử lý lượt đó trước khi chạy lại. Docker Compose tự nạp các script khi tạo volume mới.
 
 Mỗi thành viên dùng `.env` riêng. Các giá trị MySQL trong file đó được dùng cho cả Docker Compose và Spring Boot. Đặt mật khẩu nhân viên/admin qua `APP_STAFF_PASSWORD` và `APP_ADMIN_PASSWORD`, rồi đăng nhập tại `/staff/login`. Với bản chạy dùng chung, thay `APP_JWT_SECRET` bằng khóa ngẫu nhiên tối thiểu 32 byte, mã hóa Base64.
 
 Nếu cần cùng nhìn thấy các lượt đặt và thay đổi thực đơn mới phát sinh, dùng MySQL và MongoDB dành riêng cho nhóm. Chia sẻ trực tiếp `MYSQL_URL`, `MYSQL_USER`, `MYSQL_PASSWORD` và `MONGODB_URI` qua kênh riêng. Chỉ đưa `.env.example` và dữ liệu giả định vào Git.
 
-MySQL mới tạo bằng Docker Compose tự nạp `database/mysql/23_operating_data.sql` và `database/mysql/25_operating_examples.sql`. Dữ liệu giả định gồm bàn đang phục vụ có lịch tiếp theo, các trạng thái đặt bàn, món và cọc, hóa đơn có voucher, ca đã đối soát, bán lẻ, liên hệ, hồ sơ khách, yêu cầu đổi lịch và lịch sử truy cập. MongoDB mới tự nạp FAQ từ `database/mongodb/01_faq_seed.js`. Giờ phục vụ và ngày báo cáo tính từ lần nạp đầu tiên. Chạy lại giữ các lượt đã sinh, mật khẩu, voucher và câu hỏi đã chỉnh. Admin có thể cấp mật khẩu cho nhân viên bổ sung khi cần.
+MySQL mới tạo bằng Docker Compose tự nạp `23_operating_data.sql`, `25_operating_examples.sql` và `31_operating_workflows.sql` sau khi đã có danh mục, nhật ký và sức chứa mới. MongoDB tự nạp FAQ từ `database/mongodb/01_faq_seed.js`. Dữ liệu gồm đặt chờ, lượt đã xác nhận, lượt kèm món và cọc, bàn đang phục vụ, hóa đơn có voucher, ca đã đối soát, liên hệ, yêu cầu đổi lịch và lịch sử truy cập. Nhật ký tạo bàn và các mốc đặt bàn liên kết bằng ID. Tài khoản quản trị mặc định hiển thị tên **Admin**. Email thực hành có dạng `t3l.886413+ten@gmail.com`; chương trình không gửi mail đến các địa chỉ này. Admin có thể cấp mật khẩu cho nhân viên bổ sung khi cần.
 
-Với MySQL đã chạy trước đây, sao lưu rồi nạp `23_operating_data.sql` và `25_operating_examples.sql` theo thứ tự. Nếu phiên bản cũ từng tạo sáu bàn thử, chạy `24_consolidate_legacy_inventory.sql` trước để chuyển các lượt cũ về bàn đúng loại. Script dừng nếu bàn nhận thiếu hoặc đang có lịch mở có thể xung đột. Với MongoDB đang có dữ liệu, chạy lại script FAQ để thêm câu hỏi mới.
+Với MySQL đã chạy trước đây, sao lưu rồi chạy `23_operating_data.sql` và `25_operating_examples.sql` nếu chưa nạp. Tiếp theo chạy `28_employee_audit.sql`, `30_large_tables.sql` và `31_operating_workflows.sql`. Chỉ chạy bộ dữ liệu này trên database thực hành. Script `31` sửa email cũ của các hồ sơ do bộ dữ liệu tạo và thêm các lượt cho khung giờ hợp lệ kế tiếp, bỏ qua bàn trùng lịch. Chạy lại trong cùng ngày giữ trạng thái, món và cọc của các lượt đã có. Nếu phiên bản cũ từng tạo sáu bàn thử, chạy `24_consolidate_legacy_inventory.sql` trước để chuyển các lượt cũ về bàn đúng loại. Với MongoDB đang có dữ liệu, chạy lại script FAQ để thêm câu hỏi mới.
+
+Để thử xác nhận, tìm Bàn 024 trong **Sơ đồ bàn → Có lịch chờ**. Đây là lượt giữ chỗ chưa cọc, có thể duyệt trực tiếp. Bàn 013 có lượt đã xác nhận để thử nhận bàn trong ngày sau khi mở ca. Bàn 023 có lượt chờ kèm món và cọc để thử đối soát thủ công theo cấu hình mặc định. Khung giờ phụ thuộc thời điểm nạp, nếu đã hết giờ nhận khách thì các lượt mới nằm vào ngày kế tiếp.
 
 Sơ đồ nội bộ ngày hiện tại ưu tiên lượt đang phục vụ và hiển thị thêm giờ đặt kế tiếp. Nhân viên vẫn có thể nhận lượt vãng lai nếu toàn bộ thời lượng phục vụ dự kiến kết thúc trước hoặc đúng giờ hẹn. Khách đặt online xem tình trạng theo giờ họ chọn.
 
 ### AI ChatBox
+
+Ở trang khách hàng, nút **Trợ lý T3L** nằm ở góc dưới bên phải. Admin mở **Trang khách hàng** để dùng thử trợ lý với phiên riêng và có lối tắt **Phân tích hành vi** ở góc dưới bên trái. Khách thấy nút **Quyền riêng tư** để quản lý lựa chọn theo dõi. Phiên admin không được tính vào dữ liệu hành vi của khách.
 
 ChatBox dùng MySQL cho thực đơn và đặt bàn. MongoDB ở `127.0.0.1:27018` lưu FAQ, lịch sử chat và bộ đếm giới hạn yêu cầu. Để bật tìm kiếm ngữ nghĩa, chạy thêm Atlas Local và điền `GEMINI_API_KEY` cùng `CHAT_VECTOR_MONGODB_URI=mongodb://127.0.0.1:27019/t3l_restaurant?directConnection=true` trong `.env`.
 
@@ -111,6 +115,14 @@ docker compose --profile atlas-local up -d mongodb-vector
 Gemini dùng mặc định `gemini-3.1-flash-lite` và `gemini-embedding-001` với 768 chiều. Ứng dụng tự tạo index `semantic` và chạy đồng bộ định kỳ từ FAQ đã xuất bản cùng thông tin công khai của nhà hàng. Lần chạy đầu có thể mất thời gian để index sẵn sàng. Khi dịch vụ AI chưa sẵn sàng, ChatBox vẫn xử lý được các câu hỏi khớp dữ liệu nhà hàng và các yêu cầu đặt bàn đủ thông tin.
 
 Để chạy cả hai test MongoDB thật, đặt `T3L_CHAT_MONGO_TEST_URI` và `T3L_CHAT_VECTOR_TEST_URI` trỏ vào dịch vụ QA trước khi chạy `.\mvnw.cmd verify`. URI của Atlas phải chứa tên database. Các test này tạo rồi dọn dữ liệu QA riêng.
+
+## Nhật ký và quyền truy cập database
+
+Chạy `28_employee_audit.sql` trên database hiện có. Docker Compose tự nạp script khi tạo volume mới. Nhật ký MySQL chỉ cho phép thêm bản ghi. Ứng dụng ghi thêm nhật ký vào `logs/security-audit.log` theo mặc định. Đặt `AUDIT_LOG_FILE` thành đường dẫn trên ổ lưu trữ riêng và chuyển tiếp log ra máy khác nếu dùng trong vận hành. Giới hạn quyền truy cập tệp cho người quản trị và dịch vụ thu thập log. Bản ghi `ROLLED_BACK` trong tệp cho biết thao tác đã vào giao dịch có ghi audit nhưng giao dịch không thành công. Với FAQ ở MongoDB, nhật ký ghi yêu cầu trước khi sửa và ghi kết quả riêng sau khi MongoDB xác nhận.
+
+Trước khi triển khai, DBA chạy `29_runtime_grants.sql`, tạo tài khoản MySQL mới chỉ có vai trò `t3l_runtime` và đặt vai trò này làm mặc định. Đặt thông tin tài khoản mới trong cấu hình ứng dụng và dùng `SPRING_JPA_HIBERNATE_DDL_AUTO=validate`. Dùng tài khoản DBA riêng để chạy migration. Tài khoản Docker được cấp sẵn phục vụ phát triển và cần được thay khi triển khai. Vai trò runtime không có quyền xóa đặt bàn, tài khoản, hóa đơn hoặc chỉnh/xóa lịch sử audit, cũng không có quyền `DROP` hay `TRUNCATE`.
+
+Sao lưu MySQL và MongoDB, lưu bản sao cùng nhật ký ngoài máy chủ ứng dụng. Thử khôi phục vào database tách biệt và đối chiếu số bản ghi đặt bàn, tài khoản, hóa đơn và nhật ký trước khi áp dụng vào dữ liệu đang vận hành.
 
 ## Chính sách tiền cọc
 
@@ -136,7 +148,7 @@ Mặc định cọc và chuyển khoản được nhân viên đối soát thủ
 - `database/mysql/01_schema_seed.sql`: cấu trúc cho cài mới, 18 bàn và 3 yêu cầu đặt bàn mẫu; Docker chạy tiếp `04` để đồng bộ danh mục 54 món.
 - `database/mysql/16_table_kinds.sql` chuẩn hóa loại bàn. Chạy sau bản nâng cấp `14_admin_workspace.sql` nếu đang dùng database đã tạo trước bản này. Docker chạy tập lệnh khi khởi tạo database mới.
 - `database/mysql/02_single_restaurant_migration.sql`: chuyển database cũ có chi nhánh/khu sang mô hình một nhà hàng; giữ một bản của mỗi mã bàn và trỏ reservation cũ sang bàn đó.
-- `database/mysql/03_sample_data.sql`: nạp bàn, món và đặt bàn mẫu cho database đã migrate. Chạy lại `27_table_capacities.sql` sau script mẫu để áp dụng sức chứa mới.
+- `database/mysql/03_sample_data.sql`: nạp bàn, món và đặt bàn mẫu cho database đã migrate. Chạy lại `27_table_capacities.sql` rồi `30_large_tables.sql` sau script mẫu để áp dụng sức chứa mới.
 - `database/mysql/04_menu_catalog_seed.sql`: đồng bộ 54 món ăn/nước theo danh mục ảnh; dọn món cũ ngoài danh mục và an toàn khi chạy lại. Nếu món cũ đã có giao dịch bán hàng, khóa ngoại sẽ giữ dữ liệu để bảo toàn lịch sử.
 - `database/mysql/17_menu_images.sql` bổ sung ảnh Cloudinary cho 54 món đã có trong danh mục. Ảnh đã được cập nhật riêng trên từng máy được giữ lại.
 - `database/mysql/05_clear_menu_images.sql`: gỡ URL/ID ảnh khỏi các món để hiển thị ảnh minh họa trong lúc chuẩn bị ảnh mới.

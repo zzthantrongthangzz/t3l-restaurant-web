@@ -74,20 +74,34 @@ public class AdminAccountService {
     boolean oldEnabled = account.isEnabled();
     account.updateCustomerContact(form.getFullName().strip(), email, AdminInput.optional(form.getPhone()));
     account.manage(form.getRole(), form.isEnabled(), password == null || password.isBlank() ? null : encode(password));
-    accounts.save(account);
-    audit.record(id == null ? "Tạo tài khoản" : "Cập nhật tài khoản", account.getUsername() + " · "
-        + oldRole + " → " + account.getRole() + (oldEnabled != account.isEnabled() ? (account.isEnabled() ? " · Mở khóa" : " · Khóa") : ""));
+    accounts.saveAndFlush(account);
+    String details = id == null ? "Đã tạo tài khoản với vai trò " + roleLabel(account.getRole()) + "."
+        : "Đã cập nhật thông tin tài khoản.";
+    if (id != null && !oldRole.equals(account.getRole())) {
+      details += " Vai trò đã đổi từ " + roleLabel(oldRole) + " sang " + roleLabel(account.getRole()) + ".";
+    }
+    if (oldEnabled != account.isEnabled()) details += account.isEnabled() ? " Đã mở khóa tài khoản." : " Đã khóa tài khoản.";
+    if (id != null && password != null && !password.isBlank()) details += " Đã đặt lại mật khẩu.";
+    audit.record(id == null ? "Tạo tài khoản" : "Cập nhật tài khoản", "ACCOUNT", account.getId(), account.getUsername(),
+        details);
   }
 
   @Transactional(isolation = Isolation.READ_COMMITTED)
-  public void setEnabled(Long id, boolean enabled) {
+  public void setEnabled(Long id, boolean enabled, String reason) {
     var administrators = accounts.lockAdministrators();
     String actor = requireActiveAdministrator(administrators);
     var account = accounts.lockById(id).orElseThrow(() -> missing());
-    protectAdministrator(account, account.getRole(), enabled, actor, administrators);
     if (account.isEnabled() == enabled) return;
+    String details = enabled ? "Đã mở khóa tài khoản. Người dùng có thể đăng nhập lại."
+        : "Đã khóa tài khoản và kết thúc các phiên đăng nhập hiện tại.";
+    audit.record(enabled ? "Mở khóa tài khoản" : "Khóa tài khoản", "ACCOUNT", id, account.getUsername(),
+        AdminAudit.withReason(details, reason));
+    protectAdministrator(account, account.getRole(), enabled, actor, administrators);
     account.manage(account.getRole(), enabled, null);
-    audit.record(enabled ? "Mở khóa tài khoản" : "Khóa tài khoản", account.getUsername());
+  }
+
+  private String roleLabel(String role) {
+    return "ADMIN".equals(role) ? "quản trị viên" : "nhân viên";
   }
 
   private String requireActiveAdministrator(List<UserAccount> administrators) {

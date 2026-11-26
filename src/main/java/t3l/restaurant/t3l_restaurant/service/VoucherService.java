@@ -25,14 +25,16 @@ public class VoucherService {
   private final VoucherUsageRepository usages;
   private final PaymentIntentRepository intents;
   private final ReservationSchedule schedule;
+  private final AdminAudit audit;
   private final byte[] secret;
 
   public VoucherService(VoucherRepository vouchers, VoucherUsageRepository usages, PaymentIntentRepository intents,
-      ReservationSchedule schedule, @Value("${app.jwt.secret}") String secret) {
+      ReservationSchedule schedule, AdminAudit audit, @Value("${app.jwt.secret}") String secret) {
     this.vouchers=vouchers;
     this.usages=usages;
     this.intents=intents;
     this.schedule=schedule;
+    this.audit=audit;
     this.secret=secret.getBytes(StandardCharsets.UTF_8);
   }
 
@@ -98,13 +100,34 @@ public class VoucherService {
     if (vouchers.findByCode(code).filter(duplicate -> !Objects.equals(id,duplicate.getId())).isPresent()) {
       throw invalid("Mã voucher đã tồn tại.");
     }
+    String before = id == null ? null : auditState(voucher);
     voucher.update(form,code);
     vouchers.saveAndFlush(voucher);
+    audit.record(id == null ? "Tạo voucher" : "Cập nhật voucher", "VOUCHER", voucher.getId(), voucher.getCode(),
+        id == null ? "Đã tạo voucher. " + auditState(voucher)
+            : "Thông tin cũ: " + before + " Thông tin mới: " + auditState(voucher));
   }
 
   @Transactional
   public void setEnabled(Long id,boolean enabled) {
-    vouchers.lockId(id).orElseThrow(() -> invalid("Không tìm thấy voucher.")).setEnabled(enabled);
+    var voucher = vouchers.lockId(id).orElseThrow(() -> invalid("Không tìm thấy voucher."));
+    if (voucher.isEnabled() == enabled) return;
+    voucher.setEnabled(enabled);
+    audit.record(enabled ? "Bật voucher" : "Tắt voucher", "VOUCHER", id, voucher.getCode(),
+        enabled ? "Đã bật voucher. Khách có thể sử dụng khi đủ điều kiện."
+            : "Đã tắt voucher. Khách không thể áp dụng voucher cho lượt mới.");
+  }
+
+  private String auditState(Voucher voucher) {
+    var format = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    return "Mã " + voucher.getCode() + ", giảm " + voucher.getOfferLabel()
+        + " cho đơn từ " + voucher.getMinimumTotal().toPlainString() + " đ"
+        + (voucher.getMaximumDiscount() == null ? "" : ", tối đa " + voucher.getMaximumDiscount().toPlainString() + " đ")
+        + ". Từ " + voucher.getStartsAt().format(format) + " đến " + voucher.getEndsAt().format(format)
+        + (voucher.getTotalLimit() == null ? "" : ". Tổng " + voucher.getTotalLimit() + " lượt")
+        + (voucher.getCustomerLimit() == null ? "" : ", " + voucher.getCustomerLimit() + " lượt mỗi khách")
+        + ". " + (voucher.isPublicOffer() ? "Công khai" : "Riêng tư")
+        + (voucher.isEnabled() ? ", đang bật." : ", đang tắt.");
   }
 
   @Transactional(readOnly=true)

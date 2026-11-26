@@ -21,6 +21,9 @@ public class EmployeeActivity {
   @Column(nullable = false, length = 80)
   private String actor;
 
+  @Column(name = "actor_id")
+  private Long actorId;
+
   @Column(name = "actor_role", nullable = false, length = 16)
   private String actorRole;
 
@@ -42,9 +45,10 @@ public class EmployeeActivity {
   @Column(name = "occurred_at", nullable = false)
   private LocalDateTime occurredAt;
 
-  public EmployeeActivity(String actor, String actorRole, String operation, String targetType,
+  public EmployeeActivity(String actor, Long actorId, String actorRole, String operation, String targetType,
       Long targetId, String targetLabel, String details, LocalDateTime occurredAt) {
     this.actor = actor;
+    this.actorId = actorId;
     this.actorRole = actorRole;
     this.operation = operation;
     this.targetType = targetType;

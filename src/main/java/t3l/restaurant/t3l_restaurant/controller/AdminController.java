@@ -62,8 +62,8 @@ public class AdminController {
   }
 
   @PostMapping("/{id}/delete")
-  public String delete(@PathVariable Long id, RedirectAttributes redirect) {
-    return update(() -> dishes.delete(id), "Đã xóa món ăn.", redirect);
+  public String delete(@PathVariable Long id, @RequestParam(required = false) String reason, RedirectAttributes redirect) {
+    return update(() -> dishes.delete(id, reason), "Đã xóa món ăn.", redirect);
   }
 
   private String formPage(Long id, Model model) {

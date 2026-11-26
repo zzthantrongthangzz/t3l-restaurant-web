@@ -52,16 +52,18 @@
           <button type="button" data-board-state="ARRIVING" aria-pressed="false">Chờ nhận khách <strong data-count></strong></button>
           <button type="button" data-board-state="OCCUPIED" aria-pressed="false">Đang phục vụ <strong data-count></strong></button>
           <button type="button" data-board-state="PENDING" aria-pressed="false">Đợi xác nhận <strong data-count></strong></button>
+          <button type="button" data-board-state="WAITING" aria-pressed="false">Có lịch chờ <strong data-count></strong></button>
           <button type="button" data-board-state="INACTIVE" aria-pressed="false">Tạm ngưng <strong data-count></strong></button>
           <button type="button" data-board-state="TOO_SMALL" aria-pressed="false">Không đủ chỗ <strong data-count></strong></button>
         </div>
         <div class="table-board-legend admin-board-stats" th:if="${adminBoard}" role="group" aria-label="Lọc theo trạng thái bàn">
           <button type="button" data-board-state="" aria-pressed="true"><span>Tổng số bàn</span><strong data-count th:text="${board.size()}"></strong></button>
           <button type="button" data-board-state="FREE" aria-pressed="false"><span>Bàn trống</span><strong data-count th:text="${boardCounts.getOrDefault('FREE', 0)}"></strong></button>
-          <button type="button" data-board-state="WAITING" aria-pressed="false"><span>Đang chờ</span><strong data-count th:text="${boardCounts.getOrDefault('WAITING', 0)}"></strong></button>
+          <button type="button" data-board-state="WAITING" aria-pressed="false"><span>Có lịch chờ</span><strong data-count th:text="${boardCounts.getOrDefault('WAITING', 0)}"></strong></button>
           <button type="button" data-board-state="OCCUPIED" aria-pressed="false"><span>Đang phục vụ</span><strong data-count th:text="${boardCounts.getOrDefault('OCCUPIED', 0)}"></strong></button>
           <button type="button" data-board-state="INACTIVE" aria-pressed="false"><span>Tạm ngưng</span><strong data-count th:text="${boardCounts.getOrDefault('INACTIVE', 0)}"></strong></button>
         </div>
+        <p class="staff-muted" th:if="${selectedTime == null}">Một bàn có lịch chờ vẫn có thể đang trống hoặc đang phục vụ.</p>
       </section>
       <p class="staff-empty" data-board-empty th:hidden="${!board.isEmpty()}">Không có bàn phù hợp.</p>
       <div class="table-board-groups" data-board-grid>
@@ -74,7 +76,7 @@
         <article class="table-board-card" th:each="item : ${rows}" th:with="table=${item.table},booking=${item.current},
             next=${item.nextBooking}, state=${item.state.name()},tone=${state == 'OCCUPIED' ? 'Do' : ((state == 'PENDING' or state == 'RESERVED' or state == 'ARRIVING') ? 'Vang' : 'Xam')},
             image=${'ban' + tone + (table.kind.name() == 'VIP' ? '_vip.png' : '_thuong.png')}"
-            th:attr="data-state=${state},data-kind=${table.kind.name()},data-label=${table.code},data-summary-state=${adminBoard ? item.summaryCategory : null},data-search=${table.code + ' ' + table.kind.label}">
+            th:attr="data-state=${state},data-kind=${table.kind.name()},data-label=${table.code},data-summary-state=${adminBoard ? item.summaryCategory : null},data-has-waiting=${item.hasWaitingBooking},data-search=${table.code + ' ' + table.kind.label}">
           <button class="table-board-select" type="button" aria-pressed="false" aria-haspopup="dialog" data-select-table>
             <span class="table-board-card-head">
               <span class="table-board-card-icon"><img th:src="@{/images/tables/{image}(image=${image})}" alt="" width="144" height="90" /></span>
@@ -93,7 +95,8 @@
                 <span>Dự kiến trả</span><time th:text="${#temporals.format(item.servingUntil, 'HH:mm')}"></time>
               </span>
               <span class="table-board-card-line is-next" th:if="${next != null}" th:classappend="${item.serviceAtRisk ? ' is-at-risk' : ''}">
-                <span>Tiếp theo</span><time th:text="${#temporals.format(next.startsAt, 'HH:mm')}"></time>
+                <span th:text="${next.status == 'PENDING_CONFIRMATION' ? 'Chờ xác nhận' : 'Đã xác nhận'}"></span>
+                <time th:text="${#temporals.format(next.startsAt, 'HH:mm')}"></time>
                 <span th:title="${next.guestName}" th:text="${next.guestName}"></span>
               </span>
             </span>
@@ -120,14 +123,14 @@
                  th:href="@{${opsBase + '/reservations/new'}(tableId=${table.id},date=${selectedDate.toString()},time=${selectedTime?.toString()},guests=${selectedGuests})}">Tạo đặt bàn</a>
               <th:block th:if="${booking != null}" th:with="actions=${item.actions}">
                 <form id="table-board-status" data-board-write
-                      th:if="${(!adminBoard and (actions.confirm or actions.cancel)) or (actions.receive and item.operational)}"
+                      th:if="${actions.confirm or (!adminBoard and actions.cancel) or (actions.receive and item.operational)}"
                       th:action="@{${opsBase + '/reservations/{id}/status'}(id=${booking.id})}" method="post" hidden>
                   <input type="hidden" name="from" value="table" />
                   <input type="hidden" name="returnDate" th:value="${selectedDate.toString()}" />
                   <input type="hidden" name="returnTime" th:value="${selectedTime?.toString()}" />
                   <input type="hidden" name="returnGuests" th:value="${selectedGuests}" />
                 </form>
-                  <button class="staff-button" type="submit" form="table-board-status" th:if="${!adminBoard and actions.confirm}" th:disabled="${!actions.confirmEnabled}"
+                  <button class="staff-button" type="submit" form="table-board-status" th:if="${actions.confirm}" th:disabled="${!actions.confirmEnabled}"
                           th:title="${actions.confirmReason}" name="status" value="CONFIRMED">Xác nhận</button>
                   <button class="staff-button" type="submit" form="table-board-status" data-table-action="receive"
                           th:if="${actions.receive and item.operational}"
@@ -169,16 +172,19 @@
                 data-table-guest th:attr="data-phone=${next.guestPhone}">
               <h3 th:text="${'Lịch tiếp theo ' + #temporals.format(next.startsAt, 'HH:mm')}"></h3>
               <p th:text="${next.guestName + ' · ' + next.guestCount + ' khách · ' + next.statusLabel}"></p>
+              <p th:if="${item.nextActions.confirm and !#strings.isEmpty(next.guestPhone)}"
+                 th:text="${'Liên hệ khách trước khi xác nhận: ' + next.guestPhone}"></p>
               <p class="table-arrival-warning" th:if="${item.serviceAtRisk}">Bàn sắp đến giờ hẹn tiếp theo. Kiểm tra khách đang ngồi và chuẩn bị chuyển bàn nếu cần.</p>
               <div class="staff-actions">
                 <a class="staff-link" th:href="@{${opsBase + '/reservations/{id}'}(id=${next.id})}">Xem lịch tiếp theo</a>
-                <form class="table-board-confirm" data-board-write th:if="${!adminBoard and item.nextActions.confirmEnabled}"
+                <form class="table-board-confirm" data-board-write th:if="${item.nextActions.confirm}"
                     th:action="@{${opsBase + '/reservations/{id}/status'}(id=${next.id})}" method="post">
                   <input type="hidden" name="from" value="table" />
                   <input type="hidden" name="returnDate" th:value="${selectedDate.toString()}" />
                   <input type="hidden" name="returnTime" th:value="${selectedTime?.toString()}" />
                   <input type="hidden" name="returnGuests" th:value="${selectedGuests}" />
-                  <button class="staff-button is-outline" type="submit" name="status" value="CONFIRMED">Xác nhận lịch tiếp theo</button>
+                  <button class="staff-button is-outline" type="submit" name="status" value="CONFIRMED"
+                          th:disabled="${!item.nextActions.confirmEnabled}" th:title="${item.nextActions.confirmReason}">Xác nhận lịch tiếp theo</button>
                 </form>
               </div>
             </section>
@@ -205,6 +211,6 @@
         <div data-table-content></div>
       </dialog>
     </main>
-    <script data-page-script defer th:src="@{/js/table-board.js(v=table-commands)}"></script>
+    <script data-page-script defer th:src="@{/js/table-board.js(v=waiting-bookings)}"></script>
   </body>
 </html>

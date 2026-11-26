@@ -122,6 +122,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <systemPropertyVariables>
+                        <app.audit.file>${project.build.directory}/test-security-audit.log</app.audit.file>
                         <sepay.enabled>false</sepay.enabled>
                         <sepay.demo-enabled>false</sepay.demo-enabled>
                     </systemPropertyVariables>

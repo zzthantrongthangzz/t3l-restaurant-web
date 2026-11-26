@@ -114,14 +114,16 @@ public class DishService {
 
   @PreAuthorize("hasRole('ADMIN')")
   @Transactional
-  public void delete(Long id) {
+  public void delete(Long id, String reason) {
     Dish dish = findById(id);
+    audit.record("Xóa món", "DISH", id, dish.getName(),
+        AdminAudit.withReason("Đã xóa món khỏi danh mục " + dish.getCategoryName() + ". Giá trước khi xóa "
+            + dish.getPrice().stripTrailingZeros().toPlainString() + " đ.", reason));
     if (sales.existsByDish_Id(id) || orderItems.existsByDishId(id)) {
       throw new IllegalArgumentException("Món đã có trong giao dịch. Bạn có thể ẩn món khỏi thực đơn.");
     }
     dishes.delete(dish);
     finishImageChange(dish.getImagePublicId(), null);
-    audit.record("Xóa món", dish.getName());
   }
 
   @PreAuthorize("hasRole('ADMIN')")

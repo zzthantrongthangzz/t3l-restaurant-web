@@ -1,0 +1,19 @@
+<configuration>
+  <include resource="org/springframework/boot/logging/logback/defaults.xml" />
+  <include resource="org/springframework/boot/logging/logback/console-appender.xml" />
+  <springProperty name="AUDIT_FILE" source="app.audit.file" defaultValue="logs/security-audit.log" />
+  <appender name="SECURITY_AUDIT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${AUDIT_FILE}</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${AUDIT_FILE}.%d{yyyy-MM-dd}.%i.gz</fileNamePattern>
+      <maxFileSize>20MB</maxFileSize>
+      <maxHistory>30</maxHistory>
+      <totalSizeCap>500MB</totalSizeCap>
+    </rollingPolicy>
+    <encoder><pattern>%d{ISO8601,UTC}Z %msg%n</pattern></encoder>
+  </appender>
+  <logger name="audit.security" level="INFO" additivity="false">
+    <appender-ref ref="SECURITY_AUDIT" />
+  </logger>
+  <root level="INFO"><appender-ref ref="CONSOLE" /></root>
+</configuration>

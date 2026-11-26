@@ -35,9 +35,13 @@
           <td data-label="Vai trò" th:text="${row.roleLabel}"></td>
           <td data-label="Trạng thái"><span class="staff-badge" th:attr="data-status=${row.enabled ? 'OPEN' : 'INACTIVE'}" th:text="${row.enabled ? 'Hoạt động' : 'Đã khóa'}"></span></td>
           <td data-label="Thao tác">
-            <form th:if="${row.username != actor}" th:action="@{/admin/accounts/{id}/availability(id=${row.id})}" method="post" data-partial-submit>
-              <button type="submit" class="staff-button is-outline" name="enabled" th:value="${!row.enabled}" th:text="${row.enabled ? 'Khóa' : 'Mở khóa'}"
-                  th:attr="data-confirm=${row.enabled ? 'Khóa tài khoản và kết thúc các phiên đăng nhập hiện tại?' : 'Mở khóa tài khoản này?'}"></button>
+            <form th:if="${row.username != actor}" th:action="@{/admin/accounts/{id}/availability(id=${row.id})}" method="post" data-partial-submit
+                th:with="dialogId=${'account-reason-' + row.id}, action=${row.enabled ? 'Khóa' : 'Mở khóa'}, accountName=${row.fullName ?: row.username}">
+              <input type="hidden" name="enabled" th:value="${!row.enabled}" />
+              <button type="button" class="staff-button is-outline" data-reason-open aria-haspopup="dialog" th:attr="aria-controls=${dialogId}" th:text="${action}"></button>
+              <dialog th:replace="~{admin/fragments/reason-dialog :: confirm(${dialogId}, ${action + ' tài khoản'},
+                  ${row.enabled ? 'Khóa ' + accountName + ' và kết thúc các phiên đăng nhập hiện tại?' : 'Mở khóa tài khoản của ' + accountName + '?'},
+                  ${action}, ${row.enabled})}"></dialog>
             </form>
           </td>
         </tr>

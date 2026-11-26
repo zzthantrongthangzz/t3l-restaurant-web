@@ -47,7 +47,8 @@
     </div>
   </form>
   <form class="staff-actions admin-danger-action" th:if="${dishId != null}" th:action="@{/admin/dishes/{id}/delete(id=${dishId})}" method="post">
-    <button type="submit" class="staff-button is-danger" data-confirm="Xóa món khỏi thực đơn? Món đã có giao dịch sẽ được giữ lại.">Xóa món</button>
+    <button type="button" class="staff-button is-danger" data-reason-open aria-haspopup="dialog" aria-controls="delete-dish-reason">Xóa món</button>
+    <dialog th:replace="~{admin/fragments/reason-dialog :: confirm('delete-dish-reason', 'Xóa món', 'Xóa món khỏi thực đơn? Món đã có giao dịch sẽ được giữ lại.', 'Xóa món', true)}"></dialog>
   </form>
 </main>
 </body>

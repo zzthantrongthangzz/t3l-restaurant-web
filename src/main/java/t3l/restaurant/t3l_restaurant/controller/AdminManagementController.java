@@ -86,9 +86,10 @@ public class AdminManagementController {
   }
 
   @PostMapping("/accounts/{id}/availability")
-  public String accountAvailability(@PathVariable Long id, @RequestParam boolean enabled, RedirectAttributes redirect) {
+  public String accountAvailability(@PathVariable Long id, @RequestParam boolean enabled,
+      @RequestParam(required = false) String reason, RedirectAttributes redirect) {
     return apply(accountList(id), enabled ? "Đã mở khóa tài khoản." : "Đã khóa tài khoản.",
-        () -> accounts.setEnabled(id, enabled), redirect);
+        () -> accounts.setEnabled(id, enabled, reason), redirect);
   }
 
   private String accountList(Long id) {

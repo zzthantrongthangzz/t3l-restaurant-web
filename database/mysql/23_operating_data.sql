@@ -47,17 +47,17 @@ seed: BEGIN
 
   START TRANSACTION;
   INSERT INTO app_users(username,password,role,enabled,full_name,email,phone) VALUES
-    ('nguyen.hoang.an',CONCAT('!',UUID()),'STAFF',TRUE,'Nguyễn Hoàng An','nguyen.hoang.an@example.test','0900000011'),
-    ('tran.minh.binh',CONCAT('!',UUID()),'STAFF',TRUE,'Trần Minh Bình','tran.minh.binh@example.test','0900000012'),
-    ('pham.thu.ha',CONCAT('!',UUID()),'STAFF',TRUE,'Phạm Thu Hà','pham.thu.ha@example.test','0900000013'),
-    ('vo.quoc.huy',CONCAT('!',UUID()),'STAFF',TRUE,'Võ Quốc Huy','vo.quoc.huy@example.test','0900000017'),
-    ('local-sms:0900000014',CONCAT('!',UUID()),'BUYER',TRUE,'Trần Ngọc Mai','tran.ngoc.mai@example.test','0900000014'),
-    ('desk:0900000021',CONCAT('!',UUID()),'BUYER',TRUE,'Nguyễn Gia Hân','nguyen.gia.han@example.test','0900000021'),
-    ('desk:0900000022',CONCAT('!',UUID()),'BUYER',TRUE,'Phạm Quốc Bảo','pham.quoc.bao@example.test','0900000022'),
-    ('desk:0900000023',CONCAT('!',UUID()),'BUYER',TRUE,'Vũ Minh Châu','vu.minh.chau@example.test','0900000023'),
-    ('desk:0900000024',CONCAT('!',UUID()),'BUYER',TRUE,'Lê Thanh Tâm','le.thanh.tam@example.test','0900000024'),
-    ('desk:0900000025',CONCAT('!',UUID()),'BUYER',TRUE,'Đỗ Hoàng Nam','do.hoang.nam@example.test','0900000025'),
-    ('desk:0900000026',CONCAT('!',UUID()),'BUYER',TRUE,'Hồ Thiên An','ho.thien.an@example.test','0900000026')
+    ('nguyen.hoang.an',CONCAT('!',UUID()),'STAFF',TRUE,'Nguyễn Hoàng An','t3l.886413+nguyen.hoang.an@gmail.com','0900000011'),
+    ('tran.minh.binh',CONCAT('!',UUID()),'STAFF',TRUE,'Trần Minh Bình','t3l.886413+tran.minh.binh@gmail.com','0900000012'),
+    ('pham.thu.ha',CONCAT('!',UUID()),'STAFF',TRUE,'Phạm Thu Hà','t3l.886413+pham.thu.ha@gmail.com','0900000013'),
+    ('vo.quoc.huy',CONCAT('!',UUID()),'STAFF',TRUE,'Võ Quốc Huy','t3l.886413+vo.quoc.huy@gmail.com','0900000017'),
+    ('local-sms:0900000014',CONCAT('!',UUID()),'BUYER',TRUE,'Trần Ngọc Mai','t3l.886413+tran.ngoc.mai@gmail.com','0900000014'),
+    ('desk:0900000021',CONCAT('!',UUID()),'BUYER',TRUE,'Nguyễn Gia Hân','t3l.886413+nguyen.gia.han@gmail.com','0900000021'),
+    ('desk:0900000022',CONCAT('!',UUID()),'BUYER',TRUE,'Phạm Quốc Bảo','t3l.886413+pham.quoc.bao@gmail.com','0900000022'),
+    ('desk:0900000023',CONCAT('!',UUID()),'BUYER',TRUE,'Vũ Minh Châu','t3l.886413+vu.minh.chau@gmail.com','0900000023'),
+    ('desk:0900000024',CONCAT('!',UUID()),'BUYER',TRUE,'Lê Thanh Tâm','t3l.886413+le.thanh.tam@gmail.com','0900000024'),
+    ('desk:0900000025',CONCAT('!',UUID()),'BUYER',TRUE,'Đỗ Hoàng Nam','t3l.886413+do.hoang.nam@gmail.com','0900000025'),
+    ('desk:0900000026',CONCAT('!',UUID()),'BUYER',TRUE,'Hồ Thiên An','t3l.886413+ho.thien.an@gmail.com','0900000026')
   ON DUPLICATE KEY UPDATE id=app_users.id;
 
   SET an_id=(SELECT id FROM app_users WHERE username='nguyen.hoang.an' AND role='STAFF');

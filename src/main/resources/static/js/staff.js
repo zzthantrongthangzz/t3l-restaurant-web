@@ -18,6 +18,14 @@ window.t3lPage.register(({ signal }) => {
     if (message && !window.confirm(message)) event.preventDefault();
   }, { capture: true, signal });
 
+  document.querySelectorAll('[data-reason-open]').forEach(button => {
+    const dialog = document.getElementById(button.getAttribute('aria-controls'));
+    if (!dialog) return;
+    button.addEventListener('click', () => dialog.showModal(), { signal });
+    dialog.querySelector('[data-reason-cancel]').addEventListener('click', () => dialog.close(), { signal });
+    dialog.addEventListener('close', () => { dialog.querySelector('[name="reason"]').value = ''; }, { signal });
+  });
+
   const moveDialog = document.querySelector('dialog#move-table');
   if (moveDialog) {
     document.querySelector('[data-open-move-table]')?.addEventListener('click', () => moveDialog.showModal(), { signal });

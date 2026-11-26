@@ -362,7 +362,7 @@ a.staff-metric:hover { border-color: var(--accent-text); background: var(--surfa
 .staff-shift-cash-reference { display: grid; gap: 3px; min-width: 0; }
 .staff-shift-cash-reference :is(strong, output) { font-weight: 700; overflow-wrap: anywhere; }
 .staff-shift-reconcile .staff-actions { margin: 0; }
-.staff-shift-confirm {
+:is(.staff-shift-confirm, .staff-reason-dialog) {
   width: min(560px, calc(100% - 28px));
   max-height: 90dvh;
   padding: clamp(16px, 4vw, 24px);
@@ -371,15 +371,17 @@ a.staff-metric:hover { border-color: var(--accent-text); background: var(--surfa
   background: var(--staff-paper);
   color: var(--staff-ink);
 }
-.staff-shift-confirm::backdrop { background: var(--backdrop); }
-.staff-shift-confirm p { color: var(--staff-muted); }
+:is(.staff-shift-confirm, .staff-reason-dialog)::backdrop { background: var(--backdrop); }
+:is(.staff-shift-confirm, .staff-reason-dialog) p { color: var(--staff-muted); }
+.staff-reason-dialog h2 { margin: 0 0 8px; }
+.staff-reason-dialog .staff-field { margin-top: 16px; }
 .staff-shift-page .staff-shift-confirm .staff-shift-cash-summary {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   padding: 12px;
   background: var(--surface-muted);
   border-radius: 8px;
 }
-.staff-shift-confirm .staff-actions { justify-content: end; margin-top: 16px; }
+:is(.staff-shift-confirm, .staff-reason-dialog) .staff-actions { justify-content: end; margin-top: 16px; }
 .staff-shift-history-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-top: 12px; }
 .staff-shift-history-filters label { flex: 0 1 215px; }
 .staff-activity-page .staff-activity-filters { margin-bottom: 16px; }
