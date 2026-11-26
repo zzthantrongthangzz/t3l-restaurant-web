@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class ReservationConfirmationAccess {
-  private static final String SESSION_KEY = ReservationConfirmationAccess.class.getName() + ".codes";
+  private static final String SESSION_KEY = ReservationConfirmationAccess.class.getName() + ".createdBookings";
   private static final int MAX_RECEIPTS = 20;
 
   public void grant(HttpSession session, String code) {

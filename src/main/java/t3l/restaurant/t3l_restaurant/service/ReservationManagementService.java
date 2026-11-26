@@ -50,9 +50,12 @@ public class ReservationManagementService {
   }
 
   @Transactional(readOnly = true)
-  public List<Reservation> lookupByPhone(ReservationLookupForm form) {
+  public Reservation lookupByCodeAndPhone(ReservationLookupForm form) {
     validate(form);
-    return reservations.findTop20UnclaimedByCanonicalPhone(canonicalPhone(form.getPhone()));
+    return reservations.findByCode(form.getCode())
+        .filter(booking -> booking.getCustomerId() == null
+            && canonicalPhone(form.getPhone()).equals(canonicalPhone(booking.getGuestPhone())))
+        .orElse(null);
   }
 
   @Transactional(readOnly = true)

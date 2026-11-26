@@ -23,7 +23,6 @@ public class ReservationLookupController {
   private final ReservationManagementService management;
   private final ReservationService bookings;
   private final ReservationLookupAccess access;
-  private final ReservationConfirmationAccess confirmationAccess;
   private final ReservationChangePolicy policy;
   private final ReservationSchedule schedule;
   private final RestaurantTableRepository tables;
@@ -34,14 +33,13 @@ public class ReservationLookupController {
   private final TrackingService tracking;
 
   public ReservationLookupController(ReservationManagementService management, ReservationService bookings,
-      ReservationLookupAccess access, ReservationConfirmationAccess confirmationAccess,
+      ReservationLookupAccess access,
       ReservationChangePolicy policy, ReservationSchedule schedule, RestaurantTableRepository tables,
       CustomerAccountService customers, PaymentIntentService paymentIntents, SepayProperties sepay,
       DiningOrderRepository diningOrders, TrackingService tracking) {
     this.management = management;
     this.bookings = bookings;
     this.access = access;
-    this.confirmationAccess = confirmationAccess;
     this.policy = policy;
     this.schedule = schedule;
     this.tables = tables;
@@ -63,6 +61,7 @@ public class ReservationLookupController {
   public String lookup(@RequestParam(required = false) String code, HttpServletRequest request,
       Authentication authentication, Model model) {
     var form = new ReservationLookupForm();
+    form.setCode(code);
     model.addAttribute("lookupForm", form);
     var customer = customers.signedInCustomer(authentication);
     Reservation booking = visibleBooking(code, request, customer);
@@ -78,21 +77,18 @@ public class ReservationLookupController {
   }
 
   @PostMapping
-  public String searchByPhone(@Valid @ModelAttribute("lookupForm") ReservationLookupForm form,
-      BindingResult errors, HttpSession session, Model model) {
+  public String search(@Valid @ModelAttribute("lookupForm") ReservationLookupForm form,
+      BindingResult errors, HttpSession session, Model model, RedirectAttributes redirect) {
     if (errors.hasErrors()) return "web/reservation-lookup";
 
-    var matches = management.lookupByPhone(form);
-    if (matches.isEmpty()) {
-      model.addAttribute("lookupError", "Không tìm thấy đặt bàn nào khớp số điện thoại này.");
-    } else {
-      for (Reservation booking : matches) {
-        access.grant(session, booking.getCode());
-        confirmationAccess.grant(session, booking.getCode());
-      }
-      model.addAttribute("lookupResults", matches);
+    var booking = management.lookupByCodeAndPhone(form);
+    if (booking == null) {
+      model.addAttribute("lookupError", "Không tìm thấy lượt đặt khớp mã và số điện thoại. Nếu đã liên kết tài khoản, hãy xem lịch sử đặt bàn.");
+      return "web/reservation-lookup";
     }
-    return "web/reservation-lookup";
+    access.grant(session, booking.getCode());
+    redirect.addAttribute("code", booking.getCode());
+    return "redirect:/reservations/lookup";
   }
 
   @PostMapping("/{code}/change")

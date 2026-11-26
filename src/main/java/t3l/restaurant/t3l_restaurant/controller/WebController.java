@@ -37,6 +37,7 @@ import t3l.restaurant.t3l_restaurant.repository.*;
 import t3l.restaurant.t3l_restaurant.service.ReservationService;
 import t3l.restaurant.t3l_restaurant.service.ReservationSchedule;
 import t3l.restaurant.t3l_restaurant.service.ReservationConfirmationAccess;
+import t3l.restaurant.t3l_restaurant.service.ReservationLookupAccess;
 import t3l.restaurant.t3l_restaurant.service.BookingException;
 import t3l.restaurant.t3l_restaurant.service.CustomerAccountService;
 import t3l.restaurant.t3l_restaurant.service.ReservationDrafts;
@@ -56,6 +57,7 @@ public class WebController {
   private final ReservationService reservationService;
   private final ReservationSchedule reservationSchedule;
   private final ReservationConfirmationAccess confirmationAccess;
+  private final ReservationLookupAccess lookupAccess;
   private final FaqRepository faqs;
   private final CustomerAccountService customers;
   private final ReservationDrafts drafts;
@@ -75,7 +77,7 @@ public class WebController {
       DishRepository dishes,
       ReservationService reservationService,
       ReservationSchedule reservationSchedule,
-      ReservationConfirmationAccess confirmationAccess,
+      ReservationConfirmationAccess confirmationAccess, ReservationLookupAccess lookupAccess,
       FaqRepository faqs,
       CustomerAccountService customers, ReservationDrafts drafts, Validator validator,
       DiningOrderRepository diningOrders, DiningPaymentRepository diningPayments,
@@ -86,6 +88,7 @@ public class WebController {
     this.reservationService = reservationService;
     this.reservationSchedule = reservationSchedule;
     this.confirmationAccess = confirmationAccess;
+    this.lookupAccess = lookupAccess;
     this.faqs = faqs;
     this.customers = customers;
     this.drafts = drafts;
@@ -303,7 +306,7 @@ public class WebController {
 
   private Reservation visibleReservation(String code, Authentication authentication, HttpServletRequest request) {
     return reservationService.findVisibleByCode(code, customers.signedInCustomer(authentication),
-        confirmationAccess.canView(request.getSession(false), code));
+        confirmationAccess.canView(request.getSession(false), code) || lookupAccess.canView(request.getSession(false), code));
   }
 
   @InitBinder("form")
@@ -431,7 +434,7 @@ public class WebController {
     response.setHeader("Referrer-Policy", "no-referrer");
     UserAccount customer = customers.signedInCustomer(authentication);
     Reservation reservation = reservationService.findVisibleByCode(code, customer,
-        confirmationAccess.canView(request.getSession(false), code));
+        confirmationAccess.canView(request.getSession(false), code) || lookupAccess.canView(request.getSession(false), code));
     if (reservation == null) {
       response.setStatus(HttpServletResponse.SC_NOT_FOUND);
       model.asMap().remove("loginReturnTo");

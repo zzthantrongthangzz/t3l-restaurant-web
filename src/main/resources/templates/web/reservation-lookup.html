@@ -32,29 +32,18 @@
         </section>
 
         <form id="lookup-form" class="lookup-form" th:if="${reservation == null}" th:action="@{/reservations/lookup}" th:object="${lookupForm}" method="post">
-          <div class="lookup-form-top"><p class="home-eyebrow">TRA CỨU ĐẶT BÀN</p><span>Nhập số điện thoại đã dùng khi đặt bàn</span></div>
+          <div class="lookup-form-top"><p class="home-eyebrow">TRA CỨU ĐẶT BÀN</p><span>Nhập mã đặt bàn và số điện thoại đã dùng</span></div>
           <div class="lookup-search-fields">
+            <div class="booking-field"><label for="code">Mã đặt bàn</label><input th:field="*{code}" maxlength="20" required aria-describedby="lookup-code-error" /><small id="lookup-code-error" class="booking-field-error" th:errors="*{code}"></small></div>
             <div class="booking-field"><label for="phone">Số điện thoại đã đặt bàn</label><input type="tel" th:field="*{phone}" placeholder="Số điện thoại của bạn" maxlength="30" autocomplete="tel" required aria-describedby="lookup-phone-error" th:attr="aria-invalid=${#fields.hasErrors('phone')}" /><small id="lookup-phone-error" class="booking-field-error" th:errors="*{phone}"></small></div>
             <button class="home-button" type="submit">Tra cứu đặt bàn <span aria-hidden="true">↗</span></button>
           </div>
-          <p class="lookup-security-note">Kết quả hiển thị tối đa 20 lượt đặt chưa liên kết tài khoản có số điện thoại trùng khớp.</p>
+          <p class="lookup-security-note">Lượt đặt đã liên kết tài khoản xuất hiện trong lịch sử đặt bàn sau khi đăng nhập.</p>
         </form>
         <div class="lookup-alert is-error" role="alert" th:if="${lookupError}" th:text="${lookupError}"></div>
         <div class="lookup-alert is-success" role="status" th:if="${lookupNotice}" th:text="${lookupNotice}"></div>
         <div class="lookup-alert is-error" role="alert" th:if="${error != null}" th:text="${error}"></div>
         <div class="lookup-alert is-success" role="status" th:if="${notice != null}" th:text="${notice}"></div>
-
-        <section class="lookup-search-results" th:if="${lookupResults != null}" aria-labelledby="lookup-results-title">
-          <h2 id="lookup-results-title" th:text="${#lists.size(lookupResults) + ' lượt đặt bàn khớp số điện thoại'}"></h2>
-          <article class="lookup-search-result" th:each="item : ${lookupResults}">
-            <div>
-              <h3 th:text="${item.guestName}"></h3>
-              <p th:text="${#temporals.format(item.reservationDate, 'dd/MM/yyyy') + ' · ' + #temporals.format(item.reservationTime, 'HH:mm') + ' · ' + item.guestCount + ' khách'}"></p>
-            </div>
-            <span class="lookup-status" th:attr="data-status=${item.status}" th:text="${item.statusLabel}"></span>
-            <a class="home-text-link" th:href="@{/reservations/lookup(code=${item.code})}">Xem chi tiết <span aria-hidden="true">↗</span></a>
-          </article>
-        </section>
 
         <th:block th:if="${reservation != null}">
           <form class="lookup-alert" th:if="${canClaimBooking}" th:action="@{/reservations/lookup/{code}/claim(code=${reservation.code})}" method="post">

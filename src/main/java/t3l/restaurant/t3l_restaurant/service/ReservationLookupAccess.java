@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class ReservationLookupAccess {
-  private static final String KEY = ReservationLookupAccess.class.getName();
+  private static final String KEY = ReservationLookupAccess.class.getName() + ".verifiedBooking";
   private final ReservationSchedule schedule;
   public ReservationLookupAccess(ReservationSchedule schedule) { this.schedule = schedule; }
 

@@ -78,11 +78,10 @@ class ReservationLookupIntegrationTest {
   }
   private void verify(MockHttpSession session, String code) throws Exception {
     mvc.perform(post("/reservations/lookup").session(session).param("_csrf", csrf(session))
-            .param("phone", "+84 901 234 567"))
-        .andExpect(status().isOk()).andExpect(model().attributeExists("lookupResults"))
-        .andExpect(content().string(org.hamcrest.Matchers.containsString(code)));
+            .param("code", code.toLowerCase(Locale.ROOT)).param("phone", "+84 901 234 567"))
+        .andExpect(redirectedUrl("/reservations/lookup?code=" + code));
   }
-  @Test void lookupAcceptsPhoneWithoutOtpAndKeepsDetailSessionScoped() throws Exception {
+  @Test void lookupRequiresCodeAndPhoneAndKeepsDetailSessionScoped() throws Exception {
     var booking = book(LocalTime.of(18, 0)); var session = new MockHttpSession();
     mvc.perform(get("/reservations/lookup").param("code", booking.getCode()).session(session))
         .andExpect(status().isOk()).andExpect(model().attributeDoesNotExist("reservation"));
@@ -90,7 +89,13 @@ class ReservationLookupIntegrationTest {
             .param("code", booking.getCode()).param("phone", "0900000000"))
         .andExpect(status().isOk()).andExpect(model().attributeDoesNotExist("reservation"))
         .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(booking.getGuestName()))));
+    mvc.perform(post("/reservations/lookup").session(session).param("_csrf", csrf(session))
+            .param("phone", booking.getGuestPhone()))
+        .andExpect(status().isOk()).andExpect(model().attributeHasFieldErrors("lookupForm", "code"));
+    var other = book(LocalTime.of(20, 0));
     verify(session, booking.getCode());
+    mvc.perform(get("/reservations/lookup").param("code", other.getCode()).session(session))
+        .andExpect(model().attributeDoesNotExist("reservation"));
     mvc.perform(get("/reservations/lookup").param("code", booking.getCode()).session(session))
         .andExpect(status().isOk()).andExpect(model().attributeExists("reservation"))
         .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")));

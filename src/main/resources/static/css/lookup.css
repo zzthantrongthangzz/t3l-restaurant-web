@@ -8,7 +8,7 @@
 .lookup-form .home-eyebrow { color: var(--accent-text); }
 .lookup-form-top { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-bottom: 24px; }
 .lookup-form-top > span { color: var(--text-muted); font-size: var(--text-caption); }
-.lookup-search-fields { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: end; }
+.lookup-search-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 24px; align-items: end; }
 .lookup-search-fields .home-button { min-height: 3rem; padding-block: 10px; }
 .lookup-search-fields #code { font-family: ui-monospace, Consolas, monospace; text-transform: uppercase; }
 .lookup-security-note { color: var(--text-muted); font-size: var(--text-caption); margin-top: 19px !important; }
