@@ -134,8 +134,7 @@ class AdminWorkspaceIntegrationTest {
     String orderPath = "/reservations/" + code + "/preorder";
     assertEquals(0, jdbc.queryForObject("select count(*) from dining_orders", Integer.class));
     mvc.perform(get(receipt).session(session).with(buyer))
-        .andExpect(content().string(containsString("Bạn có muốn đặt kèm món không?")))
-        .andExpect(content().string(containsString("/menu?booking=" + code)));
+        .andExpect(content().string(containsString("/reservations/lookup?code=" + code)));
     mvc.perform(get("/menu").param("booking", code).session(session).with(buyer))
         .andExpect(status().isOk()).andExpect(content().string(containsString(orderPath)));
     mvc.perform(get("/menu").param("booking", code)).andExpect(status().isNotFound());
@@ -153,7 +152,7 @@ class AdminWorkspaceIntegrationTest {
     for (int attempt = 0; attempt < 2; attempt++) {
       mvc.perform(post(orderPath).session(session).with(buyer).with(csrf()).param("items[0].dishId", String.valueOf(dish)).param("items[0].quantity", "3")
               .param("items[0].note", "  Không bỏ hành  "))
-          .andExpect(redirectedUrl(receipt));
+          .andExpect(redirectedUrl("/reservations/lookup?code=" + code));
     }
     assertEquals(code, jdbc.queryForObject(
         "select reservations.code from dining_orders join reservations on reservation_id = reservations.id", String.class));
@@ -161,14 +160,14 @@ class AdminWorkspaceIntegrationTest {
     assertEquals(6, jdbc.queryForObject("select sum(quantity) from dining_order_items", Integer.class));
     assertEquals("Không bỏ hành", jdbc.queryForObject("select distinct note from dining_order_items", String.class));
     assertEquals(840000L, jdbc.queryForObject("select deposit_amount from reservations", Long.class));
-    mvc.perform(get(receipt).session(session).with(buyer))
-        .andExpect(content().string(containsString("Bít tết QA × 3 · 600.000 đ")))
+    mvc.perform(get("/reservations/lookup").param("code", code).session(session).with(buyer))
+        .andExpect(content().string(containsString("Bít tết QA")))
         .andExpect(content().string(containsString("Không bỏ hành")));
     mvc.perform(get("/reservations/new").param("date", date.toString()).param("time", "18:00"))
-        .andExpect(content().string(containsString("Đã có người đặt")))
-        .andExpect(content().string(not(containsString("Chọn bàn A01"))));
+        .andExpect(view().name("web/reservation-form"))
+        .andExpect(model().attributeDoesNotExist("tables", "selectedTable"));
     mvc.perform(get("/reservations/new").param("date", date.toString()).param("time", "12:00"))
-        .andExpect(content().string(containsString("Chọn bàn A01")));
+        .andExpect(content().string(not(containsString("Chọn bàn A01"))));
 
     var guestRequest = post("/reservations").with(csrf()).param("tableId", String.valueOf(table))
         .param("date", date.plusDays(1).toString()).param("time", "18:00").param("guests", "2")
@@ -270,8 +269,8 @@ class AdminWorkspaceIntegrationTest {
   }
 
   @Test
-  void savesCanonicalTableCapacityAndAllowsConfigurableVipSeats() throws Exception {
-    for (var kind : java.util.Map.of("SMALL", 4, "MEDIUM", 8, "LARGE", 16, "VIP", 10).entrySet()) {
+  void enforcesCanonicalTableCapacityAndAcceptsThirtyGuestsInVip() throws Exception {
+    for (var kind : java.util.Map.of("SMALL", 4, "MEDIUM", 8, "LARGE", 16, "VIP", 30).entrySet()) {
       admin(post("/admin/inventory").param("code", "QA-" + kind.getKey()).param("classification", kind.getKey())
           .param("capacity", "10").param("active", "true")).andExpect(redirectedUrl("/admin/inventory"));
       assertEquals(kind.getValue(), jdbc.queryForObject("select capacity from restaurant_tables where code=?", Integer.class,
@@ -279,6 +278,18 @@ class AdminWorkspaceIntegrationTest {
     }
     admin(get("/admin/inventory").param("kind", "LARGE")).andExpect(status().isOk())
         .andExpect(content().string(containsString("QA-LARGE"))).andExpect(content().string(not(containsString("QA-VIP"))));
+    String date = schedule.today().plusDays(2).toString();
+    mvc.perform(get("/reservations/new").param("date", date).param("guests", "30"))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("max=\"30\"")));
+    mvc.perform(post("/reservations/quote").with(csrf()).param("date", date).param("time", "18:00").param("guests", "30"))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.deposit").value("500000"));
+    mvc.perform(post("/reservations").with(csrf()).param("date", date).param("time", "18:00").param("guests", "30")
+        .param("guestName", "Khách đặt phòng VIP").param("guestPhone", "0900123456").param("consentAccepted", "true"))
+        .andExpect(redirectedUrlPattern("/reservations/confirmation?code=*"));
+    assertEquals("QA-VIP", jdbc.queryForObject("select t.code from reservations r join restaurant_tables t on t.id=r.table_id", String.class));
+    mvc.perform(post("/reservations").with(csrf()).param("date", date).param("time", "18:00").param("guests", "31")
+        .param("guestName", "Khách đặt phòng VIP").param("guestPhone", "0900123456").param("consentAccepted", "true"))
+        .andExpect(model().attributeHasFieldErrors("form", "guests"));
   }
 
   @Test

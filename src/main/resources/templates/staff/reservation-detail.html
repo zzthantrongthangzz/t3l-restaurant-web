@@ -127,7 +127,7 @@
                 <label class="staff-field">Giờ mới <select name="time" required><option value="">Chọn giờ</option>
                   <option th:each="slot : ${timeSlots}" th:value="${#temporals.format(slot, 'HH:mm')}" th:selected="${slot == booking.reservationTime}" th:text="${#temporals.format(slot, 'HH:mm')}"></option>
                 </select></label>
-                <label class="staff-field">Số khách <input type="number" name="guests" th:value="${booking.guestCount}" min="1" max="20" required /></label>
+                <label class="staff-field">Số khách <input type="number" name="guests" th:value="${booking.guestCount}" min="1" th:max="${T(t3l.restaurant.t3l_restaurant.entity.TableKind).MAX_CAPACITY}" required /></label>
                 <label class="staff-field staff-full">Bàn <select name="tableId"><option value="">Tự động chọn bàn phù hợp</option>
                   <th:block th:replace="~{staff/fragments/shell :: tableOptions(${tableOptions}, ${booking.table?.id})}"></th:block>
                 </select></label>

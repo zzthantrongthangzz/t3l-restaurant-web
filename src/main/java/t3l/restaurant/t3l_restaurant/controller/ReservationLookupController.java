@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import t3l.restaurant.t3l_restaurant.dto.*;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
+import t3l.restaurant.t3l_restaurant.entity.TableKind;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.repository.RestaurantTableRepository;
 import t3l.restaurant.t3l_restaurant.repository.DiningOrderRepository;
@@ -209,7 +210,8 @@ public class ReservationLookupController {
     }
     if (!model.containsAttribute("cancelForm")) model.addAttribute("cancelForm", new ReservationCancellationForm());
     var active = tables.findByActiveTrueOrderByCodeAsc();
-    model.addAttribute("maxGuests", Math.min(20, active.stream().mapToInt(t -> t.getCapacity()).max().orElse(20)));
+    int maximum = active.stream().mapToInt(t -> t.getCapacity()).max().orElse(TableKind.MAX_CAPACITY);
+    model.addAttribute("maxGuests", Math.min(TableKind.MAX_CAPACITY, maximum));
     model.addAttribute("today", schedule.today());
     model.addAttribute("timeSlots", schedule.getTimeSlots());
     return deposit.status().payable();

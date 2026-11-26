@@ -80,24 +80,20 @@ public class AdminInventoryService {
             .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy bàn."));
     TableKind classification = form.getClassification();
     String area;
-    String kind;
-    int capacity = form.getCapacity();
     if (form.getArea() != null && !form.getArea().isBlank()) {
       area = legacyArea(form.getArea().strip(), inventory);
-      kind = AdminInput.optional(form.getKind());
-      classification = TableKind.fromInventory(kind, area, capacity);
+      classification = TableKind.fromInventory(AdminInput.optional(form.getKind()), area, form.getCapacity());
     } else {
       if (classification == null) throw new IllegalArgumentException("Hãy chọn loại bàn.");
       area = id == null ? classification.getLabel() : table.getTableType();
-      kind = classification.name();
-      if (classification != TableKind.VIP) capacity = classification.getFixedCapacity();
     }
+    int capacity = classification.getFixedCapacity();
     if (id != null && (!table.getCode().equals(code) || !table.getTableType().equals(area)
         || table.getKind() != classification || capacity < table.getCapacity()
         || (table.isActive() && !form.isActive())) && bookings.tableInUse(id)) {
       throw new IllegalArgumentException("Bàn đang phục vụ hoặc giữ chỗ. Hãy xử lý các lượt đặt trước khi đổi mã, đổi loại, giảm sức chứa hoặc ngừng sử dụng.");
     }
-    table.configure(code, area, kind, capacity, form.isActive());
+    table.configure(code, area, classification.name(), capacity, form.isActive());
     tables.save(table);
     audit.record(id == null ? "Tạo bàn" : "Cập nhật bàn", code + " · " + classification.getLabel());
   }

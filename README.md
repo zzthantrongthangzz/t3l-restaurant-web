@@ -88,6 +88,8 @@ Script 17 đồng bộ link ảnh theo tên món mẫu. Có thể bỏ qua scrip
 
 Với database đã có bảng `reservation_emails`, chạy `26_reservation_email_checks.sql` để đồng bộ các giá trị hợp lệ của loại và trạng thái email. Với container hiện có, chép riêng script vào container bằng `docker compose cp database/mysql/26_reservation_email_checks.sql mysql:/tmp/26_reservation_email_checks.sql`. Trong dấu nhắc MySQL, chọn database bằng `USE t3l_restaurant;` rồi chạy `SOURCE /tmp/26_reservation_email_checks.sql;`. Có thể chạy lại script. Docker Compose tự nạp script khi khởi tạo volume mới.
 
+Chạy `27_table_capacities.sql` theo cùng cách để chuẩn hóa sức chứa trên database hiện có. Bàn nhỏ có 4 chỗ, bàn vừa 8 chỗ, bàn lớn 16 chỗ và phòng VIP 30 chỗ. Script giữ mã bàn và lịch đặt. Nếu một lượt đặt đang mở vượt sức chứa mới, cần xử lý lượt đó trước khi chạy lại. Docker Compose tự nạp script trên volume mới.
+
 Mỗi thành viên dùng `.env` riêng. Các giá trị MySQL trong file đó được dùng cho cả Docker Compose và Spring Boot. Đặt mật khẩu nhân viên/admin qua `APP_STAFF_PASSWORD` và `APP_ADMIN_PASSWORD`, rồi đăng nhập tại `/staff/login`. Với bản chạy dùng chung, thay `APP_JWT_SECRET` bằng khóa ngẫu nhiên tối thiểu 32 byte, mã hóa Base64.
 
 Nếu cần cùng nhìn thấy các lượt đặt và thay đổi thực đơn mới phát sinh, dùng MySQL và MongoDB dành riêng cho nhóm. Chia sẻ trực tiếp `MYSQL_URL`, `MYSQL_USER`, `MYSQL_PASSWORD` và `MONGODB_URI` qua kênh riêng. Chỉ đưa `.env.example` và dữ liệu giả định vào Git.
@@ -134,7 +136,7 @@ Mặc định cọc và chuyển khoản được nhân viên đối soát thủ
 - `database/mysql/01_schema_seed.sql`: cấu trúc cho cài mới, 18 bàn và 3 yêu cầu đặt bàn mẫu; Docker chạy tiếp `04` để đồng bộ danh mục 54 món.
 - `database/mysql/16_table_kinds.sql` chuẩn hóa loại bàn. Chạy sau bản nâng cấp `14_admin_workspace.sql` nếu đang dùng database đã tạo trước bản này. Docker chạy tập lệnh khi khởi tạo database mới.
 - `database/mysql/02_single_restaurant_migration.sql`: chuyển database cũ có chi nhánh/khu sang mô hình một nhà hàng; giữ một bản của mỗi mã bàn và trỏ reservation cũ sang bàn đó.
-- `database/mysql/03_sample_data.sql`: nạp bàn, món và reservation mẫu cho database đã migrate.
+- `database/mysql/03_sample_data.sql`: nạp bàn, món và đặt bàn mẫu cho database đã migrate. Chạy lại `27_table_capacities.sql` sau script mẫu để áp dụng sức chứa mới.
 - `database/mysql/04_menu_catalog_seed.sql`: đồng bộ 54 món ăn/nước theo danh mục ảnh; dọn món cũ ngoài danh mục và an toàn khi chạy lại. Nếu món cũ đã có giao dịch bán hàng, khóa ngoại sẽ giữ dữ liệu để bảo toàn lịch sử.
 - `database/mysql/17_menu_images.sql` bổ sung ảnh Cloudinary cho 54 món đã có trong danh mục. Ảnh đã được cập nhật riêng trên từng máy được giữ lại.
 - `database/mysql/05_clear_menu_images.sql`: gỡ URL/ID ảnh khỏi các món để hiển thị ảnh minh họa trong lúc chuẩn bị ảnh mới.

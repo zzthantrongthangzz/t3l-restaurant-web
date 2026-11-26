@@ -19,7 +19,7 @@ db.faqs.updateOne(
 
 const questions = [
   ["reservation-without-account", "Tôi có thể đặt bàn khi chưa có tài khoản không?",
-    "Có. Hãy chọn ngày, giờ, bàn phù hợp rồi nhập họ tên và số điện thoại. Nhân viên sẽ liên hệ để xác nhận giữ chỗ."],
+    "Có. Hãy chọn ngày, giờ và số khách, sau đó nhập họ tên và số điện thoại. Nhà hàng sẽ xếp bàn phù hợp và liên hệ xác nhận."],
   ["reservation-status", "Tôi xem tình trạng đặt bàn ở đâu?",
     "Mở mục Tra cứu đặt bàn và nhập thông tin theo hướng dẫn. Sau khi đăng nhập, bạn cũng có thể xem các lượt đặt trong tài khoản."],
   ["preorder-eligibility", "Làm sao để đặt món trước khi đến?",
@@ -28,8 +28,8 @@ const questions = [
     "Nếu thêm món vào lượt đặt trước, hệ thống tính lại cọc và trừ số tiền đã nhận. Phần còn thiếu, nếu có, hiển thị trên trang chi tiết lượt đặt."],
   ["late-arrival", "Nếu tới trễ so với giờ đặt, tôi cần làm gì?",
     "Hãy gọi nhà hàng, cung cấp mã đặt bàn và giờ đến dự kiến. Nhân viên sẽ kiểm tra thời gian giữ bàn và hỗ trợ nếu còn bàn phù hợp."],
-  ["table-color", "Màu đỏ trên sơ đồ đặt bàn có nghĩa gì?",
-    "Bàn không khả dụng trong khung giờ đã chọn. Hãy đổi giờ hoặc chọn một bàn trống phù hợp với số khách."],
+  ["table-color", "Tôi nên làm gì nếu khung giờ đã hết chỗ?",
+    "Hãy chọn giờ đến hoặc ngày khác trong form đặt bàn rồi gửi lại yêu cầu. Bạn cũng có thể liên hệ nhà hàng nếu cần hỗ trợ."],
   ["dish-allergy", "Tôi có thể ghi chú món không hành hoặc dị ứng không?",
     "Bạn có thể ghi chú cho mỗi món. Với dị ứng thực phẩm, hãy báo thêm cho nhân viên để nhà hàng kiểm tra nguyên liệu và cách chế biến."],
   ["voucher-terms", "Tôi kiểm tra điều kiện voucher ở đâu?",
@@ -45,3 +45,13 @@ db.faqs.bulkWrite(questions.map(([id, question, answer], index) => ({
     upsert: true
   }
 })));
+
+for (const [id, oldQuestion, oldAnswer] of [
+  ["table-color", "Màu đỏ trên sơ đồ đặt bàn có nghĩa gì?",
+    "Bàn không khả dụng trong khung giờ đã chọn. Hãy đổi giờ hoặc chọn một bàn trống phù hợp với số khách."],
+  ["reservation-without-account", "Tôi có thể đặt bàn khi chưa có tài khoản không?",
+    "Có. Hãy chọn ngày, giờ, bàn phù hợp rồi nhập họ tên và số điện thoại. Nhân viên sẽ liên hệ để xác nhận giữ chỗ."]
+]) {
+  const [, question, answer] = questions.find(([key]) => key === id);
+  db.faqs.updateOne({ _id: id, question: oldQuestion, answer: oldAnswer }, { $set: { question, answer } });
+}

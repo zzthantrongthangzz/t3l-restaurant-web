@@ -12,10 +12,10 @@
       <label class="staff-field">Mã bàn<input th:field="*{code}" maxlength="32" required /></label>
       <label class="staff-field">Loại bàn<select th:field="*{classification}" data-inventory-kind required>
         <option th:each="kind : ${tableKinds}" th:value="${kind.name()}" th:attr="data-capacity=${kind.fixedCapacity}"
-                th:text="${kind.label + (kind.fixedCapacity > 0 ? ' · ' + kind.fixedCapacity + ' chỗ' : '')}"></option>
+                th:text="${kind.label + ' · ' + kind.fixedCapacity + ' chỗ'}"></option>
       </select></label>
-      <label class="staff-field">Sức chứa<input th:field="*{capacity}" type="number" min="1" max="100" required />
-        <small>Có thể chỉnh sức chứa của phòng VIP.</small></label>
+      <label class="staff-field">Sức chứa<input th:field="*{capacity}" type="number" readonly />
+        <small>Sức chứa theo loại bàn.</small></label>
     </div>
     <label class="staff-checkbox"><input th:field="*{active}" type="checkbox" /> Đưa bàn vào phục vụ</label>
     <div class="staff-actions"><button type="submit" class="staff-button" data-confirm="Lưu thiết lập cho bàn này?">Lưu bàn</button></div>

@@ -1,23 +1,19 @@
 <main xmlns:th="http://www.thymeleaf.org" th:fragment="checkout" id="main" class="booking-checkout" data-navigation>
   <div class="booking-checkout-inner">
-    <form id="plan-booking-form" method="post" th:action="@{/reservations}" th:object="${form}"
+    <form id="booking-form" method="post" th:action="@{/reservations}" th:object="${form}"
         data-booking-flow data-preorder-picker data-booking-preorder
-        th:with="contactErrors=${#fields.hasErrors('guestName') or #fields.hasErrors('guestPhone') or #fields.hasErrors('guestEmail') or #fields.hasErrors('note')},
+        th:with="detailsErrors=${#fields.hasErrors('date') or #fields.hasErrors('time') or #fields.hasErrors('guests') or #fields.hasErrors('guestName') or #fields.hasErrors('guestPhone') or #fields.hasErrors('guestEmail') or #fields.hasErrors('note')},
           missingContact=${bookingProfileMissing and (#strings.isEmpty(form.guestName) or #strings.isEmpty(form.guestPhone))},
           mealErrors=${#fields.hasErrors('preorderQuantities') or #fields.hasErrors('preorderNote')},
-          reviewing=${#fields.hasAnyErrors() or bookingResumeReview == true}"
-        th:attr="data-start-step=${contactErrors or missingContact ? 1 : (mealErrors ? 2 : (reviewing ? 3 : 1))},
+          reviewing=${#fields.hasErrors('voucherCode') or #fields.hasErrors('consentAccepted') or bookingResumeReview == true}"
+        th:attr="data-start-step=${detailsErrors or missingContact ? 1 : (mealErrors ? 2 : (reviewing ? 3 : 1))},
+          data-zone=${bookingZone},
           data-placeholder=@{/images/menu/dish-placeholder.svg},data-quote-url=@{/reservations/quote}">
-      <input type="hidden" th:field="*{tableId}" />
-      <input type="hidden" th:field="*{date}" />
-      <input type="hidden" th:field="*{time}" />
-      <input type="hidden" th:field="*{guests}" />
       <input type="hidden" name="draft" th:if="${bookingDraft != null}" th:value="${bookingDraft}" />
       <th:block th:replace="~{web/fragments/preorder-picker :: formFields}"></th:block>
 
       <header class="booking-checkout-heading">
-        <h1 th:text="${'Yêu cầu đặt ' + selectedTable.code}">Đặt bàn</h1>
-        <button class="checkout-link" name="choose" value="true" type="submit" formnovalidate>← Đổi bàn hoặc khung giờ</button>
+        <h1>Đặt bàn</h1>
       </header>
       <nav class="checkout-progress" aria-label="Tiến trình đặt bàn" data-booking-js>
         <ol>
@@ -35,10 +31,20 @@
       <section class="checkout-step" data-booking-panel="1" aria-labelledby="booking-contact-title">
         <header class="checkout-step-heading"><h2 id="booking-contact-title" tabindex="-1">Thông tin đặt bàn</h2></header>
         <div class="checkout-details">
-          <aside class="checkout-card checkout-table" aria-label="Bàn đã chọn">
-            <h3>Bàn đã chọn</h3>
-            <dl th:replace="~{web/fragments/booking-checkout :: visit}"></dl>
-          </aside>
+          <section class="checkout-card checkout-visit" aria-label="Lịch hẹn">
+            <h3>Lịch hẹn</h3>
+            <div class="checkout-fields">
+              <label>Ngày đến <input type="date" th:field="*{date}" th:min="${today}" required /></label>
+              <label>Giờ đến
+                <select th:field="*{time}" aria-describedby="booking-time-hint" required>
+                  <option value="">Chọn giờ đến</option>
+                  <option th:each="slot : ${timeSlots}" th:value="${slot}" th:text="${#temporals.format(slot,'HH:mm')}"></option>
+                </select>
+              </label>
+              <label>Số khách <input type="number" th:field="*{guests}" min="1" th:max="${T(t3l.restaurant.t3l_restaurant.entity.TableKind).MAX_CAPACITY}" required /></label>
+            </div>
+            <p class="checkout-muted" id="booking-time-hint">Nhà hàng sẽ tự sắp xếp bàn phù hợp với số khách và giờ đến.</p>
+          </section>
           <div class="checkout-card checkout-contact">
             <h3>Thông tin liên hệ</h3>
             <p class="checkout-muted" th:if="${bookingProfileMissing}">Bổ sung họ tên và số điện thoại để T3L xác nhận đặt bàn.</p>
@@ -62,7 +68,8 @@
         </div>
         <div class="checkout-actions">
           <a class="checkout-link" th:if="${bookingCustomer and !bookingProfileMissing}" th:href="@{/account}">Cập nhật hồ sơ</a>
-          <button type="button" class="home-button checkout-primary" data-booking-next="2" data-booking-js>Tiếp tục chọn món <span aria-hidden="true">→</span></button>
+          <button type="button" class="checkout-link" data-booking-next="2" data-booking-js>Chọn món trước</button>
+          <button type="button" class="home-button checkout-primary" data-booking-skip data-booking-js>Tiếp tục xác nhận <span aria-hidden="true">→</span></button>
         </div>
       </section>
 
@@ -138,8 +145,7 @@
               <div><dt>Tiền món trước giảm</dt><dd data-booking-amount="gross">0 đ</dd></div>
               <div><dt>Giảm giá voucher</dt><dd data-booking-amount="discount">0 đ</dd></div>
               <div><dt>Tiền món sau giảm</dt><dd data-booking-amount="net">0 đ</dd></div>
-              <div class="checkout-deposit"><dt>Cọc bắt buộc</dt><dd data-booking-amount="deposit"
-                  th:text="${minimumDeposit.signum() == 0 ? 'Không yêu cầu cọc' : #numbers.formatInteger(minimumDeposit,1,'POINT') + ' đ'}"></dd></div>
+              <div class="checkout-deposit"><dt>Cọc dự kiến</dt><dd data-booking-amount="deposit">—</dd></div>
               <div><dt>Dự kiến còn lại cho món</dt><dd data-booking-amount="balance">0 đ</dd></div>
             </dl>
             <p class="checkout-feedback" role="status" data-booking-quote-status></p>
@@ -155,7 +161,7 @@
           </section>
         </div>
         <div class="checkout-actions">
-          <button type="button" class="checkout-link" data-booking-next="2" data-booking-js>← Quay lại</button>
+          <button type="button" class="checkout-link" data-booking-next="1" data-booking-js>← Sửa thông tin</button>
           <button class="home-button checkout-primary" type="submit" data-booking-confirm>Xác nhận đặt bàn</button>
           <button class="home-button checkout-primary" name="loginOnly" value="true" type="submit" formnovalidate
               th:unless="${bookingCustomer}" data-booking-login-review hidden>Đăng nhập để tiếp tục</button>
@@ -166,8 +172,7 @@
 </main>
 
 <dl xmlns:th="http://www.thymeleaf.org" th:fragment="visit" class="checkout-summary">
-  <div><dt>Số bàn</dt><dd th:text="${selectedTable.code}"></dd></div>
-  <div><dt>Số khách</dt><dd th:text="${form.guests != null ? form.guests + ' khách' : '—'}"></dd></div>
-  <div><dt>Ngày đến</dt><dd th:text="${form.date != null ? #temporals.format(form.date,'dd/MM/yyyy') : '—'}"></dd></div>
-  <div><dt>Giờ đến</dt><dd th:text="${form.time != null ? #temporals.format(form.time,'HH:mm') : '—'}"></dd></div>
+  <div><dt>Số khách</dt><dd data-booking-copy="guests" th:text="${form.guests != null ? form.guests + ' khách' : '—'}"></dd></div>
+  <div><dt>Ngày đến</dt><dd data-booking-copy="date" th:text="${form.date != null ? #temporals.format(form.date,'dd/MM/yyyy') : '—'}"></dd></div>
+  <div><dt>Giờ đến</dt><dd data-booking-copy="time" th:text="${form.time != null ? #temporals.format(form.time,'HH:mm') : '—'}"></dd></div>
 </dl>

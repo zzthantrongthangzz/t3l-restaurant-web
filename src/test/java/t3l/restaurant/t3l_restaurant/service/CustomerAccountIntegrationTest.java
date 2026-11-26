@@ -369,9 +369,9 @@ class CustomerAccountIntegrationTest {
     mvc.perform(post("/register/verify").session(session).with(csrf()).param("code", sentCode.get()))
         .andExpect(redirectedUrl(target));
     var resumed = (ReservationForm) mvc.perform(get(target).session(session))
-        .andExpect(content().string(containsString("Yêu cầu đặt REGISTER-QA-TABLE")))
+        .andExpect(view().name("web/reservation-form"))
         .andReturn().getModelAndView().getModel().get("form");
-    assertEquals(tableId, resumed.getTableId());
+    assertNull(resumed.getTableId());
     assertEquals(LocalTime.of(18, 0), resumed.getTime());
     assertEquals("Khách đăng ký", resumed.getGuestName());
   }
@@ -564,7 +564,7 @@ class CustomerAccountIntegrationTest {
     String quantityField = "preorderQuantities[" + dishId + "]";
     String guestDraft = (String) mvc.perform(get("/reservations/new").session(session)
         .param("date", date).param("time", "18:30").param("guests", "3").param("tableId", tableId.toString()))
-        .andExpect(view().name("web/table-plan")).andExpect(content().string(containsString("Yêu cầu đặt GOOGLE-QA-TABLE")))
+        .andExpect(view().name("web/reservation-form"))
         .andReturn().getModelAndView().getModel().get("bookingDraft");
     String start = mvc.perform(post("/reservations").session(session).with(csrf()).param("date", date)
         .param("draft", guestDraft).param("tableId", tableId.toString())
@@ -589,7 +589,7 @@ class CustomerAccountIntegrationTest {
     assertEquals("Google Guest", resumed.getGuestName());
     assertNull(resumed.getGuestPhone());
     assertEquals("Ghi chú của lịch Google", resumed.getNote());
-    assertEquals(tableId, resumed.getTableId());
+    assertNull(resumed.getTableId());
     assertTrue(resumed.isConsentAccepted());
     assertEquals(identity.getEmail(), resumed.getGuestEmail());
     assertEquals(Map.of(dishId, 3), resumed.getPreorderQuantities());

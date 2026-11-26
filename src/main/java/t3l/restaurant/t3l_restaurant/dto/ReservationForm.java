@@ -6,6 +6,7 @@ import java.time.LocalTime;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.format.annotation.DateTimeFormat;
+import t3l.restaurant.t3l_restaurant.entity.TableKind;
 
 @Getter
 @Setter
@@ -39,7 +40,7 @@ public class ReservationForm extends PreorderForm {
 
   @NotNull(message = "Vui lòng chọn số khách.")
   @Min(value = 1, message = "Số khách phải từ 1 người.")
-  @Max(value = 20, message = "Mỗi yêu cầu nhận tối đa 20 khách.")
+  @Max(value = TableKind.MAX_CAPACITY, message = "Mỗi yêu cầu nhận tối đa {value} khách.")
   private Integer guests;
 
   @Size(max = 500, message = "Ghi chú không vượt quá 500 ký tự.")

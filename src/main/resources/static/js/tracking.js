@@ -108,7 +108,6 @@
     if (choice !== 'allowed' || !page) return;
     record('PAGE_VIEW');
     if (page === 'vouchers') record('VOUCHER_VIEW');
-    if (page === 'booking' && main?.querySelector('.table-plan-grid')) record('TABLE_MAP_VIEW');
     if ('IntersectionObserver' in window) {
       observer = new IntersectionObserver(entries => {
         if (document.visibilityState !== 'visible') return;

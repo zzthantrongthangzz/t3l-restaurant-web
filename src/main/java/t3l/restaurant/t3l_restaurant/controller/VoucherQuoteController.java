@@ -2,13 +2,17 @@ package t3l.restaurant.t3l_restaurant.controller;
 
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import t3l.restaurant.t3l_restaurant.dto.PreorderForm;
+import t3l.restaurant.t3l_restaurant.dto.ReservationForm;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
 import t3l.restaurant.t3l_restaurant.entity.RestaurantTable;
 import t3l.restaurant.t3l_restaurant.repository.RestaurantTableRepository;
@@ -43,11 +47,22 @@ public class VoucherQuoteController {
   }
 
   @PostMapping("/reservations/quote")
-  public Quote quoteReservation(@Valid @ModelAttribute PreorderForm form, @RequestParam Long tableId) {
-    var table = tables.findById(tableId).orElse(null);
-    requireActive(table);
+  public Quote quoteReservation(@Valid @ModelAttribute PreorderForm form,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time,
+      @RequestParam Integer guests, Authentication authentication) {
     var gross = preorders.quote(form, null).total();
-    return totals(gross, BigDecimal.ZERO, deposits.required(table, gross), BigDecimal.ZERO);
+    var discount = BigDecimal.ZERO;
+    if (form.getVoucherCode() != null && !form.getVoucherCode().isBlank()) {
+      var customer = customers.signedInCustomer(authentication);
+      if (customer == null) throw new BookingException("voucherCode", "Vui lòng đăng nhập để sử dụng voucher.");
+      discount = vouchers.preview(form.getVoucherCode(), gross, customer.getId(), null, null);
+    }
+    var visit = new ReservationForm();
+    visit.setDate(date);
+    visit.setTime(time);
+    visit.setGuests(guests);
+    return totals(gross, discount, bookings.estimateWebsiteDeposit(visit, gross.subtract(discount)), BigDecimal.ZERO);
   }
 
   private void requireActive(RestaurantTable table) {

@@ -1,6 +1,5 @@
 package t3l.restaurant.t3l_restaurant.controller;
 
-import jakarta.validation.Valid;
 import jakarta.validation.Validator;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -17,22 +16,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.dao.TransientDataAccessException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import t3l.restaurant.t3l_restaurant.dto.MenuOrderForm;
 import t3l.restaurant.t3l_restaurant.dto.ReservationForm;
-import t3l.restaurant.t3l_restaurant.dto.CustomerProfileForm;
 import t3l.restaurant.t3l_restaurant.entity.Dish;
 import t3l.restaurant.t3l_restaurant.entity.PaymentIntent;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
+import t3l.restaurant.t3l_restaurant.entity.TableKind;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.repository.*;
 import t3l.restaurant.t3l_restaurant.service.ReservationService;
@@ -40,9 +39,7 @@ import t3l.restaurant.t3l_restaurant.service.ReservationSchedule;
 import t3l.restaurant.t3l_restaurant.service.ReservationConfirmationAccess;
 import t3l.restaurant.t3l_restaurant.service.BookingException;
 import t3l.restaurant.t3l_restaurant.service.CustomerAccountService;
-import t3l.restaurant.t3l_restaurant.service.CustomerAccountService.DuplicateEmailException;
 import t3l.restaurant.t3l_restaurant.service.ReservationDrafts;
-import t3l.restaurant.t3l_restaurant.service.PublicTableBoardService;
 import t3l.restaurant.t3l_restaurant.service.DishService;
 import t3l.restaurant.t3l_restaurant.service.AdminInventoryService;
 import t3l.restaurant.t3l_restaurant.service.PreorderService;
@@ -56,7 +53,6 @@ public class WebController {
   private static final Logger log = LoggerFactory.getLogger(WebController.class);
 
   private final DishRepository dishes;
-  private final RestaurantTableRepository restaurantTables;
   private final ReservationService reservationService;
   private final ReservationSchedule reservationSchedule;
   private final ReservationConfirmationAccess confirmationAccess;
@@ -64,7 +60,6 @@ public class WebController {
   private final CustomerAccountService customers;
   private final ReservationDrafts drafts;
   private final Validator validator;
-  private final PublicTableBoardService publicTableBoard;
   private final DiningOrderRepository diningOrders;
   private final DishService dishService;
   private final AdminInventoryService inventory;
@@ -78,18 +73,16 @@ public class WebController {
 
   public WebController(
       DishRepository dishes,
-      RestaurantTableRepository restaurantTables,
       ReservationService reservationService,
       ReservationSchedule reservationSchedule,
       ReservationConfirmationAccess confirmationAccess,
       FaqRepository faqs,
       CustomerAccountService customers, ReservationDrafts drafts, Validator validator,
-      PublicTableBoardService publicTableBoard, DiningOrderRepository diningOrders, DiningPaymentRepository diningPayments,
+      DiningOrderRepository diningOrders, DiningPaymentRepository diningPayments,
       PreorderService preorders, PaymentIntentService paymentIntents,
       PaymentVerificationService paymentVerification, SepayProperties sepay, DishService dishService, AdminInventoryService inventory,
       TrackingService tracking,t3l.restaurant.t3l_restaurant.service.VoucherService vouchers) {
     this.dishes = dishes;
-    this.restaurantTables = restaurantTables;
     this.reservationService = reservationService;
     this.reservationSchedule = reservationSchedule;
     this.confirmationAccess = confirmationAccess;
@@ -97,7 +90,6 @@ public class WebController {
     this.customers = customers;
     this.drafts = drafts;
     this.validator = validator;
-    this.publicTableBoard = publicTableBoard;
     this.diningOrders = diningOrders;
     this.dishService = dishService;
     this.inventory = inventory;
@@ -218,8 +210,7 @@ public class WebController {
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time,
       @RequestParam(required = false) Integer guests, @RequestParam(required = false) String draft,
-      @RequestParam(required = false) Long tableId, @RequestParam(defaultValue = "false") boolean choose,
-      @RequestParam(defaultValue = "false") boolean chooseTable,
+      @RequestParam(defaultValue = "false") boolean choose,
       Authentication authentication, HttpServletRequest request, CsrfToken csrfToken, Model model) {
     csrfToken.getToken();
     UserAccount customer = customers.signedInCustomer(authentication);
@@ -237,44 +228,28 @@ public class WebController {
     boolean pastDate = requestedDate != null && requestedDate.isBefore(today);
     form.setDate(requestedDate == null || pastDate ? today : requestedDate);
     if (guests != null) form.setGuests(guests);
-    form.setGuests(boardGuests(form.getGuests()));
+    form.setGuests(form.getGuests() == null ? 2 : Math.clamp(form.getGuests(), 1, TableKind.MAX_CAPACITY));
     if (time != null) form.setTime(time);
-    if (choose || chooseTable) form.setTableId(null);
-    if (tableId != null) form.setTableId(tableId);
+    form.setTableId(null);
+    form.setPreferredArea(null);
 
     var rules = reservationSchedule.rules();
     var slots = reservationSchedule.futureSlots(form.getDate(), rules);
     if (pastDate || !slots.contains(form.getTime())) {
       if (form.getTime() != null || pastDate) {
         model.addAttribute("bookingNotice", "Khung giờ đã chọn không còn khả dụng. Vui lòng chọn lại.");
-        form.setTableId(null);
       }
-      form.setTime(slots.isEmpty() ? null : slots.getFirst());
-    }
-
-    var board = publicTableBoard.forSlot(form.getDate(), form.getTime(), form.getGuests(), rules.duration());
-    if (form.getTableId() != null) {
-      Long selectedId = form.getTableId();
-      boolean available = board.stream().anyMatch(item -> item.table().getId().equals(selectedId) && "FREE".equals(item.state()));
-      if (!available) {
-        form.setTableId(null);
-        model.addAttribute("bookingNotice", "Bàn đã chọn không còn phù hợp hoặc vừa có lượt đặt. Vui lòng chọn bàn khác.");
-      }
+      form.setTime(null);
     }
     if (customer != null) {
       if (!customers.needsBookingProfile(customer)) fillContact(form, customer);
       prefillMissingContact(form, customer);
     }
-    model.addAttribute("bookingResumeReview", resumed && !choose && !chooseTable && tableId == null
+    model.addAttribute("bookingResumeReview", resumed && !choose && form.getTime() != null
         && (form.isConsentAccepted() || !form.getPreorderQuantities().isEmpty() || !form.getPreorderDishIds().isEmpty()));
-    if (resumed || customer != null || form.getTableId() != null) {
-      draft = drafts.save(request.getSession(), form, customerId(customer), draft);
-    }
-    if (choose || chooseTable || (tableId != null && form.getTableId() != null)) {
-      tracking.booking(request, authentication, tableId != null && form.getTableId() != null, null);
-    }
+    draft = drafts.save(request.getSession(), form, customerId(customer), draft);
     model.addAttribute("form", form);
-    return bookingPage(model, customer, draft, form, rules, board);
+    return bookingPage(model, customer, draft, form, rules);
   }
 
   @PostMapping("/reservations/{code}/deposit-reference")
@@ -331,6 +306,11 @@ public class WebController {
         confirmationAccess.canView(request.getSession(false), code));
   }
 
+  @InitBinder("form")
+  void protectTableSelection(WebDataBinder binder) {
+    binder.setDisallowedFields("tableId", "preferredArea");
+  }
+
   @PostMapping("/reservations")
   public String reserve(
       @ModelAttribute("form") ReservationForm form, BindingResult result,
@@ -344,7 +324,8 @@ public class WebController {
       else fillContact(form, customer);
     }
     boolean saveForLogin = customer == null && loginOnly;
-    if (customer == null && !saveForLogin) {
+    boolean saveDraft = choose || saveForLogin;
+    if (customer == null && !saveDraft) {
       form.setPreorderDishIds(List.of());
       form.setPreorderQuantities(Map.of());
       form.setPreorderNote(null);
@@ -356,26 +337,24 @@ public class WebController {
         result.rejectValue("preorderQuantities", "booking.invalid", exception.getMessage());
       }
     }
-    boolean draftOnly = choose || saveForLogin;
-
     for (var violation : validator.validate(form)) {
       String field = violation.getPropertyPath().toString();
       boolean optionalForDraft = field.startsWith("guest") && !"guests".equals(field)
           || "consentAccepted".equals(field) || ("date".equals(field) && form.getDate() == null)
           || ("time".equals(field) && form.getTime() == null) || ("guests".equals(field) && form.getGuests() == null);
-      if ((!draftOnly || !optionalForDraft) && !result.hasFieldErrors(field)) {
+      if ((!saveDraft || !optionalForDraft) && !result.hasFieldErrors(field)) {
         result.rejectValue(field, "booking.invalid", violation.getMessage());
       }
     }
     if (result.hasErrors()) return redisplayBooking(model, customer, draft, form);
-    if (draftOnly) {
+    if (saveDraft) {
       String id = drafts.save(session, form, customerId(customer), draft);
       if (saveForLogin) {
         redirect.addAttribute("returnTo", "/reservations/new?draft=" + id);
         return "redirect:/login";
       }
       redirect.addAttribute("draft", id);
-      if (choose) redirect.addAttribute("choose", true);
+      redirect.addAttribute("choose", true);
       return "redirect:/reservations/new";
     }
 
@@ -402,39 +381,8 @@ public class WebController {
     return redisplayBooking(model, customer, draft, form);
   }
 
-  @PostMapping("/reservations/profile")
-  public String completeBookingProfile(@Valid @ModelAttribute("profileForm") CustomerProfileForm profile,
-      BindingResult errors, @RequestParam String draft, Authentication authentication, HttpSession session,
-      Model model, RedirectAttributes redirect) {
-    UserAccount customer = customers.signedInCustomer(authentication);
-    if (customer == null) {
-      redirect.addAttribute("returnTo", "/reservations/new");
-      return "redirect:/login";
-    }
-    ReservationForm form = drafts.read(session, draft, customer.getId());
-    if (form == null) return "redirect:/reservations/new";
-    if (customer.getVerifiedPhone() == null && customers.bookingPhone(profile.getPhone()) == null) {
-      errors.rejectValue("phone", "booking.phone.required", "Vui lòng nhập số điện thoại hợp lệ.");
-    }
-    if (!errors.hasErrors()) {
-      try {
-        customers.updateProfile(customer.getId(), profile);
-        redirect.addAttribute("draft", draft);
-        return "redirect:/reservations/new";
-      } catch (DuplicateEmailException | DataIntegrityViolationException exception) {
-        errors.rejectValue("email", "email.duplicate", "Email đã được sử dụng.");
-      }
-    }
-    model.addAttribute("form", form);
-    return redisplayBooking(model, customer, draft, form);
-  }
-
   private Long customerId(UserAccount customer) {
     return customer == null ? null : customer.getId();
-  }
-
-  private int boardGuests(Integer guests) {
-    return guests == null ? 2 : Math.clamp(guests, 1, 20);
   }
 
   private void fillContact(ReservationForm form, UserAccount customer) {
@@ -455,46 +403,24 @@ public class WebController {
   }
 
   private String redisplayBooking(Model model, UserAccount customer, String draft, ReservationForm form) {
-    var rules = reservationSchedule.rules();
-    var date = form.getDate() == null ? reservationSchedule.today() : form.getDate();
-    var slots = reservationSchedule.futureSlots(date, rules);
-    var time = slots.contains(form.getTime()) ? form.getTime() : slots.isEmpty() ? null : slots.getFirst();
-    var board = publicTableBoard.forSlot(date, time, boardGuests(form.getGuests()), rules.duration());
-    return bookingPage(model, customer, draft, form, rules, board);
+    return bookingPage(model, customer, draft, form, reservationSchedule.rules());
   }
 
   private String bookingPage(Model model, UserAccount customer, String draft, ReservationForm form,
-      ReservationSchedule.Rules rules, List<PublicTableBoardService.TableView> board) {
-    var today = reservationSchedule.today();
-    var date = form.getDate() == null ? today : form.getDate();
-    var slots = reservationSchedule.futureSlots(date, rules);
-    var time = slots.contains(form.getTime()) ? form.getTime() : slots.isEmpty() ? null : slots.getFirst();
-    boolean missing = customer != null && customers.needsBookingProfile(customer);
+      ReservationSchedule.Rules rules) {
     model.addAttribute("bookingCustomer", customer != null);
     model.addAttribute("bookingDraft", draft);
-    model.addAttribute("bookingProfileMissing", missing);
-    model.addAttribute("showBookingProfile", false);
+    model.addAttribute("bookingProfileMissing", customer != null && customers.needsBookingProfile(customer));
+    model.addAttribute("today", reservationSchedule.today());
+    model.addAttribute("timeSlots", rules.slots());
+    model.addAttribute("bookingZone", reservationSchedule.getTimeZone());
+    model.addAttribute("depositRefundTerms", reservationService.depositRefundTerms());
+    model.addAttribute("preorderCards", preorders.picker(form, null));
+    model.addAttribute("selectedVoucher", form.getVoucherCode());
     if (customer != null) {
-      model.addAttribute("bookingName", customer.getFullName());
+      model.addAttribute("voucherOffers", vouchers.offers(customer.getId(), false));
     }
-
-    var selectedTable = form.getTableId() == null ? null : restaurantTables.findById(form.getTableId()).orElse(null);
-    model.addAttribute("selectedDate", date);
-    model.addAttribute("selectedTime", time);
-    model.addAttribute("selectedGuests", boardGuests(form.getGuests()));
-    model.addAttribute("today", today);
-    model.addAttribute("timeSlots", slots);
-    model.addAttribute("duration", rules.duration());
-    model.addAttribute("tables", board);
-    model.addAttribute("selectedTable", selectedTable);
-    if (selectedTable != null) {
-      model.addAttribute("minimumDeposit", reservationService.minimumDeposit(selectedTable));
-      model.addAttribute("depositRefundTerms", reservationService.depositRefundTerms());
-      model.addAttribute("preorderCards", preorders.picker(form, null));
-      if (customer!=null) model.addAttribute("voucherOffers",vouchers.offers(customer.getId(),false));
-      model.addAttribute("selectedVoucher",form.getVoucherCode());
-    }
-    return "web/table-plan";
+    return "web/reservation-form";
   }
 
   @GetMapping("/reservations/confirmation")

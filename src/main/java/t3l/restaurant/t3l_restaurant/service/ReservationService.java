@@ -27,6 +27,7 @@ import t3l.restaurant.t3l_restaurant.entity.Reservation;
 import t3l.restaurant.t3l_restaurant.entity.ReservationEvent;
 import t3l.restaurant.t3l_restaurant.entity.ReservationEmail.Kind;
 import t3l.restaurant.t3l_restaurant.entity.RestaurantTable;
+import t3l.restaurant.t3l_restaurant.entity.TableKind;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.repository.ReservationRepository;
 import t3l.restaurant.t3l_restaurant.repository.ReservationEventRepository;
@@ -92,6 +93,17 @@ public class ReservationService {
   @Transactional(isolation = Isolation.READ_COMMITTED)
   public Reservation create(ReservationForm form, UserAccount customer) {
     return createBooking(form, customer, null, null, false);
+  }
+
+  @Transactional(readOnly = true)
+  public BigDecimal estimateWebsiteDeposit(ReservationForm form, BigDecimal preorderTotal) {
+    if (form.getGuests() == null || form.getGuests() < 1 || form.getGuests() > TableKind.MAX_CAPACITY) {
+      throw new BookingException("guests", "Vui lòng chọn số khách từ 1 đến " + TableKind.MAX_CAPACITY + ".");
+    }
+    var end = schedule.validateAndGetEnd(form);
+    var table = selectTable(tables.findByActiveTrueOrderByCodeAsc(), form.getDate().atTime(form.getTime()),
+        end, form.getGuests(), "", null, false);
+    return depositPolicy.required(table, preorderTotal);
   }
 
   @PreAuthorize("hasAnyRole('STAFF', 'ADMIN') and #actor == authentication.name")

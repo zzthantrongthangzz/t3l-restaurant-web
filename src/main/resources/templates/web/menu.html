@@ -85,8 +85,8 @@
         <a class="menu-secondary" th:href="@{${bookingReturn}}">Về chi tiết đặt bàn</a>
       </form>
       <div th:if="${menuBooking == null}" class="menu-booking-links">
-        <p>Chọn bàn để bắt đầu đặt chỗ.</p>
-        <a class="menu-primary" th:href="@{/reservations/new}">Xem bàn trống</a>
+        <p>Chọn ngày, giờ đến và số khách để gửi yêu cầu.</p>
+        <a class="menu-primary" th:href="@{/reservations/new}">Đặt bàn</a>
       </div>
     </aside>
     <a th:if="${menuBooking != null}" class="menu-selection-shortcut menu-primary" id="menu-selection-shortcut"

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import t3l.restaurant.t3l_restaurant.dto.ReservationForm;
 import t3l.restaurant.t3l_restaurant.entity.Dish;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
+import t3l.restaurant.t3l_restaurant.entity.TableKind;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.repository.DishRepository;
 import t3l.restaurant.t3l_restaurant.service.BookingException;
@@ -152,8 +153,9 @@ class ChatAssistant {
   }
 
   private Reply slots(ChatIntent intent) {
-    if (intent.guests() != null && (intent.guests() < 1 || intent.guests() > 20)) {
-      return new Reply("Mỗi yêu cầu nhận từ 1 đến 20 khách. Bạn muốn đặt cho bao nhiêu người?", "/contact");
+    if (intent.guests() != null && (intent.guests() < 1 || intent.guests() > TableKind.MAX_CAPACITY)) {
+      return new Reply("Mỗi yêu cầu nhận từ 1 đến " + TableKind.MAX_CAPACITY
+          + " khách. Bạn muốn đặt cho bao nhiêu người?", "/contact");
     }
     if (!complete(intent)) {
       var missing = new java.util.ArrayList<String>();

@@ -78,10 +78,11 @@ class ReservationLookupIntegrationTest {
   }
   private void verify(MockHttpSession session, String code) throws Exception {
     mvc.perform(post("/reservations/lookup").session(session).param("_csrf", csrf(session))
-            .param("code", code.toLowerCase(Locale.ROOT)).param("phone", "+84 901 234 567"))
-        .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/reservations/lookup?code=" + code));
+            .param("phone", "+84 901 234 567"))
+        .andExpect(status().isOk()).andExpect(model().attributeExists("lookupResults"))
+        .andExpect(content().string(org.hamcrest.Matchers.containsString(code)));
   }
-  @Test void lookupRequiresBothFieldsAndDoesNotExposePhoneInUrl() throws Exception {
+  @Test void lookupAcceptsPhoneWithoutOtpAndKeepsDetailSessionScoped() throws Exception {
     var booking = book(LocalTime.of(18, 0)); var session = new MockHttpSession();
     mvc.perform(get("/reservations/lookup").param("code", booking.getCode()).session(session))
         .andExpect(status().isOk()).andExpect(model().attributeDoesNotExist("reservation"));

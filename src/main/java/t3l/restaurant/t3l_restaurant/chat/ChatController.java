@@ -27,6 +27,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
+import t3l.restaurant.t3l_restaurant.entity.TableKind;
 import t3l.restaurant.t3l_restaurant.service.BookingException;
 import t3l.restaurant.t3l_restaurant.service.CustomerAccountService;
 import t3l.restaurant.t3l_restaurant.service.ReservationDrafts;
@@ -120,7 +121,7 @@ class ChatController {
       var intent = history.isEmpty() ? null : ChatIntent.stored(history.getLast().context());
       if (token == null || !token.equals(draftToken(session, scope)) || intent == null || !ChatAssistant.complete(intent)
           || (intent.kind() != ChatIntent.Kind.AVAILABILITY && intent.kind() != ChatIntent.Kind.DRAFT)
-          || intent.guests() < 1 || intent.guests() > 20) {
+          || intent.guests() < 1 || intent.guests() > TableKind.MAX_CAPACITY) {
         return response(HttpStatus.CONFLICT, Map.of("error", "Bạn hãy kiểm tra lại ngày, giờ và số khách trước."));
       }
       var form = ChatAssistant.form(intent);

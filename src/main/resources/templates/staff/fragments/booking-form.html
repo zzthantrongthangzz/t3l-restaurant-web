@@ -54,7 +54,7 @@
       <label th:if="${selectedTable == null}" class="staff-field">Bàn
         <select name="tableId"><option value="">Tự động chọn bàn phù hợp</option><th:block th:replace="~{staff/fragments/shell :: tableOptions(${tableOptions}, ${null})}"></th:block></select>
       </label>
-      <label class="staff-field">Số khách <input type="number" th:field="*{guests}" min="1" max="20" data-booking-focus required /></label>
+      <label class="staff-field">Số khách <input type="number" th:field="*{guests}" min="1" th:max="${T(t3l.restaurant.t3l_restaurant.entity.TableKind).MAX_CAPACITY}" data-booking-focus required /></label>
       <label th:unless="${walkIn}" class="staff-field">Ngày đến <input type="date" th:field="*{date}" th:min="${today}" required /></label>
       <label th:unless="${walkIn}" class="staff-field">Giờ đến
         <select th:field="*{time}" required><option value="">Chọn giờ</option><option th:each="slot : ${timeSlots}" th:value="${#temporals.format(slot, 'HH:mm')}" th:text="${#temporals.format(slot, 'HH:mm')}"></option></select>

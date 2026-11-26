@@ -224,14 +224,14 @@ class ReservationIntegrationTest {
     assertNotNull(saved);
     createdIds.add(saved.getId());
     assertEquals("PENDING_CONFIRMATION", saved.getStatus());
+    assertNull(saved.getPreferredArea());
+    assertEquals("0901234567", saved.getGuestPhone());
+    assertEquals("Ghế trẻ em. Không dùng đậu phộng.", saved.getNote());
     mvc.perform(get(redirect).session(guest)).andExpect(status().isOk())
         .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
         .andExpect(header().string("Referrer-Policy", "no-referrer"))
-        .andExpect(content().string(org.hamcrest.Matchers.containsString("Chờ xác nhận")))
-        .andExpect(content().string(org.hamcrest.Matchers.containsString("T3L MVC test")))
-        .andExpect(content().string(org.hamcrest.Matchers.containsString("0901234567")))
-        .andExpect(content().string(org.hamcrest.Matchers.containsString("Phòng VIP")))
-        .andExpect(content().string(org.hamcrest.Matchers.containsString("Ghế trẻ em. Không dùng đậu phộng.")));
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("Đã tiếp nhận")))
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("/reservations/lookup?code=" + code)));
     mvc.perform(get(redirect).session(new MockHttpSession())).andExpect(status().isNotFound())
         .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("T3L MVC test"))))
         .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("0901234567"))))
@@ -256,12 +256,12 @@ class ReservationIntegrationTest {
       assertEquals(state, service.findByCode(code).getStatus());
       mvc.perform(get(redirect).session(guest)).andExpect(status().isOk())
           .andExpect(content().string(org.hamcrest.Matchers.containsString(
-              "CONFIRMED".equals(state) ? "Đã xác nhận" : "Đã hủy")))
+               "CONFIRMED".equals(state) ? "đã được xác nhận" : "đã được hủy")))
           .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(
               "Yêu cầu đặt bàn đã được lưu thành công và đang chờ xác nhận."))));
     }
     assertThrows(IllegalArgumentException.class, () -> service.updateStatus(saved.getId(), "CONFIRMED"));
-    Reservation replacement = book(LocalTime.of(18, 0), 2, "Phòng VIP");
+    Reservation replacement = book(LocalTime.of(18, 0), 2, "");
     assertEquals(saved.getTable().getId(), replacement.getTable().getId());
   }
 

@@ -30,7 +30,7 @@
               <option th:each="slot : ${timeSlots}" th:value="${slot}" th:selected="${slot == selectedTime}" th:text="${#temporals.format(slot, 'HH:mm')}"></option>
             </select>
           </label>
-          <label class="staff-field">Số khách <input type="number" name="guests" min="1" max="20" th:value="${selectedGuests}" /></label>
+          <label class="staff-field">Số khách <input type="number" name="guests" min="1" th:max="${T(t3l.restaurant.t3l_restaurant.entity.TableKind).MAX_CAPACITY}" th:value="${selectedGuests}" /></label>
           <div class="table-board-filter-actions">
             <button class="staff-button" type="submit">Áp dụng</button>
             <a class="staff-button is-outline" th:href="@{${opsBase + '/tables'}}" data-board-today>Về hiện tại</a>

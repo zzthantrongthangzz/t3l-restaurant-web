@@ -241,7 +241,8 @@ class StaffOperationsIntegrationTest {
     assertEquals("SEATED", reservations.findOneById(morning).orElseThrow().getStatus());
     staff(get("/staff/tables")).andExpect(content().string(containsString("Lịch tiếp theo 19:00")));
     mvc.perform(get("/reservations/new").param("date", TODAY.toString()).param("time", "19:00"))
-        .andExpect(content().string(containsString("Đã có người đặt")))
+        .andExpect(view().name("web/reservation-form"))
+        .andExpect(model().attributeDoesNotExist("tables", "selectedTable"))
         .andExpect(content().string(not(containsString("Khách đặt trực tuyến"))));
   }
 
@@ -273,16 +274,26 @@ class StaffOperationsIntegrationTest {
   }
 
   @Test
-  void guestBuyerStaffAndAdminShareAvailabilityForTheSameWindow() throws Exception {
+  void websiteAssignsTablesAndOnlyStaffAndAdminSeeTheBoard() throws Exception {
     var guest = new MockHttpSession();
     String draft = (String) mvc.perform(get("/reservations/new").session(guest)
         .param("date", TODAY.toString()).param("time", "14:00").param("guests", "3").param("tableId", tableOne.toString()))
-        .andExpect(view().name("web/table-plan")).andExpect(content().string(containsString("Yêu cầu đặt S01")))
+        .andExpect(view().name("web/reservation-form"))
+        .andExpect(content().string(not(containsString("S01"))))
         .andReturn().getModelAndView().getModel().get("bookingDraft");
     mvc.perform(post("/reservations").session(guest).with(csrf()).param("draft", draft)
         .param("guestName", "Khách kiểm thử sơ đồ").param("guestPhone", "0901234567").param("date", TODAY.toString())
-        .param("time", "14:00").param("guests", "3").param("tableId", tableOne.toString()).param("consentAccepted", "true"))
+        .param("time", "14:00").param("guests", "3").param("tableId", smallTable.toString()).param("consentAccepted", "true"))
         .andExpect(redirectedUrlPattern("/reservations/confirmation?code=*"));
+    assertEquals(tableOne.longValue(), id("select table_id from reservations"));
+    mvc.perform(post("/reservations").with(csrf()).param("guestName", "Khách thứ hai").param("guestPhone", "0901234568")
+        .param("date", TODAY.toString()).param("time", "14:00").param("guests", "3").param("consentAccepted", "true"))
+        .andExpect(redirectedUrlPattern("/reservations/confirmation?code=*"));
+    mvc.perform(post("/reservations").with(csrf()).param("guestName", "Khách chưa có chỗ").param("guestPhone", "0901234569")
+        .param("date", TODAY.toString()).param("time", "14:00").param("guests", "3").param("consentAccepted", "true"))
+        .andExpect(view().name("web/reservation-form"))
+        .andExpect(content().string(containsString("không còn bàn phù hợp trong khung giờ này")))
+        .andExpect(content().string(containsString("0901234569")));
     mvc.perform(post("/reservations").session(guest).with(csrf()).param("draft", draft)
         .param("guestName", "Khách kiểm thử sơ đồ").param("guestPhone", "0901234567").param("date", TODAY.toString())
         .param("time", "16:00").param("guests", "3").param("tableId", tableOne.toString()).param("consentAccepted", "true"))
@@ -290,7 +301,7 @@ class StaffOperationsIntegrationTest {
 
     assertBoardState("15:30", "PENDING");
     assertBoardState("16:00", "FREE");
-    var id = id("select id from reservations");
+    var id = id("select id from reservations where table_id=" + tableOne);
     step(id, "CONFIRMED").andExpect(flash().attributeExists("notice"));
     assertBoardState("15:30", "RESERVED");
     step(id, "CANCELLED").andExpect(flash().attributeExists("notice"));
@@ -298,23 +309,16 @@ class StaffOperationsIntegrationTest {
   }
 
   private void assertBoardState(String time, String state) throws Exception {
-    assertBoardState(time, state, state);
-  }
-
-  private void assertBoardState(String time, String state, String workspaceState) throws Exception {
     var customer = accounts.findByUsername("booking-board-buyer").orElseGet(() -> accounts.save(
         UserAccount.customer("Booking QA", null, "0911111111", "booking-board-buyer", "unused")));
     for (boolean signedIn : List.of(false, true)) {
       var request = get("/reservations/new").param("date", TODAY.toString()).param("time", time).param("guests", "3");
       if (signedIn) request.with(user(customer.getUsername()).roles("BUYER"));
-      mvc.perform(request).andExpect(status().isOk()).andExpect(view().name("web/table-plan"))
+      mvc.perform(request).andExpect(status().isOk()).andExpect(view().name("web/reservation-form"))
           .andExpect(content().string(not(containsString("Khách kiểm thử sơ đồ"))))
-          .andExpect(result -> {
-            var board = (List<?>) result.getModelAndView().getModel().get("tables");
-            var cards = board.stream().map(PublicTableBoardService.TableView.class::cast).toList();
-            assertEquals(state, cards.stream().filter(card -> card.table().getId().equals(tableOne)).findFirst().orElseThrow().state());
-            assertEquals("TOO_SMALL", cards.stream().filter(card -> card.table().getId().equals(smallTable)).findFirst().orElseThrow().state());
-          });
+          .andExpect(content().string(not(containsString("table-plan-grid"))))
+          .andExpect(content().string(not(containsString("otpCode"))))
+          .andExpect(model().attributeDoesNotExist("tables", "selectedTable"));
     }
     for (String role : List.of("staff", "admin")) {
       mvc.perform(get("/" + role + "/tables").with(user(role).roles(role.toUpperCase(java.util.Locale.ROOT)))
@@ -322,7 +326,7 @@ class StaffOperationsIntegrationTest {
           .andExpect(status().isOk()).andExpect(result -> {
             var board = (List<?>) result.getModelAndView().getModel().get("board");
             var cards = board.stream().map(StaffWorkspaceService.TableView.class::cast).toList();
-            assertEquals(workspaceState,
+            assertEquals(state,
                 cards.stream().filter(card -> card.table().getId().equals(tableOne)).findFirst().orElseThrow().state().name());
           });
     }
@@ -334,7 +338,7 @@ class StaffOperationsIntegrationTest {
     long booking = walkIn("Khách ở lại lâu", tableOne);
     assertEquals(Reservation.SEATED, reservations.findOneById(booking).orElseThrow().getStatus());
     clock.at(TODAY.atTime(13, 5));
-    assertBoardState("13:30", "OCCUPIED", "RESERVED");
+    assertBoardState("13:30", "RESERVED");
     assertBoardState("14:00", "FREE");
     step(booking, "COMPLETED").andExpect(flash().attributeExists("notice"));
     assertBoardState("13:30", "FREE");
@@ -437,6 +441,7 @@ class StaffOperationsIntegrationTest {
   @Test
   void guestCannotBypassVipDepositAndLateTransferReleasesTableThenQueuesRefund() throws Exception {
     jdbc.update("update restaurant_tables set table_type='Phòng VIP' where id=?", tableOne);
+    jdbc.update("update restaurant_tables set active=false where id=?", tableTwo);
     var session = new MockHttpSession();
     String receipt = mvc.perform(post("/reservations").session(session).with(csrf())
         .param("guestName", "Khách thử cọc").param("guestPhone", "0911111111")
@@ -816,6 +821,11 @@ class StaffOperationsIntegrationTest {
     mvc.perform(post("/account/vouchers/quote").with(user(buyer.getUsername()).roles("BUYER")).with(csrf())
         .param("tableId", tableOne.toString()).param("preorderQuantities[" + dishId + "]", "2")
         .param("voucherCode", "SAFEQUOTE").param("discount", "500000"))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.discount").value("50000"))
+        .andExpect(jsonPath("$.deposit").value("315000")).andExpect(jsonPath("$.balance").value("135000"));
+    mvc.perform(post("/reservations/quote").with(user(buyer.getUsername()).roles("BUYER")).with(csrf())
+        .param("date", TODAY.toString()).param("time", "14:00").param("guests", "3")
+        .param("preorderQuantities[" + dishId + "]", "2").param("voucherCode", "SAFEQUOTE"))
         .andExpect(status().isOk()).andExpect(jsonPath("$.discount").value("50000"))
         .andExpect(jsonPath("$.deposit").value("315000")).andExpect(jsonPath("$.balance").value("135000"));
   }

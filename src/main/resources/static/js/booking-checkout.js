@@ -22,7 +22,14 @@ window.t3lPage.register(({ signal, state }) => {
   const menuBar = panels[1].querySelector('.checkout-menu-actions');
   const cart = panels[1].querySelector('.checkout-cart');
   const reviewTotal = form.querySelector('[data-booking-review-total]');
-  const contactInputs = [...panels[0].querySelectorAll('input, textarea')];
+  const detailsInputs = [...panels[0].querySelectorAll('input, select, textarea')];
+  const { date, time, guests } = form.elements;
+  const timeHint = form.querySelector('#booking-time-hint');
+  const defaultTimeHint = timeHint.textContent;
+  const restaurantClock = new Intl.DateTimeFormat('en-GB', {
+    timeZone: form.dataset.zone, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+  });
   const pageUrl = location.pathname + location.search;
   const saved = state.booking?.pageUrl === pageUrl ? state.booking : null;
   const currency = new Intl.NumberFormat('vi-VN');
@@ -33,13 +40,26 @@ window.t3lPage.register(({ signal, state }) => {
   let quoteTimer;
 
   if (saved) {
-    for (const input of [...contactInputs, kitchenNote, code].filter(Boolean)) {
+    for (const input of [...detailsInputs, kitchenNote, code].filter(Boolean)) {
       input.value = saved.values[input.name] ?? input.value;
     }
     consent.checked = saved.consent;
   }
   form.noValidate = true;
   form.dataset.bookingReady = '';
+
+  function updateTimeSlots() {
+    const parts = Object.fromEntries(restaurantClock.formatToParts(new Date()).map(({ type, value }) => [type, value]));
+    const today = `${parts.year}-${parts.month}-${parts.day}`;
+    const now = `${parts.hour}:${parts.minute}`;
+    date.min = today;
+    for (const option of time.options) {
+      option.disabled = !!option.value && date.value === today && option.value <= now;
+    }
+    if (time.selectedOptions[0]?.disabled) time.value = '';
+    timeHint.textContent = [...time.options].some(option => option.value && !option.disabled)
+      ? defaultTimeHint : 'Hôm nay đã hết giờ nhận khách. Vui lòng chọn ngày khác.';
+  }
 
   function excludeCart(exclude) {
     for (const input of quantities.children) input.disabled = exclude;
@@ -63,7 +83,10 @@ window.t3lPage.register(({ signal, state }) => {
     }
     for (const output of form.querySelectorAll('[data-booking-copy]')) {
       const value = form.elements[output.dataset.bookingCopy].value.trim();
-      output.textContent = value;
+      const field = output.dataset.bookingCopy;
+      if (field === 'date') output.textContent = value.split('-').reverse().join('/');
+      else if (field === 'guests') output.textContent = `${value} khách`;
+      else output.textContent = value;
       const optional = output.closest('[data-booking-optional]');
       if (optional) optional.hidden = !value;
     }
@@ -74,16 +97,16 @@ window.t3lPage.register(({ signal, state }) => {
     quoteRequest?.abort();
   }
 
-  async function requestQuote(url, voucherCode, request) {
+  async function requestQuote(voucherCode, request) {
     const body = new URLSearchParams();
     for (const input of quantities.children) {
       if (!input.disabled) body.set(input.name, input.value);
     }
-    body.set('tableId', form.elements.tableId.value);
+    for (const input of [date, time, guests]) body.set(input.name, input.value);
     if (voucherCode) body.set('voucherCode', voucherCode);
     const csrf = form.elements._csrf;
     if (csrf) body.set(csrf.name, csrf.value);
-    const response = await fetch(url, {
+    const response = await fetch(form.dataset.quoteUrl, {
       method: 'POST', body, signal: request.signal, credentials: 'same-origin', headers: { Accept: 'application/json' }
     });
     if (response.redirected || !response.headers.get('content-type')?.includes('application/json')) {
@@ -129,14 +152,13 @@ window.t3lPage.register(({ signal, state }) => {
       quoteRequest = request;
       try {
         let voucherIssue = '';
-        let response = await requestQuote(voucherCode ? voucher.querySelector('[data-voucher-url]').dataset.voucherUrl
-          : form.dataset.quoteUrl, voucherCode, request);
+        let response = await requestQuote(voucherCode, request);
         if (request.signal.aborted) return;
         if (voucherCode && !response.ok) {
           const message = response.result.message || 'Chưa thể kiểm tra mã voucher.';
           if (reviewing) voucherStatus(message, true);
           else voucherIssue = message;
-          response = await requestQuote(form.dataset.quoteUrl, '', request);
+          response = await requestQuote('', request);
         } else if (voucherCode && reviewing) {
           voucherStatus('Mã hợp lệ với giỏ hiện tại. T3L giữ lượt dùng khi yêu cầu được lưu.');
           if (explicit) document.dispatchEvent(new Event('t3l:voucher-applied'));
@@ -178,8 +200,9 @@ window.t3lPage.register(({ signal, state }) => {
     }
   }
 
-  function validateContact() {
-    const invalid = contactInputs.find(input => !input.validity.valid);
+  function validateDetails() {
+    updateTimeSlots();
+    const invalid = detailsInputs.find(input => !input.validity.valid);
     if (!invalid) return true;
     if (current !== 1) showStep(1);
     invalid.reportValidity();
@@ -187,7 +210,7 @@ window.t3lPage.register(({ signal, state }) => {
   }
 
   function advance(step, skip = false) {
-    if (submitting || (step > current && !validateContact())) return;
+    if (submitting || (step > current && !validateDetails())) return;
     if (step === 3) skipCart = skip && quantities.childElementCount > 0;
     showStep(step);
   }
@@ -205,6 +228,8 @@ window.t3lPage.register(({ signal, state }) => {
     }
   }
 
+  date.addEventListener('change', updateTimeSlots);
+  time.addEventListener('focus', updateTimeSlots);
   form.addEventListener('click', event => {
     const button = event.target.closest('button');
     if (!button || submitting) return;
@@ -217,7 +242,7 @@ window.t3lPage.register(({ signal, state }) => {
     if (event.key !== 'Enter' || event.isComposing || !event.target.matches('input:not([type=checkbox])')) return;
     event.preventDefault();
     if (event.target === code) checkVoucher();
-    else if (current === 1) advance(2);
+    else if (current === 1) advance(3, true);
   });
   code?.addEventListener('input', () => {
     syncOffers();
@@ -246,7 +271,7 @@ window.t3lPage.register(({ signal, state }) => {
       return;
     }
     if (button === confirm) {
-      if (current !== 3 || !validateContact() || !consent.reportValidity()) {
+      if (current !== 3 || !validateDetails() || !consent.reportValidity()) {
         event.preventDefault();
         return;
       }
@@ -280,7 +305,7 @@ window.t3lPage.register(({ signal, state }) => {
   document.addEventListener('t3l:page-save', event => {
     event.detail.booking = {
       pageUrl, step: current, skipCart, consent: consent.checked,
-      values: Object.fromEntries([...contactInputs, kitchenNote, code].filter(Boolean).map(input => [input.name, input.value]))
+      values: Object.fromEntries([...detailsInputs, kitchenNote, code].filter(Boolean).map(input => [input.name, input.value]))
     };
   }, { signal });
   const root = document.documentElement;
@@ -297,6 +322,7 @@ window.t3lPage.register(({ signal, state }) => {
     root.style.removeProperty('--checkout-menu-bar-size');
   }, { once: true });
   syncOffers();
+  updateTimeSlots();
   showStep(saved?.step ?? Number(form.dataset.startStep), false);
   form.querySelector('[data-booking-errors]')?.focus();
 });

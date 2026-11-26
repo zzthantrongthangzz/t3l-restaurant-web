@@ -10,8 +10,9 @@ public enum TableKind {
   SMALL("Bàn nhỏ", 4),
   MEDIUM("Bàn vừa", 8),
   LARGE("Bàn lớn", 16),
-  VIP("Phòng VIP", 0);
+  VIP("Phòng VIP", TableKind.MAX_CAPACITY);
 
+  public static final int MAX_CAPACITY = 30;
   private final String label;
   private final int fixedCapacity;
 

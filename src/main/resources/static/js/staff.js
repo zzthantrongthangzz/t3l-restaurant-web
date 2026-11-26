@@ -108,9 +108,7 @@ window.t3lPage.register(({ signal }) => {
   if (tableType) {
     const capacity = tableType.form.elements.capacity;
     const update = () => {
-      const fixed = Number(tableType.selectedOptions[0].dataset.capacity);
-      capacity.readOnly = fixed > 0;
-      if (fixed > 0) capacity.value = fixed;
+      capacity.value = tableType.selectedOptions[0].dataset.capacity;
     };
     tableType.addEventListener('change', update);
     update();

@@ -30,6 +30,7 @@ import t3l.restaurant.t3l_restaurant.dto.ReservationForm;
 import t3l.restaurant.t3l_restaurant.dto.ReservationUpdateForm;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
 import t3l.restaurant.t3l_restaurant.entity.RestaurantTable;
+import t3l.restaurant.t3l_restaurant.entity.TableKind;
 import t3l.restaurant.t3l_restaurant.repository.DishRepository;
 import t3l.restaurant.t3l_restaurant.repository.RestaurantTableRepository;
 import t3l.restaurant.t3l_restaurant.service.BookingException;
@@ -189,7 +190,7 @@ public class StaffController {
     var form = new ReservationForm();
     form.setDate(date == null ? schedule.today() : date);
     form.setTime(time);
-    form.setGuests(Math.clamp(guests, 1, 20));
+    form.setGuests(Math.clamp(guests, 1, TableKind.MAX_CAPACITY));
     model.addAttribute("bookingForm", form);
     return newBookingPage(tableId, walkIn, popup, actor, model);
   }
@@ -362,7 +363,7 @@ public class StaffController {
     var rules = schedule.rules();
     var slots = rules.slots();
     LocalTime selectedTime = time != null && slots.contains(time) ? time : null;
-    int selectedGuests = Math.clamp(guests, 1, 20);
+    int selectedGuests = Math.clamp(guests, 1, TableKind.MAX_CAPACITY);
     boolean shiftOpen = shifts.current(actor.getName()) != null;
     boolean adminBoard = "/admin".equals(operationsBase());
     var board = workspace.board(selectedDate, selectedTime, selectedGuests, shiftOpen);
