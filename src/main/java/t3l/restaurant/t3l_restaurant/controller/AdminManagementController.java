@@ -33,12 +33,15 @@ public class AdminManagementController {
   @GetMapping("/accounts")
   public String accounts(@RequestParam(defaultValue = "") String q, @RequestParam(defaultValue = "") String role,
       @RequestParam(required = false) Boolean enabled, @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "") String state,
       Authentication authentication, Model model) {
-    if (!List.of("", "STAFF", "ADMIN", "CUSTOMER").contains(role)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-    model.addAttribute("rows", accounts.search(role, enabled, q, page));
+    if (!List.of("", "STAFF", "ADMIN", "CUSTOMER").contains(role)
+        || !List.of("", "ACTIVE", "LOCKED", "ARCHIVED").contains(state)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+    if (state.isEmpty() && enabled != null) state = enabled ? "ACTIVE" : "LOCKED";
+    model.addAttribute("rows", accounts.search(role, state, q, page));
     model.addAttribute("q", q);
     model.addAttribute("role", role);
-    model.addAttribute("enabled", enabled);
+    model.addAttribute("state", state);
     model.addAttribute("actor", authentication.getName());
     return "admin/accounts";
   }
@@ -90,6 +93,14 @@ public class AdminManagementController {
       @RequestParam(required = false) String reason, RedirectAttributes redirect) {
     return apply(accountList(id), enabled ? "Đã mở khóa tài khoản." : "Đã khóa tài khoản.",
         () -> accounts.setEnabled(id, enabled, reason), redirect);
+  }
+
+  @PostMapping("/accounts/{id}/archive")
+  public String accountArchive(@PathVariable Long id, @RequestParam boolean archived,
+      @RequestParam(required = false) String reason, RedirectAttributes redirect) {
+    return apply("/admin/accounts/" + id, archived ? "Đã lưu trữ tài khoản."
+            : "Đã khôi phục tài khoản. Hãy mở khóa khi cần cấp lại quyền đăng nhập.",
+        () -> accounts.setArchived(id, archived, reason), redirect);
   }
 
   private String accountList(Long id) {

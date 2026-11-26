@@ -34,6 +34,7 @@
           <div class="table-board-filter-actions">
             <button class="staff-button" type="submit">Áp dụng</button>
             <a class="staff-button is-outline" th:href="@{${opsBase + '/tables'}}" data-board-today>Về hiện tại</a>
+            <a class="staff-button is-outline" th:href="@{${opsBase + '/tables'}}" data-board-reset>Làm mới</a>
           </div>
         </form>
       </div>
@@ -211,6 +212,6 @@
         <div data-table-content></div>
       </dialog>
     </main>
-    <script data-page-script defer th:src="@{/js/table-board.js(v=waiting-bookings)}"></script>
+    <script data-page-script defer th:src="@{/js/table-board.js(v=reset-filters)}"></script>
   </body>
 </html>

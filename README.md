@@ -124,6 +124,12 @@ Trước khi triển khai, DBA chạy `29_runtime_grants.sql`, tạo tài khoả
 
 Sao lưu MySQL và MongoDB, lưu bản sao cùng nhật ký ngoài máy chủ ứng dụng. Thử khôi phục vào database tách biệt và đối chiếu số bản ghi đặt bàn, tài khoản, hóa đơn và nhật ký trước khi áp dụng vào dữ liệu đang vận hành.
 
+## Quản lý tài khoản
+
+Admin vào **Tài khoản** để khóa, lưu trữ hoặc khôi phục tài khoản. Lưu trữ yêu cầu lý do, chấm dứt quyền đăng nhập và giữ mã, lịch sử đặt bàn, hóa đơn cùng nhật ký. Dùng bộ lọc **Đã lưu trữ** để tìm và khôi phục. Sau khi khôi phục, quản trị viên có thể mở khóa riêng.
+
+Docker Compose tự nạp `database/mysql/32_account_archive.sql` khi khởi tạo MySQL. Với database đã có, chạy script này một lần bằng tài khoản DBA trước khi chạy phiên bản mới. Script có thể chạy lại và giữ nguyên dữ liệu cũ.
+
 ## Chính sách tiền cọc
 
 - Bàn thường chỉ cần cọc khi đặt món trước. Bàn lớn cọc tối thiểu 300.000 đ, bàn VIP tối thiểu 500.000 đ. Cọc phải trả là mức cao hơn giữa mức tối thiểu của bàn và 70% tổng tiền món đặt trước, làm tròn lên đến đồng. Mức tối thiểu theo loại bàn cũng áp dụng cho khách vãng lai. Khách đến trực tiếp do nhân viên tiếp nhận được miễn cọc.

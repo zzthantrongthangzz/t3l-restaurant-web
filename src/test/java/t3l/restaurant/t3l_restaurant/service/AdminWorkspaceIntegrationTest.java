@@ -266,6 +266,32 @@ class AdminWorkspaceIntegrationTest {
   }
 
   @Test
+  void restoresTheSameCustomerProfileWithoutUnlockingIt() throws Exception {
+    var customer = accounts.saveAndFlush(UserAccount.customer("Khách lưu trữ", "archive-qa@example.test",
+        "0901234345", "qa-archive", "unused"));
+    String base = "/admin/accounts/" + customer.getId();
+    admin(post(base + "/archive").param("archived", "true")).andExpect(flash().attributeExists("error"));
+    admin(post(base + "/archive").param("archived", "true").param("reason", "Lưu hồ sơ theo yêu cầu"))
+        .andExpect(flash().attributeExists("notice"));
+    admin(get("/admin/accounts").param("role", "CUSTOMER").param("q", "qa-archive"))
+        .andExpect(content().string(not(containsString("Khách lưu trữ"))));
+    admin(get("/admin/accounts").param("role", "CUSTOMER").param("state", "ARCHIVED").param("q", "qa-archive"))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Khôi phục")));
+    admin(get(base)).andExpect(status().isOk())
+        .andExpect(content().string(containsString("Lưu trữ lúc")));
+    admin(post(base + "/availability").param("enabled", "true")).andExpect(flash().attributeExists("error"));
+    admin(post(base + "/archive").param("archived", "false").param("reason", "Khách yêu cầu sử dụng lại"))
+        .andExpect(flash().attributeExists("notice"));
+    var restored = accounts.findByEmailIgnoreCase(customer.getEmail()).orElseThrow();
+    assertEquals(customer.getId(), restored.getId());
+    assertNull(restored.getArchivedAt());
+    assertFalse(restored.isEnabled());
+    admin(post(base + "/availability").param("enabled", "true")).andExpect(flash().attributeExists("notice"));
+    admin(get("/admin/activity").param("action", "khôi phục tài khoản"))
+        .andExpect(content().string(containsString("Khách yêu cầu sử dụng lại")));
+  }
+
+  @Test
   void synchronizesMenuAreaAndSettingsWithoutInvalidatingConfirmedBookings() throws Exception {
     var section = id("select id from restaurant_sections where kind='MENU'");
     admin(post("/admin/categories").param("kind", "MENU").param("id", "" + section).param("name", "Món đã ẩn"))

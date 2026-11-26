@@ -53,11 +53,13 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
 
   @Query("""
       select a from UserAccount a where ((:role = '' and a.role in ('STAFF', 'ADMIN')) or a.role = :role)
-        and (:enabled is null or a.enabled = :enabled)
+        and ((:state = 'ARCHIVED' and a.archivedAt is not null) or
+          (a.archivedAt is null and (:state = '' or (:state = 'ACTIVE' and a.enabled = true)
+            or (:state = 'LOCKED' and a.enabled = false))))
         and (lower(a.username) like :pattern escape '!' or lower(coalesce(a.fullName,'')) like :pattern escape '!'
           or lower(coalesce(a.email,'')) like :pattern escape '!' or coalesce(a.phone,'') like :pattern escape '!')
       """)
-  Page<UserAccount> searchAdmin(@Param("role") String role, @Param("enabled") Boolean enabled,
+  Page<UserAccount> searchAdmin(@Param("role") String role, @Param("state") String state,
       @Param("pattern") String pattern, Pageable pageable);
 
 }

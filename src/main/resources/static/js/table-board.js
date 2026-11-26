@@ -191,7 +191,7 @@ window.t3lPage.register(({ signal, state }) => {
   searchGuest.addEventListener('input', applyFilters);
   kindFilter.addEventListener('change', applyFilters);
 
-  async function refreshBoard(url, { body, bookingStep = false, fromHistory = false, quiet = false } = {}) {
+  async function refreshBoard(url, { body, bookingStep = false, fromHistory = false, quiet = false, resetFilters = false } = {}) {
     if (writing) {
       if (fromHistory) queuedHistory = url;
       return;
@@ -233,6 +233,12 @@ window.t3lPage.register(({ signal, state }) => {
       filters.elements.time.options[0].textContent = nextFilters.elements.time.options[0].textContent;
       for (const name of scheduleFields) {
         filters.elements[name].value = nextFilters.elements[name].value;
+      }
+      if (resetFilters) {
+        searchTable.value = '';
+        searchGuest.value = '';
+        kindFilter.value = '';
+        statusFilter = '';
       }
       appliedSchedule = scheduleValues();
       applyFilters();
@@ -287,6 +293,11 @@ window.t3lPage.register(({ signal, state }) => {
     const guests = filters.elements.guests.value;
     if (guests !== '1') url.searchParams.set('guests', guests);
     refreshBoard(url);
+  });
+  filters.querySelector('[data-board-reset]').addEventListener('click', event => {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    refreshBoard(new URL(event.currentTarget.href), { resetFilters: true });
   });
   board.addEventListener('submit', event => {
     if (event.defaultPrevented || !event.target.matches('[data-board-write], [data-booking-step]')) return;

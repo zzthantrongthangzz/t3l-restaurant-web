@@ -39,6 +39,7 @@ services:
       - ./database/mysql/28_employee_audit.sql:/docker-entrypoint-initdb.d/28_employee_audit.sql:ro
       - ./database/mysql/30_large_tables.sql:/docker-entrypoint-initdb.d/30_large_tables.sql:ro
       - ./database/mysql/31_operating_workflows.sql:/docker-entrypoint-initdb.d/31_operating_workflows.sql:ro
+      - ./database/mysql/32_account_archive.sql:/docker-entrypoint-initdb.d/32_account_archive.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${MYSQL_ROOT_PASSWORD:-change-this-root-password}"]
       interval: 10s

@@ -1,6 +1,7 @@
 package t3l.restaurant.t3l_restaurant.entity;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -44,6 +45,9 @@ public class UserAccount {
   @org.hibernate.annotations.ColumnDefault("0")
   private long authVersion;
 
+  @Column(name = "archived_at")
+  private LocalDateTime archivedAt;
+
   public UserAccount(String username, String password, String role) {
     this.username = username;
     this.password = password;
@@ -63,6 +67,15 @@ public class UserAccount {
     this.role = role;
     this.enabled = enabled;
     if (encodedPassword != null) this.password = encodedPassword;
+  }
+
+  public void archive(LocalDateTime now) {
+    manage(role, false, null);
+    archivedAt = now;
+  }
+
+  public void restore() {
+    archivedAt = null;
   }
 
   public void updateCustomerContact(String fullName, String email, String phone) {

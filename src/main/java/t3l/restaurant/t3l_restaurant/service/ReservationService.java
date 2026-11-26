@@ -129,6 +129,12 @@ public class ReservationService {
       throw new BookingException(violation.getPropertyPath().toString(), violation.getMessage());
     });
     List<RestaurantTable> active = tables.lockActiveTables();
+    if (customer != null) {
+      var current = entityManager.find(UserAccount.class, customer.getId(), jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+      if (current == null || current.getArchivedAt() != null || (actor == null && !current.isEnabled())) {
+        throw new BookingException(null, "Tài khoản khách hàng hiện không khả dụng.");
+      }
+    }
     LocalDateTime start = LocalDateTime.of(form.getDate(), form.getTime());
     LocalDateTime end = walkIn ? start.plusMinutes(schedule.getDurationMinutes()) : schedule.validateAndGetEnd(form);
     String preferred = form.getPreferredArea() == null ? "" : form.getPreferredArea().trim();

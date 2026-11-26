@@ -1,9 +1,12 @@
-<dialog xmlns:th="http://www.thymeleaf.org" th:fragment="confirm(id, title, summary, action, danger)"
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="confirm(id, title, summary, action, danger)">
+  <dialog th:replace="~{:: reason(${id}, ${title}, ${summary}, ${action}, ${danger}, false)}"></dialog>
+</th:block>
+<dialog xmlns:th="http://www.thymeleaf.org" th:fragment="reason(id, title, summary, action, danger, required)"
     th:id="${id}" class="staff-reason-dialog" data-reason-dialog th:attr="aria-labelledby=${id + '-title'}">
   <h2 th:id="${id + '-title'}" th:text="${title}"></h2>
   <p th:text="${summary}"></p>
-  <label class="staff-field">Lý do (tùy chọn)
-    <textarea name="reason" rows="3" maxlength="250" placeholder="Nhập lý do…" autofocus></textarea>
+  <label class="staff-field"><span th:text="${required ? 'Lý do' : 'Lý do (tùy chọn)'}"></span>
+    <textarea name="reason" rows="3" maxlength="250" placeholder="Nhập lý do…" th:required="${required}" autofocus></textarea>
   </label>
   <div class="staff-actions">
     <button class="staff-button is-outline" type="button" data-reason-cancel>Quay lại</button>

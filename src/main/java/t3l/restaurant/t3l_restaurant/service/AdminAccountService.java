@@ -2,6 +2,7 @@ package t3l.restaurant.t3l_restaurant.service;
 
 import jakarta.validation.Validator;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
@@ -26,17 +27,21 @@ public class AdminAccountService {
   private final PasswordEncoder passwords;
   private final Validator validator;
   private final AdminAudit audit;
+  private final ReservationSchedule schedule;
 
-  public record AccountView(Long id, String username, String fullName, String email, String phone, String role, boolean enabled) {
+  public record AccountView(Long id, String username, String fullName, String email, String phone, String role,
+                            boolean enabled, LocalDateTime archivedAt) {
     public boolean isCustomer() { return "BUYER".equals(role); }
+    public boolean isArchived() { return archivedAt != null; }
+    public String getStatusLabel() { return isArchived() ? "Đã lưu trữ" : enabled ? "Hoạt động" : "Đã khóa"; }
     public String getRoleLabel() { return isCustomer() ? "Khách hàng" : "ADMIN".equals(role) ? "Quản trị viên" : "Nhân viên"; }
   }
 
   @Transactional(readOnly = true)
-  public Page<AccountView> search(String role, Boolean enabled, String text, int page) {
+  public Page<AccountView> search(String role, String state, String text, int page) {
     String storedRole = "CUSTOMER".equals(role) ? "BUYER" : role;
     if (!List.of("", "BUYER", "STAFF", "ADMIN").contains(storedRole)) throw new IllegalArgumentException("Vai trò không hợp lệ.");
-    return accounts.searchAdmin(storedRole, enabled, AdminInput.like(text),
+    return accounts.searchAdmin(storedRole, state, AdminInput.like(text),
         PageRequest.of(Math.max(page, 0), 20, Sort.by("username"))).map(this::view);
   }
 
@@ -63,24 +68,24 @@ public class AdminAccountService {
       password = null;
     } else {
       account = accounts.lockById(id).orElseThrow(() -> missing());
+      requireNotArchived(account);
       if ("BUYER".equals(account.getRole())) throw new IllegalArgumentException("Thông tin hồ sơ khách được quản lý trong tài khoản khách hàng.");
-      protectAdministrator(account, form.getRole(), form.isEnabled(), actor, administrators);
+      protectAdministrator(account, form.getRole(), account.isEnabled(), actor, administrators);
     }
     String email = AdminInput.optional(form.getEmail());
     if (email != null && accounts.findByEmailIgnoreCase(email).filter(other -> !Objects.equals(other.getId(), id)).isPresent()) {
       throw new IllegalArgumentException("Email đã được dùng cho tài khoản khác.");
     }
     String oldRole = account.getRole();
-    boolean oldEnabled = account.isEnabled();
     account.updateCustomerContact(form.getFullName().strip(), email, AdminInput.optional(form.getPhone()));
-    account.manage(form.getRole(), form.isEnabled(), password == null || password.isBlank() ? null : encode(password));
+    account.manage(form.getRole(), id == null ? form.isEnabled() : account.isEnabled(),
+        password == null || password.isBlank() ? null : encode(password));
     accounts.saveAndFlush(account);
     String details = id == null ? "Đã tạo tài khoản với vai trò " + roleLabel(account.getRole()) + "."
         : "Đã cập nhật thông tin tài khoản.";
     if (id != null && !oldRole.equals(account.getRole())) {
       details += " Vai trò đã đổi từ " + roleLabel(oldRole) + " sang " + roleLabel(account.getRole()) + ".";
     }
-    if (oldEnabled != account.isEnabled()) details += account.isEnabled() ? " Đã mở khóa tài khoản." : " Đã khóa tài khoản.";
     if (id != null && password != null && !password.isBlank()) details += " Đã đặt lại mật khẩu.";
     audit.record(id == null ? "Tạo tài khoản" : "Cập nhật tài khoản", "ACCOUNT", account.getId(), account.getUsername(),
         details);
@@ -91,13 +96,41 @@ public class AdminAccountService {
     var administrators = accounts.lockAdministrators();
     String actor = requireActiveAdministrator(administrators);
     var account = accounts.lockById(id).orElseThrow(() -> missing());
+    requireNotArchived(account);
     if (account.isEnabled() == enabled) return;
+    protectAdministrator(account, account.getRole(), enabled, actor, administrators);
     String details = enabled ? "Đã mở khóa tài khoản. Người dùng có thể đăng nhập lại."
         : "Đã khóa tài khoản và kết thúc các phiên đăng nhập hiện tại.";
     audit.record(enabled ? "Mở khóa tài khoản" : "Khóa tài khoản", "ACCOUNT", id, account.getUsername(),
         AdminAudit.withReason(details, reason));
-    protectAdministrator(account, account.getRole(), enabled, actor, administrators);
     account.manage(account.getRole(), enabled, null);
+  }
+
+  @Transactional(isolation = Isolation.READ_COMMITTED)
+  public void setArchived(Long id, boolean archived, String reason) {
+    var administrators = accounts.lockAdministrators();
+    String actor = requireActiveAdministrator(administrators);
+    var account = accounts.lockById(id).orElseThrow(() -> missing());
+    if ((account.getArchivedAt() != null) == archived) return;
+    if (reason == null || reason.isBlank() || reason.strip().length() > 250) {
+      throw new IllegalArgumentException("Vui lòng nhập lý do từ 1 đến 250 ký tự.");
+    }
+    if (archived) {
+      if (account.getUsername().equals(actor)) throw new IllegalArgumentException("Không thể tự lưu trữ tài khoản quản trị.");
+      protectAdministrator(account, account.getRole(), false, actor, administrators);
+      account.archive(LocalDateTime.now(schedule.getClock()));
+    } else {
+      account.restore();
+    }
+    audit.record(archived ? "Lưu trữ tài khoản" : "Khôi phục tài khoản", "ACCOUNT", id, account.getUsername(),
+        AdminAudit.withReason(archived ? "Đã lưu trữ tài khoản, kết thúc phiên đăng nhập và giữ lại lịch sử."
+            : "Đã khôi phục tài khoản với mã cũ. Tài khoản vẫn khóa cho đến khi quản trị viên mở khóa.", reason));
+  }
+
+  private void requireNotArchived(UserAccount account) {
+    if (account.getArchivedAt() != null) {
+      throw new IllegalArgumentException("Hãy khôi phục tài khoản đã lưu trữ trước khi cập nhật hoặc mở khóa.");
+    }
   }
 
   private String roleLabel(String role) {
@@ -133,6 +166,6 @@ public class AdminAccountService {
 
   private AccountView view(UserAccount account) {
     return new AccountView(account.getId(), account.getUsername(), account.getFullName(), account.getEmail(),
-        account.getPhone(), account.getRole(), account.isEnabled());
+        account.getPhone(), account.getRole(), account.isEnabled(), account.getArchivedAt());
   }
 }

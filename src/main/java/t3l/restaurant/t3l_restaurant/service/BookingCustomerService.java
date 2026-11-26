@@ -48,6 +48,7 @@ public class BookingCustomerService {
     var account = findAccount(normalized);
     if (account != null) {
       account = accounts.lockById(account.getId()).orElseThrow();
+      requireNotArchived(account);
       if (contact(account).complete()) return contact(account);
       if (account.getEmail() != null) address = account.getEmail();
     }
@@ -77,9 +78,11 @@ public class BookingCustomerService {
 
   public UserAccount requireAccount(Long id) {
     if (id == null) throw new BookingException(null, "Vui lòng tra cứu và chọn hồ sơ khách hàng.");
-    return accounts.findById(id).filter(account -> "BUYER".equals(account.getRole()) && contact(account).complete()
-            && customers.bookingPhone(account.getPhone()) != null)
+    var account = accounts.findById(id).filter(item -> "BUYER".equals(item.getRole()) && contact(item).complete()
+            && customers.bookingPhone(item.getPhone()) != null)
         .orElseThrow(() -> new BookingException(null, "Vui lòng tra cứu và chọn hồ sơ khách hàng."));
+    if (account.getArchivedAt() != null) throw new BookingException(null, archivedMessage());
+    return account;
   }
 
   private UserAccount findAccount(String phone) {
@@ -87,7 +90,18 @@ public class BookingCustomerService {
     String alternate = SmsOtpService.normalizePhone(phone) == null ? digits : "84" + digits.substring(1);
     var matches = accounts.findBuyersByContactPhone(digits, alternate);
     if (matches.size() > 1) throw new IllegalArgumentException("Có nhiều hồ sơ dùng số này. Hãy nhờ quản trị viên kiểm tra.");
-    return matches.isEmpty() ? null : matches.getFirst();
+    if (matches.isEmpty()) return null;
+    var account = matches.getFirst();
+    requireNotArchived(account);
+    return account;
+  }
+
+  private void requireNotArchived(UserAccount account) {
+    if (account.getArchivedAt() != null) throw new IllegalArgumentException(archivedMessage());
+  }
+
+  private String archivedMessage() {
+    return "Hồ sơ khách hàng đã được lưu trữ. Hãy nhờ quản trị viên khôi phục hồ sơ.";
   }
 
   private Contact contact(UserAccount account) {

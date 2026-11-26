@@ -100,6 +100,9 @@ public class PhoneCustomerService {
     if (local) username = LOCAL_PREFIX + phone;
     var existing = local ? accounts.findByUsername(username) : accounts.findByVerifiedPhone(phone);
     if (existing.isPresent()) return requireCustomer(existing.get());
+    if (findPhoneMatches(phone).stream().anyMatch(account -> !account.isEnabled())) {
+      throw new OtpException("Tài khoản hiện không khả dụng. Vui lòng liên hệ nhà hàng.");
+    }
     var account = UserAccount.customer(null, null, phone, username, passwords.encode(UUID.randomUUID().toString()));
     if (!local) account.verifyPhone(phone);
     return accounts.saveAndFlush(account);

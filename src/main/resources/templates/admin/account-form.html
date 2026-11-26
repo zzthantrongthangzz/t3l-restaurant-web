@@ -5,14 +5,16 @@
 <header th:replace="~{admin/fragments/shell :: header('accounts')}"></header>
 <main data-navigation class="staff-main">
   <a class="staff-link staff-back" th:href="@{/admin/accounts(role=${account != null and account.customer ? 'CUSTOMER' : null})}">Danh sách tài khoản</a>
+  <div th:replace="~{admin/fragments/shell :: messages}"></div>
   <div class="staff-page-heading"><h1 th:text="${account == null ? 'Thêm tài khoản nội bộ' : 'Chi tiết tài khoản'}"></h1></div>
-  <section class="staff-panel staff-form-narrow" th:if="${account != null and account.customer}">
-    <h2>Tài khoản khách hàng</h2><dl class="staff-details"><div><dt>Họ tên</dt><dd th:text="${account.fullName ?: '—'}"></dd></div>
+  <section class="staff-panel staff-form-narrow" th:if="${account != null and (account.customer or account.archived)}">
+    <h2 th:text="${account.roleLabel}"></h2><dl class="staff-details"><div><dt>Họ tên</dt><dd th:text="${account.fullName ?: '—'}"></dd></div>
       <div><dt>Email</dt><dd th:text="${account.email ?: '—'}"></dd></div><div><dt>Điện thoại</dt><dd th:text="${account.phone ?: '—'}"></dd></div>
-      <div><dt>Trạng thái</dt><dd th:text="${account.enabled ? 'Hoạt động' : 'Đã khóa'}"></dd></div></dl>
+      <div><dt>Trạng thái</dt><dd th:text="${account.statusLabel}"></dd></div>
+      <div th:if="${account.archived}"><dt>Lưu trữ lúc</dt><dd th:text="${#temporals.format(account.archivedAt, 'dd/MM/yyyy HH:mm')}"></dd></div></dl>
     <p class="staff-muted" th:if="${account.username.startsWith('desk:')}">Hồ sơ được lập khi nhân viên ghi nhận đặt bàn tại quầy.</p>
   </section>
-  <form class="staff-panel staff-form staff-form-narrow" th:if="${account == null or !account.customer}" th:object="${form}"
+  <form class="staff-panel staff-form staff-form-narrow" th:if="${account == null or (!account.customer and !account.archived)}" th:object="${form}"
       th:action="${account == null} ? @{/admin/accounts} : @{/admin/accounts/{id}(id=${account.id})}" method="post" data-partial-submit>
     <div th:replace="~{admin/fragments/shell :: errors}"></div>
     <div class="staff-form-grid">
@@ -24,7 +26,11 @@
       <label class="staff-field">Mật khẩu<input type="password" name="password" minlength="12" maxlength="72" th:required="${account == null}" autocomplete="new-password" />
         <small th:text="${account == null ? 'Ít nhất 12 ký tự.' : 'Để trống nếu giữ mật khẩu hiện tại.'}"></small></label>
     </div>
-    <label class="staff-checkbox"><input th:field="*{enabled}" type="checkbox" /> Cho phép đăng nhập</label>
+    <label th:if="${account == null}" class="staff-checkbox"><input th:field="*{enabled}" type="checkbox" /> Cho phép đăng nhập</label>
     <div class="staff-actions"><button class="staff-button" type="submit" data-confirm="Lưu thông tin và quyền của tài khoản này?">Lưu tài khoản</button></div>
   </form>
+  <section class="staff-panel staff-form-narrow" th:if="${account != null}">
+    <p th:text="${'Trạng thái tài khoản · ' + account.statusLabel}"></p>
+    <div th:replace="~{admin/fragments/account-actions :: actions(${account}, ${#authentication.name})}"></div>
+  </section>
 </main></body></html>

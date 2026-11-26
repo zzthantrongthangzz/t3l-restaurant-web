@@ -1,0 +1,20 @@
+<div xmlns:th="http://www.thymeleaf.org" th:fragment="actions(row, actor)" th:if="${row.username != actor}"
+     class="staff-actions" th:with="accountName=${row.fullName ?: row.username}">
+  <form th:unless="${row.archived}" th:action="@{/admin/accounts/{id}/availability(id=${row.id})}" method="post" data-partial-submit
+        th:with="dialogId=${'account-reason-' + row.id}, action=${row.enabled ? 'Khóa' : 'Mở khóa'}">
+    <input type="hidden" name="enabled" th:value="${!row.enabled}" />
+    <button type="button" class="staff-button is-outline" data-reason-open aria-haspopup="dialog" th:attr="aria-controls=${dialogId}" th:text="${action}"></button>
+    <dialog th:replace="~{admin/fragments/reason-dialog :: confirm(${dialogId}, ${action + ' tài khoản'},
+        ${row.enabled ? 'Khóa ' + accountName + ' và kết thúc các phiên đăng nhập hiện tại?' : 'Mở khóa tài khoản của ' + accountName + '?'},
+        ${action}, ${row.enabled})}"></dialog>
+  </form>
+  <form th:action="@{/admin/accounts/{id}/archive(id=${row.id})}" method="post" data-partial-submit
+        th:with="dialogId=${'account-archive-' + row.id}, action=${row.archived ? 'Khôi phục' : 'Lưu trữ'}">
+    <input type="hidden" name="archived" th:value="${!row.archived}" />
+    <button type="button" class="staff-button is-outline" data-reason-open aria-haspopup="dialog" th:attr="aria-controls=${dialogId}" th:text="${action}"></button>
+    <dialog th:replace="~{admin/fragments/reason-dialog :: reason(${dialogId}, ${action + ' tài khoản'},
+        ${row.archived ? 'Khôi phục ' + accountName + ' với mã tài khoản cũ. Tài khoản vẫn khóa cho đến khi được mở khóa.' :
+            'Lưu trữ ' + accountName + ' và kết thúc các phiên đăng nhập. Lịch sử của tài khoản vẫn được giữ lại.'},
+        ${action}, ${!row.archived}, true)}"></dialog>
+  </form>
+</div>

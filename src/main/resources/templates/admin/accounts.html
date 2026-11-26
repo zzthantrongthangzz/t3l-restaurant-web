@@ -22,7 +22,12 @@
           <option value="ADMIN" th:selected="${role == 'ADMIN'}">Quản trị viên</option>
         </select>
       </label>
-      <label class="staff-field">Trạng thái<select name="enabled"><option value="">Tất cả</option><option value="true" th:selected="${enabled == true}">Hoạt động</option><option value="false" th:selected="${enabled == false}">Đã khóa</option></select></label>
+      <label class="staff-field">Trạng thái<select name="state">
+        <option value="">Chưa lưu trữ</option>
+        <option value="ACTIVE" th:selected="${state == 'ACTIVE'}">Hoạt động</option>
+        <option value="LOCKED" th:selected="${state == 'LOCKED'}">Đã khóa</option>
+        <option value="ARCHIVED" th:selected="${state == 'ARCHIVED'}">Đã lưu trữ</option>
+      </select></label>
       <div class="staff-actions"><button class="staff-button">Tìm kiếm</button><a class="staff-link" th:href="@{/admin/accounts(role=${role == 'CUSTOMER' ? 'CUSTOMER' : null})}">Bỏ lọc</a></div>
     </form>
     <p th:text="${rows.totalElements + ' tài khoản'}" class="staff-muted"></p>
@@ -33,24 +38,17 @@
           <td data-label="Tài khoản"><a class="staff-link" th:href="@{/admin/accounts/{id}(id=${row.id})}" th:text="${row.fullName ?: row.username}"></a><small th:unless="${row.customer}" th:text="${row.username}"></small></td>
           <td data-label="Liên hệ"><span th:text="${row.email ?: '—'}"></span><small th:if="${row.phone}" th:text="${row.phone}"></small></td>
           <td data-label="Vai trò" th:text="${row.roleLabel}"></td>
-          <td data-label="Trạng thái"><span class="staff-badge" th:attr="data-status=${row.enabled ? 'OPEN' : 'INACTIVE'}" th:text="${row.enabled ? 'Hoạt động' : 'Đã khóa'}"></span></td>
+          <td data-label="Trạng thái"><span class="staff-badge" th:attr="data-status=${row.enabled ? 'OPEN' : 'INACTIVE'}" th:text="${row.statusLabel}"></span></td>
           <td data-label="Thao tác">
-            <form th:if="${row.username != actor}" th:action="@{/admin/accounts/{id}/availability(id=${row.id})}" method="post" data-partial-submit
-                th:with="dialogId=${'account-reason-' + row.id}, action=${row.enabled ? 'Khóa' : 'Mở khóa'}, accountName=${row.fullName ?: row.username}">
-              <input type="hidden" name="enabled" th:value="${!row.enabled}" />
-              <button type="button" class="staff-button is-outline" data-reason-open aria-haspopup="dialog" th:attr="aria-controls=${dialogId}" th:text="${action}"></button>
-              <dialog th:replace="~{admin/fragments/reason-dialog :: confirm(${dialogId}, ${action + ' tài khoản'},
-                  ${row.enabled ? 'Khóa ' + accountName + ' và kết thúc các phiên đăng nhập hiện tại?' : 'Mở khóa tài khoản của ' + accountName + '?'},
-                  ${action}, ${row.enabled})}"></dialog>
-            </form>
+            <div th:replace="~{admin/fragments/account-actions :: actions(${row}, ${actor})}"></div>
           </td>
         </tr>
       </tbody></table>
     </div>
     <nav class="staff-pagination" th:if="${rows.totalPages > 1}" aria-label="Phân trang tài khoản">
-      <a class="staff-link" th:if="${rows.hasPrevious()}" th:href="@{/admin/accounts(q=${q},role=${role},enabled=${enabled},page=${rows.number - 1})}">Trang trước</a>
+      <a class="staff-link" th:if="${rows.hasPrevious()}" th:href="@{/admin/accounts(q=${q},role=${role},state=${state},page=${rows.number - 1})}">Trang trước</a>
       <span th:text="${'Trang ' + (rows.number + 1) + ' / ' + rows.totalPages}"></span>
-      <a class="staff-link" th:if="${rows.hasNext()}" th:href="@{/admin/accounts(q=${q},role=${role},enabled=${enabled},page=${rows.number + 1})}">Trang sau</a>
+      <a class="staff-link" th:if="${rows.hasNext()}" th:href="@{/admin/accounts(q=${q},role=${role},state=${state},page=${rows.number + 1})}">Trang sau</a>
     </nav>
   </section>
 </main></body></html>
