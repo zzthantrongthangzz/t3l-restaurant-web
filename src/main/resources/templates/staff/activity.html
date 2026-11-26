@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{staff/fragments/shell :: head('Lịch sử thao tác')}"></head>
+<body class="staff-page"><header th:replace="~{staff/fragments/shell :: header('activity')}"></header>
+<main data-navigation data-navigation-fragment class="staff-main">
+  <div class="staff-page-heading"><div><h1>Lịch sử thao tác</h1><p>Các thao tác đã được ghi nhận trên tài khoản của bạn.</p></div></div>
+  <section class="staff-panel">
+    <p class="staff-empty" th:if="${rows.isEmpty()}">Chưa có thao tác nào được ghi nhận.</p>
+    <div class="staff-table-wrap" th:unless="${rows.isEmpty()}"><table class="staff-table"><thead><tr>
+      <th>Thời gian</th><th>Thao tác</th><th>Đối tượng</th><th>Chi tiết</th>
+    </tr></thead><tbody>
+      <tr th:each="row : ${rows.content}">
+        <td data-label="Thời gian" th:text="${#temporals.format(row.occurredAt,'dd/MM/yyyy HH:mm:ss')}"></td>
+        <td data-label="Thao tác" th:text="${row.operation}"></td>
+        <td data-label="Đối tượng" th:text="${row.targetLabel}"></td>
+        <td data-label="Chi tiết" th:text="${row.details == null or #strings.isEmpty(row.details) ? '—' : row.details}"></td>
+      </tr></tbody></table></div>
+    <nav class="staff-pagination" aria-label="Phân trang" th:if="${rows.hasPrevious() or rows.hasNext()}">
+      <a class="staff-link" th:if="${rows.hasPrevious()}" th:href="@{/staff/activity(page=${rows.number - 1})}">Trang trước</a>
+      <span th:text="${'Trang ' + (rows.number + 1)}"></span>
+      <a class="staff-link" th:if="${rows.hasNext()}" th:href="@{/staff/activity(page=${rows.number + 1})}">Trang sau</a>
+    </nav>
+  </section>
+</main></body></html>

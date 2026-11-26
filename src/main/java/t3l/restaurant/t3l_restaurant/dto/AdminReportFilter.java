@@ -13,5 +13,6 @@ public class AdminReportFilter {
   private String method = "";
   private String status = "";
   private String code = "";
+  private String action = "";
   private int page;
 }

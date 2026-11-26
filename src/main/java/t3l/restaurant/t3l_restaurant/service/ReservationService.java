@@ -687,7 +687,7 @@ public class ReservationService {
       throw new BookingException(null, "Bàn đang giữ chỗ hoặc có khách. Hãy chuyển hoặc kết thúc các lượt đặt bàn trước.");
     }
     table.setActive(active);
-    audit.record(active ? "Mở lại bàn" : "Tạm ngưng bàn", table.getCode());
+    audit.record(active ? "Mở lại bàn" : "Tạm ngưng bàn", "TABLE", table.getId(), table.getCode(), null);
   }
 
   // The caller holds the inventory locks before checking, so bookings cannot race an inventory change.
@@ -728,7 +728,7 @@ public class ReservationService {
   }
 
   private ReservationEvent record(Reservation booking, String actor, String description) {
-    audit.record("Cập nhật đặt bàn", booking.getCode() + " · " + description);
+    if (actor != null) audit.record("Cập nhật đặt bàn", "RESERVATION", booking.getId(), booking.getCode(), description);
     return events.save(new ReservationEvent(booking, actor == null ? "Hệ thống" : actor, description, now()));
   }
 }

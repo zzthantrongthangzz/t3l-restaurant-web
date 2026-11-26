@@ -34,6 +34,7 @@ public class StaffShiftService {
   private final DiningPaymentRepository payments;
   private final ReservationRepository reservations;
   private final ReservationSchedule schedule;
+  private final EmployeeActivityService activity;
 
   public record Totals(long paidOrders, long directSales, long guests, BigDecimal cash,
                        BigDecimal transfer, BigDecimal card, BigDecimal expectedCash) {
@@ -67,7 +68,10 @@ public class StaffShiftService {
     BigDecimal cash = validateMoney(openingCash, 14, "Tiền đầu ca");
     UserAccount employee = lockEmployee(username);
     if (current(username) != null) throw new IllegalStateException("Bạn đang có một ca làm chưa kết thúc.");
-    return shifts.save(new StaffShift(employee, cash, LocalDateTime.now(schedule.getClock())));
+    StaffShift opened = shifts.saveAndFlush(new StaffShift(employee, cash, LocalDateTime.now(schedule.getClock())));
+    activity.record("Mở ca làm việc", "SHIFT", opened.getId(), "Ca #" + opened.getId(),
+        "Tiền đầu ca " + cash.toPlainString() + " đ");
+    return opened;
   }
 
   @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -82,7 +86,10 @@ public class StaffShiftService {
     if (!"CASH".equals(method) && !"TRANSFER".equals(method) && !"CARD".equals(method)) {
       throw new IllegalArgumentException("Phương thức thanh toán không hợp lệ.");
     }
-    return sales.save(new CashSale(shift, dish, form.getQuantity(), method, LocalDateTime.now(schedule.getClock())));
+    CashSale sale = sales.saveAndFlush(new CashSale(shift, dish, form.getQuantity(), method, LocalDateTime.now(schedule.getClock())));
+    activity.record("Ghi nhận bán lẻ", "CASH_SALE", sale.getId(), dish.getName(),
+        "Số lượng " + form.getQuantity() + " · " + sale.getTotalAmount().toPlainString() + " đ · " + method);
+    return sale;
   }
 
   @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -92,6 +99,9 @@ public class StaffShiftService {
     Totals totals = totals(shift, sales.findByShift_IdOrderByCreatedAtDesc(shift.getId()),
         payments.findByShift_IdOrderByPaidAtDescIdDesc(shift.getId()));
     shift.close(totals.cash(), totals.transfer().add(totals.card()), cash, LocalDateTime.now(schedule.getClock()));
+    activity.record("Kết ca", "SHIFT", shift.getId(), "Ca #" + shift.getId(),
+        "Tiền dự kiến " + totals.expectedCash().toPlainString() + " đ · Tiền thực đếm "
+            + cash.toPlainString() + " đ · Chênh lệch " + shift.getCashDifference().toPlainString() + " đ");
     return shift;
   }
 

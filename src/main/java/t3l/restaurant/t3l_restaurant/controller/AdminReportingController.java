@@ -82,7 +82,7 @@ public class AdminReportingController {
   public String activity(@ModelAttribute("query") AdminReportFilter query, Model model) {
     var filter = filter(query);
     model.addAttribute("filter", filter);
-    model.addAttribute("rows", reports.auditHistory(filter, query.getPage()));
+    model.addAttribute("rows", reports.auditHistory(filter, query.getAction(), query.getPage()));
     return "admin/activity";
   }
 

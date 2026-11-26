@@ -50,7 +50,7 @@
       <div class="staff-actions"><a class="staff-link" th:href="@{/admin/reservations}">Lịch đặt bàn</a><a class="staff-link" th:href="@{/admin/contacts}">Liên hệ khách</a></div>
     </section>
     <section class="staff-panel">
-      <div class="staff-panel-heading"><h2>Hoạt động gần đây</h2><a class="staff-link" th:href="@{/admin/activity}">Nhật ký quản trị</a></div>
+      <div class="staff-panel-heading"><h2>Hoạt động gần đây</h2><a class="staff-link" th:href="@{/admin/activity}">Nhật ký thao tác</a></div>
       <p class="staff-empty" th:if="${dashboard.recent.isEmpty()}">Chưa có hoạt động.</p>
       <ul class="staff-feed"><li th:each="entry : ${dashboard.recent}"><div><strong th:text="${entry.operation}"></strong>
         <p th:text="${entry.target + (#strings.isEmpty(entry.actor) ? '' : ' · ' + entry.actor)}"></p></div>

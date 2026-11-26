@@ -42,6 +42,7 @@ public class DiningOrderService {
   private final PaymentReferences references;
   private final PaymentIntentService qrPayments;
   private final VoucherService vouchers;
+  private final EmployeeActivityService activity;
 
   public record OrderView(Reservation booking, DiningOrder order, DiningPayment payment) {
     public BigDecimal getTotal() {
@@ -80,7 +81,8 @@ public class DiningOrderService {
     Reservation booking = lockBooking(reservationId);
     requireSeated(booking);
     if (orders.findByReservation_Id(reservationId).isEmpty()) {
-      orders.save(new DiningOrder(booking, actor, now()));
+      DiningOrder opened = orders.saveAndFlush(new DiningOrder(booking, actor, now()));
+      activity.record("Mở hóa đơn", "DINING_ORDER", opened.getId(), opened.getInvoiceNumber(), null);
     }
   }
 
@@ -92,6 +94,8 @@ public class DiningOrderService {
         .orElseThrow(() -> new BookingException(null, "Món không còn được bán."));
     order.addItem(dish, quantity);
     vouchers.reprice(order,order.getCurrentTotal());
+    activity.record("Thêm món vào hóa đơn", "DINING_ORDER", order.getId(), order.getInvoiceNumber(),
+        dish.getName() + " × " + quantity + " · Tổng tạm tính " + order.getCurrentTotal().toPlainString() + " đ");
   }
 
   @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -105,7 +109,10 @@ public class DiningOrderService {
       validateQuantity(quantity);
       item.changeQuantity(quantity);
     }
-    return vouchers.reprice(order,order.getCurrentTotal());
+    boolean voucherChanged = vouchers.reprice(order,order.getCurrentTotal());
+    activity.record(cancel ? "Hủy món khỏi hóa đơn" : "Đổi số lượng món", "DINING_ORDER_ITEM", item.getId(),
+        order.getInvoiceNumber(), item.getDishName() + (cancel ? " · Đã hủy" : " · Số lượng " + quantity));
+    return voucherChanged;
   }
 
   @Transactional(isolation=Isolation.READ_COMMITTED)
@@ -122,8 +129,14 @@ public class DiningOrderService {
     if (!"remove".equals(operation) && (code==null || code.isBlank()))
       throw new BookingException("voucherCode","Hãy nhập mã voucher.");
     vouchers.guardInvoice(order);
+    String previousCode = order.getVoucherCode();
     vouchers.change(order,booking,"remove".equals(operation) ? "" : code,order.getCurrentTotal());
     if (DiningOrder.FINALIZED.equals(order.getStatus())) order.finalizeOrder(now());
+    String action = "remove".equals(operation) ? "Gỡ voucher hóa đơn"
+        : previousCode == null ? "Áp dụng voucher hóa đơn" : "Thay voucher hóa đơn";
+    activity.record(action, "DINING_ORDER", order.getId(), order.getInvoiceNumber(),
+        "Mã voucher: " + (order.getVoucherCode() == null ? "đã gỡ" : order.getVoucherCode())
+            + " · Giảm " + order.getVoucherDiscount().toPlainString() + " đ");
   }
 
   @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -137,6 +150,8 @@ public class DiningOrderService {
     }
     if (order.getCurrentTotal().precision() > 16) throw new BookingException(null, "Tổng hóa đơn vượt giới hạn.");
     order.finalizeOrder(now());
+    activity.record("Chốt hóa đơn", "DINING_ORDER", order.getId(), order.getInvoiceNumber(),
+        "Tổng hóa đơn " + order.getTotalAmount().toPlainString() + " đ");
   }
 
   @PreAuthorize("hasAnyRole('STAFF', 'ADMIN') and #actor == authentication.name")
@@ -174,6 +189,9 @@ public class DiningOrderService {
     vouchers.consume(order,false);
     order.markPaid();
     bookingService.finishService(booking, actor, now());
+    activity.record("Xác nhận thanh toán hóa đơn", "DINING_ORDER", order.getId(), order.getInvoiceNumber(),
+        "Phương thức " + method + " · Thu " + order.getTotalAmount().subtract(applied).toPlainString()
+            + " đ · Khấu trừ cọc " + applied.toPlainString() + " đ");
     if (applied.signum() > 0) emails.enqueue(booking,
         t3l.restaurant.t3l_restaurant.entity.ReservationEmail.Kind.DEPOSIT_APPLIED, null,
         "Đã khấu trừ " + applied.toPlainString() + " đ, thu thêm " + order.getTotalAmount().subtract(applied).toPlainString() + " đ.");
@@ -215,6 +233,8 @@ public class DiningOrderService {
     bookingService.finishService(booking, actor, now());
     vouchers.consume(order,false);
     intent.markApplied(now());
+    activity.record("Xác nhận chuyển khoản hóa đơn", "DINING_ORDER", order.getId(), order.getInvoiceNumber(),
+        "Thu " + balance.toPlainString() + " đ · Khấu trừ cọc " + applied.toPlainString() + " đ");
     if (applied.signum() > 0) emails.enqueue(booking,
         t3l.restaurant.t3l_restaurant.entity.ReservationEmail.Kind.DEPOSIT_APPLIED, null,
         "Đã khấu trừ " + applied.toPlainString() + " đ, thu thêm " + balance.toPlainString() + " đ.");
