@@ -1,0 +1,568 @@
+/* Customer catalogue. The home page also uses the shared menu cards and dialog. */
+.menu-page .menu-workspace {
+  width: 100%;
+  min-height: 65vh;
+  padding: clamp(25px, 2.45vw, 42px) max(clamp(16px, 3vw, 52px), (100% - 1580px) / 2) clamp(48px, 6vw, 88px);
+  grid-template-columns: minmax(0, 1fr) clamp(248px, 22vw, 318px);
+  gap: clamp(22px, 3vw, 46px);
+  color: var(--text);
+  background: var(--page);
+}
+
+.menu-page .menu-workspace :focus-visible,
+.menu-page .menu-dialog :focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 3px;
+}
+
+.menu-page .menu-heading {
+  align-items: flex-end;
+  gap: 17px 28px;
+  margin-bottom: 20px;
+}
+
+.menu-page .menu-heading > div:first-child {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 9px 18px;
+  padding-top: 14px;
+}
+
+.menu-page .menu-heading > div:first-child::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 42px;
+  height: 1px;
+  background: var(--accent-text);
+}
+
+.menu-page .menu-heading h1 {
+  margin: 0;
+  font: 500 clamp(2.65rem, 4.8vw, 4.6rem)/1.14 var(--font-serif);
+  letter-spacing: -.045em;
+}
+
+.menu-page .menu-count {
+  color: var(--text-muted);
+  font-size: .875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.menu-page .menu-search {
+  width: min(100%, 330px);
+  min-width: 0;
+}
+
+.menu-page .menu-search > svg {
+  left: 16px;
+  width: 18px;
+  height: 18px;
+  color: var(--accent-text);
+}
+
+.menu-page .menu-search input {
+  min-height: 48px;
+  padding: 10px 15px 10px 45px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1rem;
+  transition: border-color .18s ease;
+}
+
+.menu-page .menu-search input::placeholder { color: var(--text-muted); }
+.menu-page .menu-search input:hover { border-color: var(--accent-text); }
+
+.menu-page .menu-categories {
+  flex-wrap: wrap;
+  gap: 7px 8px;
+  overflow: visible;
+  padding: 6px 0 12px;
+  border-color: var(--border);
+}
+
+.menu-page .menu-categories button {
+  min-height: 42px;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: .875rem;
+  font-weight: 550;
+  transition: background-color .18s ease, color .18s ease, border-color .18s ease;
+}
+
+.menu-page .menu-categories button:hover {
+  border-color: var(--border);
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.menu-page .menu-categories button[aria-pressed="true"] {
+  border-color: var(--action);
+  background: var(--action);
+  color: var(--on-action);
+}
+
+.menu-page .menu-category { margin-top: clamp(25px, 2.2vw, 36px); }
+
+.menu-page .menu-category h2 {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: clamp(16px, 1.55vw, 24px);
+  font: 500 clamp(1.65rem, 2.5vw, 2.5rem)/1.2 var(--font-serif);
+  letter-spacing: -.025em;
+}
+
+.menu-page .menu-category h2::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.menu-page .menu-workspace .menu-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(20px, 2.15vw, 34px) clamp(13px, 1.5vw, 24px);
+}
+
+.menu-page .menu-card {
+  padding: 0 clamp(12px, 1.4vw, 22px) 14px;
+  border-radius: 14px;
+}
+
+.menu-page .menu-card::before {
+  inset: clamp(54px, 6vw, 96px) 0 0;
+  border: 0;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.menu-page .menu-card-media {
+  position: relative;
+  isolation: isolate;
+  width: min(100%, 220px);
+  background: var(--menu-plate);
+  box-shadow: 0 8px 18px -9px var(--menu-plate-shadow);
+}
+
+.menu-page :is(.menu-card-media img, #dish-detail-image) {
+  mix-blend-mode: lighten;
+  mask-image: radial-gradient(ellipse closest-side, currentColor 88%, transparent 100%);
+}
+
+.menu-page .menu-card-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--menu-plate-rim);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.menu-page .menu-card-body {
+  gap: 7px;
+  padding: 16px 0 0;
+  text-align: start;
+}
+
+.menu-page .menu-card-body h3 {
+  font: 500 clamp(1.2rem, 1.7vw, 1.53rem)/1.25 var(--font-serif);
+  letter-spacing: -.016em;
+}
+
+.menu-page .menu-description {
+  color: var(--text-muted);
+  font-size: .875rem;
+  line-height: 1.55;
+  -webkit-line-clamp: 3;
+}
+
+.menu-page :is(.menu-dietary, .menu-ordered) {
+  color: var(--accent-text);
+  font-size: .78rem;
+}
+
+.menu-page .menu-card-actions {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.menu-page .menu-card-actions::before {
+  content: "";
+  position: absolute;
+  inset: 6px 0 auto;
+  height: 1px;
+  background: var(--border);
+}
+
+.menu-page .menu-card-actions strong,
+.menu-page #dish-detail-price {
+  color: var(--accent-text);
+  font-size: clamp(.94rem, 1.18vw, 1.125rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.menu-page .menu-card:has(.menu-add) .menu-card-body { container-type: inline-size; }
+
+.menu-page .menu-card-actions:has(.menu-add) {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  padding-top: 30px;
+}
+
+@container (max-width: 200px) {
+  .menu-page .menu-card-actions:has(.menu-add) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .menu-page .menu-card-actions:has(.menu-add) strong { grid-column: 1 / -1; }
+  .menu-page .menu-card-actions:has(.menu-add) .menu-detail { justify-self: start; }
+}
+
+.menu-page .menu-card-actions .menu-ordered {
+  position: absolute;
+  inset: 10px auto auto 0;
+}
+
+.menu-page :is(.menu-detail, .menu-add, .menu-primary, .menu-secondary) {
+  transition: background-color .18s ease, color .18s ease, border-color .18s ease;
+}
+
+.menu-page .menu-card-actions .menu-detail {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--accent-text);
+  font-size: .8125rem;
+  font-weight: 600;
+}
+
+.menu-page .menu-card-actions .menu-detail::after,
+.menu-page .menu-booking-links .menu-primary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-inline-end: 2px;
+  border-block-start: 1px solid currentColor;
+  border-inline-end: 1px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.menu-page .menu-card-actions .menu-detail:hover { background: var(--surface-muted); }
+.menu-page .menu-card-actions .menu-add {
+  min-width: 40px;
+  min-height: 44px;
+  padding-inline: 4px;
+}
+
+.menu-page .menu-booking {
+  position: sticky;
+  top: 112px;
+  padding: clamp(16px, 1.7vw, 24px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: none;
+  scroll-margin-top: 12px;
+}
+
+.menu-page .menu-booking:has(.menu-booking-links) {
+  display: grid;
+  gap: 13px;
+}
+
+.menu-page .menu-booking:has(.menu-booking-links)::before {
+  content: "";
+  display: block;
+  aspect-ratio: 2 / 1;
+  border-radius: 7px;
+  background: linear-gradient(var(--shade-soft), var(--shade-medium)), var(--photo-shade) url("../images/home/dining-room.jpg") center 68% / cover no-repeat;
+}
+
+.menu-page .menu-booking h2 {
+  padding-bottom: 0;
+  border: 0;
+  font: 500 clamp(1.5rem, 2.05vw, 2rem)/1.25 var(--font-serif);
+  letter-spacing: -.03em;
+}
+
+.menu-page .menu-booking p { color: var(--text-muted); }
+.menu-page .menu-booking-links { gap: 17px; }
+.menu-page .menu-booking-links p { font-size: .875rem; }
+
+.menu-page .menu-workspace .menu-primary,
+.menu-page .menu-workspace .menu-secondary,
+.menu-page .menu-card-actions .menu-add,
+.menu-page .menu-dialog .menu-detail {
+  min-height: 44px;
+  border-radius: 6px;
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.menu-page .menu-workspace .menu-primary,
+.menu-page .menu-card-actions .menu-add[aria-pressed="true"] {
+  border-color: var(--action);
+  background: var(--action);
+  color: var(--on-action);
+}
+
+.menu-page .menu-workspace .menu-primary:enabled:hover,
+.menu-page .menu-workspace a.menu-primary:hover {
+  filter: none;
+  background: var(--action-hover);
+}
+
+.menu-page .menu-workspace .menu-secondary:hover,
+.menu-page .menu-card-actions .menu-add:not([aria-pressed="true"]):hover,
+.menu-page .menu-dialog .menu-detail:hover {
+  border-color: var(--accent-text);
+  background: var(--surface-muted);
+  color: var(--accent-text);
+}
+
+.menu-page .menu-booking-links .menu-primary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-inline: 14px;
+}
+
+.menu-page .menu-booking form {
+  min-height: 0;
+  grid-template-rows: auto;
+  margin-top: 14px;
+}
+
+.menu-page .menu-booking:has(#menu-preorder) {
+  max-height: calc(100dvh - 132px);
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.menu-page .menu-booking li { background: var(--surface-muted); }
+.menu-page .menu-booking :is(li button, .menu-item-quantity, .menu-item-note-input) {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.menu-page .menu-booking .menu-item-note-input::placeholder,
+.menu-page .menu-booking .menu-saved-items .menu-item-note { color: var(--text-muted); }
+.menu-page .menu-booking li button:enabled:hover { background: var(--surface-muted); }
+.menu-page .menu-total { border-color: var(--border); }
+.menu-page .menu-total output { color: var(--accent-text); }
+
+.menu-page .menu-workspace .menu-message {
+  padding: 14px;
+  border-radius: 7px;
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.menu-page .menu-workspace .menu-message.is-error { color: var(--error); }
+
+.menu-page .menu-dialog {
+  position: fixed;
+  inset: 0;
+  isolation: isolate;
+  width: min(740px, calc(100% - 36px));
+  max-height: calc(100dvh - 36px);
+  margin: auto;
+  padding: 57px clamp(18px, 3vw, 38px) clamp(20px, 3vw, 36px);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.menu-page .menu-dialog[open] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr);
+  grid-template-areas: "photo title" "photo description" "photo dietary" "photo price";
+  grid-template-rows: 1fr auto auto 1fr;
+  align-items: center;
+  gap: 0 clamp(18px, 3.3vw, 38px);
+}
+
+.menu-page .menu-dialog::backdrop { background: var(--backdrop-strong); }
+
+.menu-page .menu-dialog form {
+  position: absolute;
+  top: 11px;
+  right: 12px;
+  margin: 0;
+}
+
+.menu-page .menu-dialog::before {
+  content: "";
+  grid-area: photo;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--menu-plate);
+}
+
+.menu-page #dish-detail-image {
+  grid-area: photo;
+  aspect-ratio: 1;
+  height: auto;
+  max-height: none;
+  margin: 0;
+  border-radius: 50%;
+}
+
+.menu-page .menu-card-media img[src*="/dish-placeholder"],
+.menu-page #dish-detail-image[src*="/dish-placeholder"] {
+  object-fit: contain;
+  padding: 13%;
+}
+
+.menu-page #dish-detail-title {
+  grid-area: title;
+  align-self: end;
+  margin: 0 0 10px;
+  font: 500 clamp(1.65rem, 3.2vw, 2.75rem)/1.15 var(--font-serif);
+  letter-spacing: -.03em;
+  overflow-wrap: anywhere;
+}
+
+.menu-page #dish-detail-description {
+  grid-area: description;
+  color: var(--text-muted);
+  font-size: .975rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.menu-page #dish-detail-dietary {
+  grid-area: dietary;
+  color: var(--accent-text);
+  font-size: .85rem;
+}
+
+.menu-page #dish-detail-price {
+  grid-area: price;
+  align-self: start;
+  padding-top: 11px;
+  border-top: 1px solid var(--border);
+  font-size: 1.25rem;
+}
+
+@media (min-width: 1500px) {
+  .menu-page .menu-workspace .menu-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 990px) {
+  .menu-page .menu-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+  }
+
+  .menu-page .menu-booking,
+  .menu-page .menu-booking:has(#menu-preorder) {
+    position: static;
+    min-width: 0;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .menu-page .menu-booking:has(#menu-preorder) { grid-row: 1; }
+
+  .menu-page .menu-booking:has(.menu-booking-links) {
+    grid-template-columns: minmax(140px, 30%) minmax(0, 1fr);
+    align-items: center;
+    gap: 0 20px;
+  }
+
+  .menu-page .menu-booking:has(.menu-booking-links)::before { grid-row: span 2; }
+  .menu-page .menu-booking-links .menu-primary { width: min(100%, 235px); }
+
+  .menu-page .menu-workspace .menu-selection-shortcut {
+    display: inline-grid;
+    position: fixed;
+    z-index: 10;
+    inset: auto auto max(65px, env(safe-area-inset-bottom)) 14px;
+  }
+}
+
+@media (max-width: 700px) {
+  .menu-page .menu-workspace .menu-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .menu-page .menu-search { width: 100%; }
+  .menu-page .menu-heading { margin-bottom: 18px; }
+  .menu-page .menu-categories { gap: 4px; }
+  .menu-page .menu-categories button { padding-inline: 11px; }
+}
+
+@media (max-width: 495px) {
+  .menu-page .menu-workspace .menu-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+
+  .menu-page .menu-card {
+    display: grid;
+    grid-template-columns: minmax(0, 34%) minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(8px, 3vw, 15px);
+    padding: 10px 10px 10px 0;
+  }
+
+  .menu-page .menu-heading > div:first-child { flex-direction: column; }
+  .menu-page .menu-card::before { inset: 0 0 0 20%; }
+  .menu-page .menu-card-body { align-self: stretch; padding: 0; }
+  .menu-page .menu-card-actions .menu-detail { padding-inline: 3px; }
+
+  .menu-page .menu-booking:has(.menu-booking-links) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 13px;
+  }
+
+  .menu-page .menu-booking:has(.menu-booking-links)::before {
+    grid-row: auto;
+    aspect-ratio: 2.5 / 1;
+  }
+
+  .menu-page .menu-booking-links .menu-primary { width: 100%; }
+
+  .menu-page .menu-dialog[open] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "photo" "title" "description" "dietary" "price";
+    grid-template-rows: auto;
+  }
+
+  .menu-page .menu-dialog::before,
+  .menu-page #dish-detail-image {
+    justify-self: center;
+    width: min(70%, 235px, 40dvh);
+    margin-bottom: 17px;
+  }
+}
+
+@media (max-width: 360px) {
+  .menu-page .menu-card:has(.menu-add) {
+    grid-template-columns: minmax(0, 29%) minmax(0, 1fr);
+  }
+
+  .menu-page .menu-card:has(.menu-add)::before { inset-inline-start: 16%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-page .menu-workspace :is(button, a, input),
+  .menu-page .menu-dialog .menu-detail { transition: none; }
+}

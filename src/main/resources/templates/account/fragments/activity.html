@@ -17,15 +17,18 @@
       </th:block>
       <ul class="account-list" th:unless="${bookings.isEmpty()}">
         <li class="account-record" th:each="booking : ${bookings}" th:with="order=${voucherOrders.get(booking.id)}">
-          <div>
-            <p class="account-record-title" th:text="${#temporals.format(booking.reservationDate, 'dd/MM/yyyy') + ' · ' + #temporals.format(booking.reservationTime, 'HH:mm')}"></p>
+          <div class="account-record-meta">
+            <p class="account-record-title"><time th:attr="datetime=${booking.startsAt}"
+                th:text="${#temporals.format(booking.reservationDate, 'dd/MM/yyyy') + ' · ' + #temporals.format(booking.reservationTime, 'HH:mm')}"></time></p>
             <p class="account-muted" th:if="${order != null}" th:text="${'Voucher ' + order.voucherCode + ' · giảm ' + #numbers.formatInteger(order.voucherDiscount,1,'POINT') + ' đ'}"></p>
             <p class="account-muted" th:text="${booking.guestCount + ' khách · ' + booking.code}"></p>
           </div>
           <div class="account-record-actions">
-            <span class="account-status" th:text="${booking.statusLabel}"></span>
+            <span class="account-status" th:attr="data-status=${booking.status}" th:text="${booking.statusLabel}"></span>
             <span class="account-status" th:if="${booking.depositAmount.signum() > 0 or booking.depositPaid.signum() > 0}"
                 th:text="${booking.depositStatusLabel}"></span>
+          </div>
+          <div class="account-record-actions account-record-footer">
             <a class="account-text-action" th:href="@{/reservations/lookup(code=${booking.code})}">Xem chi tiết</a>
             <a class="account-text-action" th:href="@{/reservations/confirmation(code=${booking.code})}">Đơn món</a>
             <a class="account-text-action" th:href="@{/account/reservations/{code}/preorder(code=${booking.code})}">Món đặt trước</a>
@@ -44,13 +47,13 @@
       </th:block>
       <ul class="account-list" th:unless="${diningOrders.isEmpty()}">
         <li class="account-record" th:each="order : ${diningOrders}">
-          <div>
+          <div class="account-record-meta">
             <p class="account-record-title" th:text="${order.reservation.code}"></p>
             <p class="account-muted" th:text="${#numbers.formatInteger(order.netTotal, 1, 'POINT') + ' đ'}"></p>
             <p class="account-muted" th:if="${order.voucherCode != null}" th:text="${'Voucher ' + order.voucherCode + ' · giảm ' + #numbers.formatInteger(order.voucherDiscount,1,'POINT') + ' đ'}"></p>
           </div>
           <div class="account-record-actions">
-            <span class="account-status" th:text="${order.statusLabel}"></span>
+            <span class="account-status" th:attr="data-status=${order.status}" th:text="${order.statusLabel}"></span>
             <a class="account-text-action" th:href="@{/reservations/confirmation(code=${order.reservation.code})}">Xem món</a>
           </div>
         </li>
@@ -68,9 +71,10 @@
       </th:block>
       <ul class="account-list" th:unless="${voucherOffers.empty}">
         <li class="account-record" th:each="offer : ${voucherOffers}">
-          <div>
+          <div class="account-record-meta">
             <p class="account-record-title" th:text="${offer.title + ' · Giảm ' + offer.offerLabel}"></p>
-            <p class="account-muted" th:text="${'Mã ' + offer.code + ' · Hết hạn ' + #temporals.format(offer.endsAt,'dd/MM/yyyy HH:mm')}"></p>
+            <p class="account-voucher-code" th:text="${offer.code}"></p>
+            <p class="account-muted" th:text="${'Hết hạn ' + #temporals.format(offer.endsAt,'dd/MM/yyyy HH:mm')}"></p>
             <p class="account-muted" th:text="${'Tiền món tối thiểu ' + #numbers.formatInteger(offer.minimumTotal,1,'POINT') + ' đ'}"></p>
             <p class="account-muted" th:if="${offer.maximumDiscount != null}" th:text="${'Giảm tối đa ' + #numbers.formatInteger(offer.maximumDiscount,1,'POINT') + ' đ'}"></p>
             <p class="account-muted" th:if="${offer.customerLimit != null}" th:text="${'Tối đa ' + offer.customerLimit + ' lượt mỗi khách'}"></p>
@@ -82,7 +86,7 @@
       </ul>
       <ul class="account-list" th:unless="${usedVouchers.empty}">
         <li class="account-record" th:each="usage : ${usedVouchers}">
-          <div><p class="account-record-title" th:text="${usage.code + ' · T3L-HD-' + usage.orderId}"></p>
+          <div class="account-record-meta"><p class="account-record-title" th:text="${usage.code + ' · T3L-HD-' + usage.orderId}"></p>
           <p class="account-muted" th:text="${'Đã giảm ' + #numbers.formatInteger(usage.discountAmount,1,'POINT') + ' đ · ' + #temporals.format(usage.closedAt,'dd/MM/yyyy HH:mm')}"></p></div>
         </li>
       </ul>

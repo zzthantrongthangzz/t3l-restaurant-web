@@ -25,6 +25,18 @@ html[data-js] .home .menu-card-actions button[hidden] { display: inline-block !i
 .menu-search input::placeholder { color: var(--text-muted); }
 .menu-admin-tools { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
 .menu-categories { display: flex; overflow-x: auto; gap: 6px; padding: 3px 3px 0; border-bottom: 1px solid var(--border); scrollbar-width: thin; }
+.menu-page .menu-categories {
+  position: sticky;
+  top: var(--menu-header-height, 90px);
+  z-index: 5;
+  padding-block-start: 6px;
+  scroll-padding-inline: 6px;
+  background: var(--page);
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .menu-page .menu-card-media img { transition: transform .28s ease; }
+  .menu-page .menu-card:hover .menu-card-media img { transform: scale(1.06); }
+}
 .menu-categories button, .menu-detail, .menu-add, .menu-edit, .menu-primary, .menu-secondary {
   border: 1px solid var(--border); border-radius: 9px; padding: 8px 13px; background: var(--surface);
   color: var(--text); min-height: 40px; font-weight: 650; font-size: .9rem; white-space: nowrap;
@@ -118,7 +130,7 @@ html[data-js] .home .menu-card-actions button[hidden] { display: inline-block !i
   width: min(480px, calc(100% - 30px)); max-height: calc(100dvh - 30px); padding: 20px;
   border: 1px solid var(--border); border-radius: 15px; color: var(--text); background: var(--surface);
 }
-.menu-dialog::backdrop { background: #121019ac; }
+.menu-dialog::backdrop { background: var(--backdrop); }
 .menu-dialog form { display: flex; justify-content: end; margin-bottom: 10px; }
 .menu-dialog img { height: auto; max-height: 36vh; border-radius: 10px; margin-bottom: 13px; }
 .menu-dialog p { color: var(--text-muted); margin-bottom: 8px; }

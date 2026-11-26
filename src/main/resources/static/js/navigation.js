@@ -171,7 +171,7 @@
 
   function updateHead(doc, referrer) {
     document.title = doc.title;
-    for (const name of ['description', 'robots', 'referrer', 'theme-color']) {
+    for (const name of ['description', 'robots', 'referrer']) {
       const selector = 'meta[name="' + name + '"]';
       const existing = document.head.querySelector(selector);
       const incoming = doc.head.querySelector(selector);

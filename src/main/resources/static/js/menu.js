@@ -41,7 +41,17 @@ window.t3lPage.register(({ signal, state }) => {
 
   if (groups.length) {
     search.closest('.menu-search').hidden = false;
-    document.querySelector('.menu-categories').hidden = false;
+    const categories = document.querySelector('.menu-categories');
+    categories.hidden = false;
+    const header = document.getElementById('home-header');
+    const workspace = categories.closest('.menu-workspace');
+    const syncHeaderHeight = () => {
+      workspace.style.setProperty('--menu-header-height', Math.ceil(header.getBoundingClientRect().height) + 'px');
+    };
+    syncHeaderHeight();
+    const headerObserver = new ResizeObserver(syncHeaderHeight);
+    headerObserver.observe(header);
+    signal.addEventListener('abort', () => headerObserver.disconnect(), { once: true });
     if (savedMenu) search.value = savedMenu.search;
     filters.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.category === category)));
     filterCards();

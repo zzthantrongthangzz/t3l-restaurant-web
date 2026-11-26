@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-    th:replace="~{auth/fragments/customer-shell :: page(${linkingSms ? 'Xác thực số điện thoại' : 'Đăng nhập bằng SMS'}, ~{::content})}">
+    th:replace="${linkingSms == true} ? ~{account/verification :: page(~{::content})} : ~{auth/fragments/customer-shell :: page('Đăng nhập bằng SMS', ~{::content})}">
   <body>
     <th:block th:fragment="content">
       <p class="auth-help">Nhập số di động Việt Nam để nhận mã xác thực 6 chữ số.</p>

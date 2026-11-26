@@ -1,34 +1,78 @@
+/* The restaurant palette is shared by public, customer and operations pages. */
 :root {
   color-scheme: light;
-  --page: rgb(247, 247, 247);
-  --surface: rgb(255, 255, 255);
-  --surface-muted: #f0f0f0;
-  --text: #252833;
-  --text-muted: #5e606a;
-  --border: #e1dfe4;
-  --accent: rgb(245, 132, 57);
-  --accent-text: #a33e0d;
-  --action: var(--accent);
-  --on-action: #241611;
-  --accent-wash: color-mix(in srgb, var(--accent) 14%, var(--surface));
-  --error: #a5223a;
-  --shadow: 0 12px 32px #2528330d;
+  scrollbar-gutter: stable;
+  --page: #f8f4eb;
+  --surface: #fffaf1;
+  --surface-muted: #f2e9da;
+  --text: #30221b;
+  --text-muted: #6d5a4c;
+  --border: #ddcebb;
+  --control-border: #927b65;
+  --accent: #81522d;
+  --accent-text: var(--accent);
+  --action: #5a3725;
+  --on-action: #fff8ee;
+  --shadow-ink: #513218;
+  --success: #34603d;
+  --error: #a12e32;
+  --warning: #775111;
+  --info: #355c75;
+  --menu-plate: radial-gradient(circle at 50% 42%, #191411 46%, #261e18 82%, #372b20);
+  --menu-plate-rim: #a47b5738;
+  --menu-plate-shadow: #51321830;
+
+  --action-hover: color-mix(in srgb, var(--action) 88%, var(--on-action));
+  --accent-wash: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  --shadow: 0 12px 32px color-mix(in srgb, var(--shadow-ink) 12%, transparent);
+  --shadow-overlay: 0 16px 65px color-mix(in srgb, var(--shadow-ink) 38%, transparent);
+  --success-wash: color-mix(in srgb, var(--success) 11%, var(--surface));
+  --success-border: color-mix(in srgb, var(--success) 38%, var(--surface));
+  --error-wash: color-mix(in srgb, var(--error) 10%, var(--surface));
+  --error-border: color-mix(in srgb, var(--error) 40%, var(--surface));
+  --warning-wash: color-mix(in srgb, var(--warning) 13%, var(--surface));
+  --warning-border: color-mix(in srgb, var(--warning) 42%, var(--surface));
+  --info-border: color-mix(in srgb, var(--info) 38%, var(--surface));
+  --info-wash: color-mix(in srgb, var(--info) 12%, var(--surface));
+  --table-free: #a7a3a3;
+  --table-waiting: #dfce35;
+  --table-occupied: #ed4141;
+  --qr-paper: #fff;
+
+  /* Text over photos keeps a light foreground in both themes. */
+  --photo-shade: #171411;
+  --photo-text: #f4ebde;
+  --photo-muted: #e0d1bf;
+  --photo-accent: #dfba85;
+  --shade-soft: color-mix(in srgb, var(--photo-shade) 13%, transparent);
+  --shade-medium: color-mix(in srgb, var(--photo-shade) 24%, transparent);
+  --backdrop: color-mix(in srgb, var(--photo-shade) 68%, transparent);
+  --backdrop-strong: color-mix(in srgb, var(--photo-shade) 82%, transparent);
   background: var(--page);
 }
+
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --page: rgb(37, 40, 51);
-  --surface: rgb(31, 29, 43);
-  --surface-muted: #2d2e3c;
-  --text: #faf6f3;
-  --text-muted: #cbc7d1;
-  --border: #474553;
-  --accent: rgb(234, 124, 105);
-  --accent-text: var(--accent);
-  --on-action: #241611;
-  --error: #ffa5b2;
-  --shadow: 0 12px 32px #15131f40;
+  --page: #171613;
+  --surface: #221f1b;
+  --surface-muted: #2c2720;
+  --text: #f4ebde;
+  --text-muted: #c6b9a8;
+  --border: #463d32;
+  --control-border: #857660;
+  --accent: #dfba85;
+  --action: #debb86;
+  --on-action: #211810;
+  --shadow-ink: #100c09;
+  --success: #9bd6a6;
+  --error: #ffaaa8;
+  --warning: #f3d27f;
+  --info: #a9c9e2;
+  --menu-plate: radial-gradient(circle at 50% 42%, #14110e 46%, #211b16 82%, #30251d);
+  --menu-plate-rim: #a1784c30;
+  --menu-plate-shadow: #0007;
 }
+
 body.home {
   --home-bg: var(--page);
   --home-panel: var(--surface);
@@ -38,6 +82,7 @@ body.home {
   --home-line: var(--border);
 }
 body { accent-color: var(--accent); }
+:where(input, textarea)::placeholder { color: var(--text-muted); opacity: 1; }
 .home :is(h1, h2, h3), .staff-page :is(h1, h2, h3), .customer-page :is(h1, h2, h3) {
   font-family: var(--font-sans);
   text-decoration: none;
@@ -48,7 +93,7 @@ body { accent-color: var(--accent); }
   width: 42px;
   height: 42px;
   flex: 0 0 42px;
-  color: var(--accent);
+  color: var(--accent-text);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 11px;
@@ -72,36 +117,37 @@ html[data-js] body .theme-toggle[hidden] { display: inline-grid !important; visi
   border-color: var(--action);
   border-radius: 8px;
 }
-.home .home-button:hover { background: color-mix(in srgb, var(--action) 85%, var(--surface)); }
+.home .home-button:hover { background: var(--action-hover); }
 .home .home-button-outline { background: transparent; color: var(--accent-text) !important; }
-.home :is(.home-hero, .booking-banner, .about-hero, .contact-hero) { color: #fff7f2; }
-.home .hero-content .home-eyebrow { color: var(--action); }
+.home :is(.home-hero, .booking-banner, .about-hero, .contact-hero, .login-welcome) {
+  --home-bronze: var(--photo-accent);
+  color: var(--photo-text);
+}
+.home .home-hero .home-button-outline { color: var(--photo-text) !important; border-color: var(--photo-accent); }
+.home .home-hero .home-button-outline:hover { background: var(--photo-accent); color: var(--photo-shade) !important; }
 .home .home-menu, .home .home-reserve { background: var(--surface); color: var(--text); color-scheme: inherit; }
 .home :is(.home-menu .home-eyebrow, .home-menu h2 em) { color: var(--accent-text); }
 .home :is(.reserve-content > p:not(.home-eyebrow), .reserve-content small, .space-credit, .footer-bottom, .footer-intro > p) {
   color: var(--text-muted);
 }
-.home :is(.story-image, .space-gallery) figcaption { color: #fff7f2; }
+.home :is(.story-image, .space-gallery) figcaption { color: var(--photo-text); }
 .home .hero-content { padding-top: max(110px, 10vh); }
 .home :is(.booking-form, .booking-profile-dialog, .plan-booking-dialog) { color-scheme: inherit; background: var(--surface); color: var(--text); border-color: var(--border); }
 .home :is(.booking-form .home-eyebrow, .booking-form legend, .table-plan-heading h1, .plan-dialog-heading h2, .plan-table-card h2) { color: var(--text); }
 .home :is(.booking-form-heading > p, .booking-field label, .booking-field label small, .booking-hint,
   .booking-duration-note, .booking-duration-note strong, .booking-consent, .booking-submit-note, #note-count,
   .table-plan-heading p:not(.home-eyebrow), .table-plan-date label, .table-plan-legend, .table-plan-privacy,
-  .plan-table-meta, .plan-dialog-note, .plan-booking-fields label, .plan-form-hint, .plan-preorder-item small) { color: var(--text-muted); }
+  .plan-table-meta, .plan-booking-fields label, .plan-form-hint, .plan-preorder-item small) { color: var(--text-muted); }
 .home :is(.booking-field input, .booking-field select, .booking-field textarea, .plan-booking-fields input,
   .plan-booking-fields select, .plan-booking-fields textarea, .table-plan-date input, .table-plan-date select, .plan-dialog-close) {
-  background: var(--surface-muted); color: var(--text); border-color: var(--border);
+  background: var(--surface-muted); color: var(--text);
 }
-.home :is(.plan-table-card, .plan-preorder, .plan-preorder-item, .booking-form fieldset) { background-color: var(--surface); border-color: var(--border); }
-.home .plan-table-card.is-free { border-block-start-color: #a7a3a3; }
-.home .plan-table-card:is(.is-pending, .is-booked) { border-block-start-color: #dfbc35; }
+.home :is(.plan-preorder, .plan-preorder-item, .booking-form fieldset) { background-color: var(--surface); border-color: var(--border); }
 .home .table-plan-main { padding-top: min(5vw, 64px); }
 .home.table-plan-page .home-header { position: sticky; }
 .home .plan-form-error { color: var(--error); }
 .home .plan-preorder { max-height: none; overflow: visible; }
 .home .plan-preorder-list { max-height: 12rem; overflow-y: auto; }
-.home .plan-dialog-note { background: var(--accent-wash); color: var(--text); }
 .home :is(.plan-consent, .plan-preorder legend small, .plan-preorder > p, .plan-form-hint) { color: var(--text-muted); }
 .home :is(.plan-preorder legend, .plan-preorder-item span) { color: var(--text); }
 .home .plan-preorder-item b { color: var(--accent-text); }
@@ -110,15 +156,16 @@ html[data-js] body .theme-toggle[hidden] { display: inline-grid !important; visi
 .home :is(.login-panel, .lookup-form, .lookup-receipt, .lookup-history-card, .reservation-receipt, .about-philosophy, .about-invitation) {
   color-scheme: inherit; background: var(--surface); color: var(--text); border-color: var(--border);
 }
-.home :is(.login-field input, .account-field input, .account-field textarea, .account-field select, .receipt-deposit-form input) {
-  background: var(--surface-muted); color: var(--text); border-color: var(--border);
+.home :is(.login-field input, .receipt-deposit-form input),
+.home .booking-profile-dialog .account-field :is(input, textarea, select) {
+  background: var(--surface-muted); color: var(--text);
 }
 .home .login-field input:autofill { box-shadow: 0 0 0 100px var(--surface-muted) inset; }
 .home :is(.login-panel-heading > p:last-child, .login-alternative, .auth-help, .login-guest p, .login-account-link, .register-hint,
   .lookup-security-note, .lookup-details dt, .lookup-history-date, .lookup-history-schedule span, .lookup-history-schedule small,
   .receipt-code p, .receipt-details dt, .receipt-details dd small, .receipt-area-note, .receipt-refresh-note, .receipt-steps p,
   .about-philosophy-copy > p:not(.home-eyebrow), .about-principles p, .contact-form > p:not(.home-eyebrow)) { color: var(--text-muted); }
-.home :is(.login-welcome, .about-gallery-grid figcaption) { color: #fff7f2; }
+.home .about-gallery-grid figcaption { color: var(--photo-text); }
 .home :is(.receipt-details dd, .receipt-steps li, .lookup-disclosure summary, .contact-details address, .about-story-copy .about-lead) { color: var(--text); }
 .home :is(.login-account-link a, .login-guest a, .login-password-toggle, .receipt-code strong, .receipt-heading .home-eyebrow,
   .reservation-receipt .home-text-link, .lookup-form .home-eyebrow, .lookup-receipt .home-text-link,
@@ -126,47 +173,14 @@ html[data-js] body .theme-toggle[hidden] { display: inline-grid !important; visi
   .about-philosophy .home-eyebrow, .contact-details dt, .contact-form > p a) { color: var(--accent-text); }
 .home .login-home-link { color: var(--text-muted) !important; }
 .home .login-field input::placeholder { color: var(--text-muted); }
-.home :is(.receipt-deposit, .lookup-alert, .login-notice) { background: var(--accent-wash); color: var(--text); border-color: var(--border); }
-.home :is(.receipt-deposit h2, .receipt-deposit-form label) { color: var(--text); }
-.home :is(.receipt-status, .lookup-status) { background: var(--accent-wash); color: var(--accent-text); border-color: var(--border); }
 .home :is(.lookup-alert.is-error, .login-notice-error, .booking-field-error, .contact-form .field-error) { color: var(--error); }
 .home .receipt-steps .step-current > span { background: var(--action); color: var(--on-action); }
 .home .booking-consent a { color: var(--accent-text); }
-.home :is(.account-area, .booking-profile-dialog) {
-  --account-ink: var(--text);
-  --account-muted: var(--text-muted);
-  --account-accent: var(--accent-text);
-  --account-line: var(--border);
-  --account-paper: var(--surface);
-  --account-wash: var(--accent-wash);
-}
-.home .account-area { color-scheme: inherit; background: var(--page); }
-.home :is(.account-tabs a[aria-current="page"], .account-field :is(input, textarea, select):disabled) {
+.home .booking-profile-dialog .account-field :is(input, textarea, select):disabled {
   color: var(--text); background: var(--surface-muted); border-color: var(--border);
 }
-.home .account-area .account-button.is-primary { background: var(--action); color: var(--on-action); border-color: var(--action); }
 
-body.staff-page, body.customer-page {
-  --staff-bg: var(--page);
-  --staff-paper: var(--surface);
-  --staff-ink: var(--text);
-  --staff-muted: var(--text-muted);
-  --staff-line: var(--border);
-  --staff-accent: var(--accent-text);
-  --staff-dark: var(--surface);
-  --staff-gold: var(--accent);
-  --staff-danger: var(--error);
-  --canvas: var(--page);
-  --ink: var(--text);
-  --paper: var(--surface);
-  --line: var(--border);
-  --muted: var(--text-muted);
-  --blue: var(--accent-text);
-  --blue-dark: var(--accent-text);
-  --aqua: var(--accent-wash);
-  --soft: var(--surface-muted);
-}
-.staff-page :is(.admin-sidebar, .staff-header, .staff-field input, .staff-field select, .staff-field textarea, .plan-table-card),
+.staff-page :is(.admin-sidebar, .staff-header),
 .customer-page :is(.topbar, .faq-item) {
   background-color: var(--surface);
   border-color: var(--border);
@@ -177,38 +191,22 @@ body.staff-page, body.customer-page {
 .staff-page :is(.staff-brand small, .staff-user, .admin-nav-label, .plan-table-meta, .plan-table-customer) { color: var(--text-muted); }
 .staff-page :is(.admin-nav-actions, .staff-signout, .plan-table-customer) { border-color: var(--border); }
 .staff-page :is(.admin-navigation a:hover, .admin-navigation a[aria-current="page"], .admin-segments a[aria-current="page"], .staff-nav a:hover,
-  .staff-task-link, .staff-signout:hover, .staff-cancelled) { background: var(--accent-wash); color: var(--accent-text); }
+  .staff-task-link, .staff-signout:hover) { background: var(--accent-wash); color: var(--accent-text); }
 .staff-page .staff-button:not(.is-outline, .is-danger) { background: var(--action); border-color: var(--action); color: var(--on-action); }
-.staff-page .staff-button:not(.is-outline, .is-danger):hover { filter: brightness(1.08); }
-.staff-page .staff-notice.is-error { color: var(--error); background: var(--surface-muted); border-color: currentColor; }
-.staff-page .staff-notice.is-success { color: var(--accent-text); background: var(--accent-wash); border-color: var(--border); }
-.staff-page .staff-badge:is([data-status="CANCELLED"], [data-status="NO_SHOW"]) { color: #8c2840; }
-.staff-page .admin-bar { background: var(--action); }
-.staff-page .admin-bar-track {
-  border-color: var(--border);
-  background: repeating-linear-gradient(to top, var(--border) 0 1px, transparent 1px 25%);
-}
-.staff-page .plan-table-card.is-free { border-block-start-color: #a7a3a3; }
-.staff-page .plan-table-card:is(.is-pending, .is-booked) { border-block-start-color: #dfbc35; }
-.staff-page .plan-table-card.is-serving { border-block-start-color: #ed4141; }
+.staff-page .staff-button:not(.is-outline, .is-danger):enabled:hover,
+.staff-page a.staff-button:not(.is-outline, .is-danger):hover { background: var(--action-hover); }
 .customer-page .button { background: var(--action); color: var(--on-action); }
 
 
 /* Shared palette for panels and controls with older page-specific styles. */
-.home :is(.login-field input:focus-visible, .auth-option:disabled, .receipt-aside, .lookup-policy,
-  .lookup-disclosure, .account-empty, .account-record) {
+.home :is(.auth-option:disabled, .receipt-aside, .lookup-policy,
+  .lookup-disclosure) {
   background: var(--surface); color: var(--text); border-color: var(--border);
 }
-.home :is(.account-tabs a:hover, .account-content .account-notice) {
-  background: var(--accent-wash); color: var(--accent-text); border-color: var(--border);
-}
-.home :is(.account-content .account-notice.is-error, .contact-form-error) { color: var(--error); }
+.home .contact-form-error { color: var(--error); }
 .home .contact-map { background: var(--surface-muted); }
 .home.confirmation-page { background: var(--page); }
-.staff-page :is(a.staff-metric:hover, .staff-button.is-outline:hover, .staff-button.is-danger:hover,
-  .staff-request-blocked, .staff-deposit-panel) { background: var(--accent-wash); border-color: var(--border); }
-.staff-page :is(.staff-request-blocked, .staff-deposit-panel p) { color: var(--text); }
-.staff-page :is(.staff-button.is-outline, .staff-button.is-danger) { border-color: var(--border); }
+.staff-page :is(a.staff-metric:hover, .staff-button.is-outline:hover) { background: var(--accent-wash); border-color: var(--border); }
 .staff-page :is(.admin-navigation a, .staff-nav a)[aria-current="page"] {
   background: var(--accent-wash); color: var(--accent-text);
   box-shadow: inset 0 -2px var(--accent);

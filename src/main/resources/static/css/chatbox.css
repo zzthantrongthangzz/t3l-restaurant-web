@@ -1,9 +1,9 @@
 .t3l-chat {
-  --chat-ink: var(--text, #f6eee1);
-  --chat-muted: var(--text-muted, #d1bfa7);
-  --chat-accent: var(--accent-text, #e6c48d);
-  --chat-action: var(--action, #e6c48d);
-  --chat-edge: var(--border, #5a4433);
+  --chat-ink: var(--text);
+  --chat-muted: var(--text-muted);
+  --chat-accent: var(--accent-text);
+  --chat-action: var(--action);
+  --chat-edge: var(--border);
   position: fixed;
   right: max(20px, env(safe-area-inset-right));
   bottom: max(20px, env(safe-area-inset-bottom));
@@ -27,9 +27,10 @@
 .t3l-chat-launcher, .t3l-chat-send {
   border: 1px solid var(--chat-action);
   background: var(--chat-action);
-  color: var(--on-action, #24150e);
+  color: var(--on-action);
   font-weight: 700;
 }
+.t3l-chat-launcher:hover, .t3l-chat-send:enabled:hover { background: var(--action-hover); }
 .t3l-chat-launcher {
   display: flex;
   align-items: center;
@@ -37,7 +38,7 @@
   min-height: 48px;
   padding: 0 17px;
   border-radius: 999px;
-  box-shadow: 0 7px 27px #0006;
+  box-shadow: var(--shadow);
 }
 .t3l-chat-icon {
   display: block;
@@ -54,7 +55,7 @@
   height: 6px;
   bottom: -4px;
   left: 1px;
-  background: var(--chat-action);
+  background: inherit;
   border: solid currentColor;
   border-width: 0 0 2px 2px;
   transform: skewY(-35deg);
@@ -70,8 +71,8 @@
   flex-direction: column;
   border: 1px solid var(--chat-edge);
   border-radius: 18px;
-  background: var(--surface, #1a1210);
-  box-shadow: 0 16px 65px #0008;
+  background: var(--surface);
+  box-shadow: var(--shadow-overlay);
   overflow: hidden;
 }
 .t3l-chat-header {
@@ -81,7 +82,7 @@
   gap: 8px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--chat-edge);
-  background: var(--surface-muted, #2a1a15);
+  background: var(--surface-muted);
 }
 .t3l-chat-header h2 { margin: 0; font: 600 22px/1.2 Georgia, serif; color: var(--chat-accent); }
 .t3l-chat-header p { margin: 3px 0 0; color: var(--chat-muted); font-size: 14px; }
@@ -100,7 +101,7 @@
   overflow-y: auto;
   overscroll-behavior-y: contain;
   padding: 14px 16px 6px;
-  scrollbar-color: var(--chat-edge) var(--surface, #1a1210);
+  scrollbar-color: var(--chat-edge) var(--surface);
 }
 .t3l-chat-message {
   width: fit-content;
@@ -108,7 +109,7 @@
   margin: 0 0 10px;
   padding: 9px 11px;
   border-radius: 12px 12px 12px 4px;
-  background: var(--surface-muted, #33231d);
+  background: var(--surface-muted);
   color: var(--chat-ink);
   overflow-wrap: anywhere;
   white-space: pre-wrap;
@@ -116,12 +117,12 @@
 .t3l-chat-message.is-user {
   margin-left: auto;
   border-radius: 12px 12px 4px 12px;
-  background: var(--accent-wash, #54372a);
+  background: var(--accent-wash);
 }
 .t3l-chat-suggestions, .t3l-chat-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .t3l-chat-suggestions { padding: 6px 16px; }
 .t3l-chat-suggestions button, .t3l-chat-actions a, .t3l-chat-actions button {
-  background: var(--surface, #211612);
+  background: var(--surface);
   color: var(--chat-accent);
   padding: 5px 10px;
   border: 1px solid var(--chat-edge);
@@ -130,8 +131,12 @@
   min-height: 35px;
   text-decoration: none;
 }
+.t3l-chat :is(.t3l-chat-close, .t3l-chat-suggestions button, .t3l-chat-actions a, .t3l-chat-actions button):hover {
+  background: var(--accent-wash);
+  border-color: var(--chat-accent);
+}
 .t3l-chat-actions { margin: 0 0 12px; }
-.t3l-chat-notice { color: var(--error, #f3caa5); padding: 4px 16px; font-size: 14px; }
+.t3l-chat-notice { color: var(--error); padding: 4px 16px; font-size: 14px; }
 .t3l-chat-cards { display: grid; gap: 6px; margin: 0 0 12px; padding: 0; list-style: none; }
 .t3l-chat-cards li {
   display: flex;
@@ -139,7 +144,7 @@
   justify-content: space-between;
   column-gap: 12px;
   padding: 7px 10px;
-  background: var(--surface-muted, #231814);
+  background: var(--surface-muted);
   border: 1px solid var(--chat-edge);
   border-radius: 8px;
   overflow-wrap: anywhere;
@@ -152,10 +157,10 @@
   min-width: 0;
   min-height: 48px;
   padding: 8px 10px;
-  border: 1px solid var(--chat-edge);
+  border: 1px solid var(--control-border);
   border-radius: 10px;
   color: var(--chat-ink);
-  background: var(--surface-muted, #241915);
+  background: var(--surface-muted);
   resize: none;
   font-size: 16px;
 }

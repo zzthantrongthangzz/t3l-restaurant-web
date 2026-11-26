@@ -2,69 +2,100 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
   <body>
     <div th:fragment="fields(requirePhone)" class="account-fields">
+      <th:block th:replace="~{account/fragments/profile :: personalFields(${requirePhone})}"></th:block>
+      <fieldset th:replace="~{account/fragments/profile :: preferences}"></fieldset>
+    </div>
+    <th:block th:fragment="personalFields(requirePhone)">
       <div class="account-field">
         <label for="familyName">Họ</label>
-        <input th:field="*{familyName}" autocomplete="family-name" maxlength="120" />
+        <input th:field="*{familyName}" th:errorclass="is-invalid" autocomplete="family-name" maxlength="120" />
         <small th:errors="*{familyName}"></small>
       </div>
       <div class="account-field">
         <label for="givenName">Tên</label>
-        <input th:field="*{givenName}" autocomplete="given-name" maxlength="120" required />
+        <input th:field="*{givenName}" th:errorclass="is-invalid" autocomplete="given-name" maxlength="120" required />
         <small th:errors="*{givenName}"></small>
       </div>
       <small class="account-error account-full" th:errors="*{fullNameWithinLimit}"></small>
-      <div class="account-field account-full">
+      <div class="account-field account-full account-contact-field">
         <label for="email">Email <span class="account-muted">(tùy chọn)</span></label>
-        <input type="email" th:field="*{email}" autocomplete="email" maxlength="254" />
+        <input type="email" th:field="*{email}" th:errorclass="is-invalid" autocomplete="email" maxlength="254" />
         <small th:errors="*{email}"></small>
       </div>
-      <div class="account-field account-full">
+      <div class="account-field account-full account-contact-field">
         <label for="phone">Số điện thoại</label>
-        <input type="tel" th:field="*{phone}" autocomplete="tel" maxlength="30"
+        <input type="tel" th:field="*{phone}" th:errorclass="is-invalid" autocomplete="tel" maxlength="30"
             th:required="${requirePhone and verifiedPhone == null}" th:readonly="${verifiedPhone != null}" />
         <small th:errors="*{phone}"></small>
         <small class="account-muted" th:if="${verifiedPhone != null}">Đã xác thực qua SMS</small>
       </div>
       <div class="account-field account-full">
         <label for="dietaryPreferences">Chế độ ăn đặc biệt <span class="account-muted">(tùy chọn)</span></label>
-        <textarea th:field="*{dietaryPreferences}" rows="2" maxlength="500" placeholder="Ví dụ: ăn chay, dị ứng hải sản"></textarea>
+        <textarea th:field="*{dietaryPreferences}" th:errorclass="is-invalid" rows="2" maxlength="500" placeholder="Ví dụ: ăn chay, dị ứng hải sản"></textarea>
         <small th:errors="*{dietaryPreferences}"></small>
       </div>
-      <fieldset class="account-preferences account-full">
-        <legend>Tùy chọn nhận thông báo</legend>
-        <label><input type="checkbox" th:field="*{bookingNotifications}" /> Nhận thông báo về giao dịch và đặt bàn</label>
-        <label><input type="checkbox" th:field="*{marketingOptIn}" /> Nhận tin về sự kiện và khuyến mãi của T3L</label>
-      </fieldset>
-    </div>
-    <div th:fragment="content">
-      <form class="account-form" method="post" data-partial-submit th:action="@{/account}" th:object="${profileForm}">
-        <div th:replace="~{account/fragments/profile :: fields(false)}"></div>
-        <div class="account-form-actions"><button class="account-button is-primary" type="submit">Lưu thay đổi</button></div>
-      </form>
-      <section class="account-subsection" aria-labelledby="account-linked-title">
-        <h2 id="account-linked-title">Phương thức đăng nhập</h2>
-        <div class="account-provider">
-          <span>Google</span>
-          <span class="account-status" th:if="${linkedGoogleEmail != null}">Đã liên kết</span>
-          <span class="account-muted" th:unless="${linkedGoogleEmail != null}">Chưa liên kết</span>
+    </th:block>
+    <fieldset th:fragment="preferences" class="account-preferences account-full">
+      <legend>Tùy chọn nhận thông báo</legend>
+      <label><input type="checkbox" th:field="*{bookingNotifications}" /> Nhận thông báo về giao dịch và đặt bàn</label>
+      <label><input type="checkbox" th:field="*{marketingOptIn}" /> Nhận tin về sự kiện và khuyến mãi của T3L</label>
+    </fieldset>
+    <div th:fragment="content" class="account-stack">
+      <form class="account-form" method="post" data-partial-submit data-account-profile
+          th:action="@{/account}" th:object="${profileForm}">
+        <section class="account-card" aria-label="Hồ sơ khách hàng">
+          <div class="account-fields account-profile-fields">
+            <th:block th:replace="~{account/fragments/profile :: personalFields(false)}"></th:block>
+          </div>
+        </section>
+        <div class="account-card account-notification-card">
+          <fieldset th:replace="~{account/fragments/profile :: preferences}"></fieldset>
         </div>
-        <p class="account-muted" th:if="${linkedGoogleEmail != null}" th:text="${linkedGoogleEmail}"></p>
+        <p class="account-notice" role="status" th:if="${accountNotice != null}" th:text="${accountNotice}"></p>
+        <div class="account-form-actions">
+          <button class="account-button is-primary" type="submit">Lưu thay đổi</button>
+        </div>
+      </form>
+      <section class="account-card account-stack" aria-labelledby="account-linked-title">
+        <h2 id="account-linked-title">Phương thức đăng nhập</h2>
         <th:block th:if="${param.google != null}" th:switch="${param.google == null ? '' : param.google[0]}">
           <p class="account-notice" role="status" th:case="'linked'">Đã liên kết tài khoản Google.</p>
           <p class="account-notice is-error" role="alert" th:case="'already-linked'">Tài khoản Google này đã được liên kết.</p>
           <p class="account-notice is-error" role="alert" th:case="'expired'">Phiên liên kết đã hết hạn. Vui lòng bắt đầu lại.</p>
           <p class="account-notice is-error" role="alert" th:case="*">Chưa thể liên kết Google. Vui lòng thử lại.</p>
         </th:block>
-        <form method="post" th:if="${googleEnabled and linkedGoogleEmail == null and verifiedPhone != null}" th:action="@{/account/google/link}">
-          <button class="account-button" type="submit">Liên kết với Google</button>
-        </form>
-        <div class="account-provider account-subsection">
-          <span>Số điện thoại</span>
-          <span class="account-status" th:if="${verifiedPhone != null}" th:text="${verifiedPhone}"></span>
-          <span class="account-muted" th:unless="${verifiedPhone != null}">Chưa xác thực SMS</span>
+        <div class="account-providers">
+          <div class="account-provider">
+            <span class="account-provider-icon account-google-icon" aria-hidden="true">G</span>
+            <div class="account-provider-label">
+              <strong>Google</strong>
+              <span class="account-muted" th:if="${linkedGoogleEmail != null}" th:text="${linkedGoogleEmail}"></span>
+            </div>
+            <div class="account-provider-actions">
+              <span class="account-status" th:classappend="${linkedGoogleEmail != null ? 'is-linked' : 'is-unlinked'}"
+                  th:text="${linkedGoogleEmail != null ? 'Đã liên kết' : 'Chưa liên kết'}"></span>
+              <form method="post" th:if="${googleEnabled and linkedGoogleEmail == null and verifiedPhone != null}"
+                  th:action="@{/account/google/link}">
+                <button class="account-button" type="submit">Liên kết với Google</button>
+              </form>
+            </div>
+          </div>
+          <div class="account-provider">
+            <span class="account-provider-icon">
+              <svg th:replace="~{account/fragments/navigation :: icon('phone')}"></svg>
+            </span>
+            <div class="account-provider-label">
+              <strong>Số điện thoại</strong>
+              <span class="account-muted" th:if="${verifiedPhone != null}" th:text="${verifiedPhone}"></span>
+            </div>
+            <div class="account-provider-actions">
+              <span class="account-status" th:classappend="${verifiedPhone != null ? 'is-linked' : 'is-unlinked'}"
+                  th:text="${verifiedPhone != null ? 'Đã xác thực SMS' : 'Chưa xác thực SMS'}"></span>
+              <a class="account-text-action" th:unless="${localCustomer}" th:href="@{/account/sms}"
+                  th:text="${verifiedPhone == null ? 'Liên kết số điện thoại' : 'Đổi số điện thoại đã xác thực'}"></a>
+            </div>
+          </div>
         </div>
-        <a class="account-text-action" th:unless="${localCustomer}" th:href="@{/account/sms}"
-           th:text="${verifiedPhone == null ? 'Liên kết số điện thoại' : 'Đổi số điện thoại đã xác thực'}"></a>
       </section>
     </div>
   </body>

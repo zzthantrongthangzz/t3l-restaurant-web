@@ -4,64 +4,64 @@
 .lookup-intro h1 { margin-top: 20px; font: 400 clamp(36px, 4vw, 55px)/1.35 var(--home-serif); letter-spacing: -1px; }
 .lookup-intro h1 em { color: var(--home-bronze); }
 .lookup-intro > p { color: var(--home-muted); font-size: var(--text-body); line-height: 1.9; padding-bottom: 5px; }
-.lookup-form { color-scheme: light; background: var(--home-cream); color: #35281b; padding: 31px 35px; border-top: 3px solid var(--home-bronze); }
-.lookup-form .home-eyebrow { color: #8e663d; }
+.lookup-form { background: var(--surface); color: var(--text); padding: 31px 35px; border-top: 3px solid var(--home-bronze); }
+.lookup-form .home-eyebrow { color: var(--accent-text); }
 .lookup-form-top { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-bottom: 24px; }
-.lookup-form-top > span { color: #8a765b; font-size: var(--text-caption); }
+.lookup-form-top > span { color: var(--text-muted); font-size: var(--text-caption); }
 .lookup-search-fields { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: end; }
 .lookup-search-fields .home-button { min-height: 3rem; padding-block: 10px; }
 .lookup-search-fields #code { font-family: ui-monospace, Consolas, monospace; text-transform: uppercase; }
-.lookup-security-note { color: #8d795f; font-size: var(--text-caption); margin-top: 19px !important; }
-.lookup-alert { padding: 18px 22px; border: 1px solid var(--home-line); background: #c69d6810; color: #d5b58a; font-size: var(--text-body); line-height: 1.9; margin-top: 23px; }
-.lookup-alert.is-error { color: #e1b09a; border-color: #ac705d66; background: #ac705d12; }
-.lookup-alert.is-success { color: #bdd1ad; border-color: #92ae7466; background: #92ae7410; }
+.lookup-security-note { color: var(--text-muted); font-size: var(--text-caption); margin-top: 19px !important; }
+.lookup-alert { padding: 18px 22px; border: 1px solid var(--home-line); background: var(--accent-wash); color: var(--accent-text); font-size: var(--text-body); line-height: 1.9; margin-top: 23px; }
+.lookup-alert.is-error { color: var(--error); border-color: var(--error-border); background: var(--error-wash); }
+.lookup-alert.is-success { color: var(--success); border-color: var(--success-border); background: var(--success-wash); }
 .lookup-result-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 25px; margin-top: 65px; margin-bottom: 30px; }
 .lookup-result-heading h2, .lookup-history > h2 { font-size: 38px; margin-top: 14px; }
 .lookup-result-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 30px; align-items: start; }
-.lookup-receipt { padding: 32px; color-scheme: light; background: var(--home-cream); color: #382b1e; border-top: 2px solid var(--home-bronze); }
-.lookup-receipt-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding-bottom: 23px; border-bottom: 1px solid #cdbba1; }
+.lookup-receipt { padding: 32px; background: var(--surface); color: var(--text); border-top: 2px solid var(--home-bronze); }
+.lookup-receipt-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding-bottom: 23px; border-bottom: 1px solid var(--border); }
 .lookup-receipt-top h3 { font: 400 17px/1.7 ui-monospace, Consolas, monospace; letter-spacing: .4px; overflow-wrap: anywhere; }
-.lookup-status { display: inline-flex; align-items: center; padding: 5px 10px; border: 1px solid #bd965e66; color: #956e39; background: #c69d6818; font-size: var(--text-label); }
-.lookup-status[data-status="CONFIRMED"], .lookup-status[data-status="APPROVED"], .lookup-status[data-status="COMPLETED"] { border-color: #78936577; color: #688254; background: #78936510; }
-.lookup-status[data-status="CANCELLED"], .lookup-status[data-status="REJECTED"], .lookup-status[data-status="NO_SHOW"] { border-color: #b27b6677; color: #ac705b; background: #b27b6610; }
-.lookup-status[data-status="CHECKED_IN"], .lookup-status[data-status="SEATED"] { color: #69969c; border-color: #69969c66; }
+.lookup-status { display: inline-flex; align-items: center; padding: 5px 10px; border: 1px solid var(--warning-border); color: var(--warning); background: var(--warning-wash); font-size: var(--text-label); }
+.lookup-status[data-status="CONFIRMED"], .lookup-status[data-status="APPROVED"], .lookup-status[data-status="COMPLETED"] { border-color: var(--success-border); color: var(--success); background: var(--success-wash); }
+.lookup-status[data-status="CANCELLED"], .lookup-status[data-status="REJECTED"], .lookup-status[data-status="NO_SHOW"] { border-color: var(--error-border); color: var(--error); background: var(--error-wash); }
+.lookup-status[data-status="CHECKED_IN"], .lookup-status[data-status="SEATED"] { color: var(--info); border-color: var(--info-border); background: var(--info-wash); }
 .lookup-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 25px; margin: 26px 0; }
-.lookup-details dt { font-size: var(--text-label); color: #88745b; margin-bottom: 6px; }
+.lookup-details dt { font-size: var(--text-label); color: var(--text-muted); margin-bottom: 6px; }
 .lookup-details dd { margin: 0; font-size: var(--text-compact); overflow-wrap: anywhere; }
 .lookup-full { grid-column: 1 / -1; }
-.lookup-note { border-top: 1px solid #d5c5af; padding-top: 21px; }
+.lookup-note { border-top: 1px solid var(--border); padding-top: 21px; }
 .lookup-note dd { font-size: var(--text-compact); white-space: pre-wrap; }
-.lookup-receipt .home-text-link { color: #78532e; border-color: #bc9c74; }
+.lookup-receipt .home-text-link { color: var(--accent-text); border-color: var(--border); }
 .lookup-policy { background: var(--home-panel); border: 1px solid var(--home-line); padding: 32px; }
 .lookup-policy .home-eyebrow { letter-spacing: 1.8px; }
 .lookup-policy h2 { font-size: 30px; margin-top: 20px; }
 .lookup-policy-time { padding-block: 21px; margin-top: 20px; border-block: 1px solid var(--home-line); }
-.lookup-policy-time span { display: block; font-size: var(--text-label); color: #9f8d75; letter-spacing: 1.6px; }
+.lookup-policy-time span { display: block; font-size: var(--text-label); color: var(--text-muted); letter-spacing: 1.6px; }
 .lookup-policy-time strong { display: block; font-size: var(--text-compact); font-weight: 400; color: var(--home-bronze); margin-top: 7px; }
 .lookup-policy > p:not(.home-eyebrow) { color: var(--home-muted); font-size: var(--text-body); margin-top: 21px; }
-.lookup-policy > p strong { color: #d4b184; font-weight: 500; }
+.lookup-policy > p strong { color: var(--accent-text); font-weight: 500; }
 .lookup-policy .home-text-link { margin-top: 16px; }
 .lookup-request-actions { margin-top: 30px; display: grid; gap: 18px; }
 .lookup-disclosure { border: 1px solid var(--home-line); background: var(--home-panel); }
-.lookup-disclosure summary { display: flex; align-items: center; justify-content: space-between; padding: 22px 27px; cursor: pointer; font-size: var(--text-compact); list-style: none; color: #dec5a5; }
+.lookup-disclosure summary { display: flex; align-items: center; justify-content: space-between; padding: 22px 27px; cursor: pointer; font-size: var(--text-compact); list-style: none; color: var(--accent-text); }
 .lookup-disclosure summary::-webkit-details-marker { display: none; }
 .lookup-disclosure summary > span { font-size: 23px; color: var(--home-bronze); transition: transform .25s; }
 .lookup-disclosure[open] summary > span { transform: rotate(90deg); }
-.lookup-disclosure summary:hover { background: #c69d6809; }
-.lookup-disclosure .booking-form { margin: 0; border-top: 1px solid #bea27d; padding: 30px; }
-.lookup-disclosure .booking-form > p { color: #8b755a; font-size: var(--text-body); }
+.lookup-disclosure summary:hover { background: var(--accent-wash); }
+.lookup-disclosure .booking-form { margin: 0; border-top: 1px solid var(--border); padding: 30px; }
+.lookup-disclosure .booking-form > p { color: var(--text-muted); font-size: var(--text-body); }
 .lookup-disclosure .home-button { margin-top: 25px; }
 .lookup-cancel .booking-field { margin-top: 22px; }
 .lookup-history { margin-top: 60px; }
 .lookup-history > h2 { margin-bottom: 28px; }
-.lookup-history-card { padding: 25px 28px; border: 1px solid var(--home-line); background: #211b16; margin-top: 18px; }
+.lookup-history-card { padding: 25px 28px; border: 1px solid var(--home-line); background: var(--surface); margin-top: 18px; }
 .lookup-history-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 17px; }
 .lookup-history-top h3 { font: 400 23px/1.5 var(--home-serif); }
-.lookup-history-date { color: #a08d75; font-size: var(--text-caption); margin-top: 12px !important; }
+.lookup-history-date { color: var(--text-muted); font-size: var(--text-caption); margin-top: 12px !important; }
 .lookup-history-schedule { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; border-block: 1px solid var(--home-line); padding-block: 17px; margin-top: 18px; }
-.lookup-history-schedule span { display: block; color: #a08d75; font-size: var(--text-label); margin-bottom: 5px; }
-.lookup-history-schedule strong { display: block; color: #d3b58e; font-size: var(--text-compact); font-weight: 400; }
-.lookup-history-schedule small { color: #b4a18a; font-size: var(--text-caption); }
+.lookup-history-schedule span { display: block; color: var(--text-muted); font-size: var(--text-label); margin-bottom: 5px; }
+.lookup-history-schedule strong { display: block; color: var(--accent-text); font-size: var(--text-compact); font-weight: 400; }
+.lookup-history-schedule small { color: var(--text-muted); font-size: var(--text-caption); }
 .lookup-history-text { font-size: var(--text-body); color: var(--home-muted); white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 16px !important; }
 .lookup-bottom { display: flex; align-items: center; justify-content: center; gap: 22px; padding-top: 45px; color: var(--home-muted); font-size: var(--text-compact); }
 .lookup-search-results { display: grid; gap: 14px; margin-top: 30px; }

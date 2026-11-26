@@ -5,26 +5,32 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="robots" content="noindex,nofollow,noarchive" />
     <meta name="referrer" content="no-referrer" />
-    <meta name="theme-color" content="#171411" />
     <title>Tra cứu đặt bàn | T3L Restaurant</title>
     <th:block th:replace="~{web/fragments/theme :: start}"></th:block>
     <link rel="stylesheet" th:href="@{/css/home.css}" />
     <link rel="stylesheet" th:href="@{/css/confirmation.css(v=2)}" />
     <link rel="stylesheet" th:href="@{/css/reservation.css}" />
     <link rel="stylesheet" th:href="@{/css/lookup.css(v=2)}" />
+    <link rel="stylesheet" th:href="@{/css/account.css}" th:if="${ownedBooking == true}" />
     <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
+    <script data-page-script defer th:src="@{/js/account.js}" th:if="${ownedBooking == true}"></script>
   </head>
-  <body class="home lookup-page">
-    <a class="skip-link" href="#lookup-form">Chuyển đến form tra cứu</a>
-    <header th:replace="~{web/fragments/restaurant-shell :: header('lookup')}"></header>
-    <main data-navigation id="main" class="lookup-main">
-      <div class="home-container">
-        <section class="lookup-intro" aria-labelledby="lookup-title">
+  <body class="home lookup-page" th:classappend="${ownedBooking == true ? 'account-page' : ''}">
+    <a class="skip-link" th:href="${ownedBooking == true ? '#account-content' : '#lookup-form'}" th:text="${ownedBooking == true ? 'Chuyển đến chi tiết đặt bàn' : 'Chuyển đến form tra cứu'}"></a>
+    <header th:replace="~{web/fragments/restaurant-shell :: header(${ownedBooking == true ? 'account' : 'lookup'})}"></header>
+    <main data-navigation id="main" class="lookup-main" th:classappend="${ownedBooking == true ? 'account-area account-related' : ''}">
+      <div th:class="${ownedBooking == true ? 'account-layout' : 'home-container'}">
+        <th:block th:if="${ownedBooking == true}"><aside th:replace="~{account/fragments/sidebar :: customer('reservations', 'Khách T3L')}"></aside></th:block>
+        <div class="account-content" id="account-content" tabindex="-1" th:remove="${ownedBooking == true ? 'none' : 'tag'}">
+        <header class="account-heading" th:if="${ownedBooking == true}">
+          <a class="account-text-action" th:href="@{/account/reservations}">← Lịch sử đặt bàn</a>
+          <h1>Chi tiết đặt bàn</h1>
+        </header>
+        <section class="lookup-intro" aria-labelledby="lookup-title" th:unless="${ownedBooking == true}">
           <div><p class="home-eyebrow">T3L RESTAURANT / YOUR RESERVATION</p><h1 id="lookup-title">Cuộc hẹn của bạn.<br /><em>Luôn được chăm chút.</em></h1></div>
           <p>Tra cứu thông tin, theo dõi xác nhận<br />và gửi yêu cầu cho buổi hẹn sắp tới.</p>
         </section>
 
-        <a class="home-text-link" th:if="${ownedBooking}" th:href="@{/account/reservations}">Về thông tin đặt bàn</a>
         <form id="lookup-form" class="lookup-form" th:unless="${ownedBooking}" th:action="@{/reservations/lookup}" th:object="${lookupForm}" method="post">
           <div class="lookup-form-top"><p class="home-eyebrow">TRA CỨU ĐẶT BÀN</p><span>Nhập số điện thoại đã dùng khi đặt bàn</span></div>
           <div class="lookup-search-fields">
@@ -52,7 +58,7 @@
           <form class="lookup-alert" th:if="${canClaimBooking}" th:action="@{/reservations/lookup/{code}/claim(code=${reservation.code})}" method="post">
             <button class="home-button" type="submit">Thêm đặt bàn vào tài khoản</button>
           </form>
-          <div class="lookup-result-heading"><div><p class="home-eyebrow">THÔNG TIN ĐẶT BÀN</p><h2>Hẹn bạn <em>tại T3L.</em></h2></div><a class="home-text-link" th:href="@{/reservations/lookup(code=${reservation.code})}">Cập nhật trạng thái <span aria-hidden="true">↻</span></a></div>
+          <div class="lookup-result-heading"><div th:unless="${ownedBooking == true}"><p class="home-eyebrow">THÔNG TIN ĐẶT BÀN</p><h2>Hẹn bạn <em>tại T3L.</em></h2></div><a class="home-text-link" th:href="@{/reservations/lookup(code=${reservation.code})}">Cập nhật trạng thái <span aria-hidden="true">↻</span></a></div>
           <div class="lookup-result-grid">
             <section class="lookup-receipt" aria-labelledby="lookup-details-title">
               <div class="lookup-receipt-top"><h3 id="lookup-details-title" th:text="${reservation.code}"></h3><span class="lookup-status" th:attr="data-status=${reservation.status}" th:text="${reservation.statusLabel}"></span></div>
@@ -113,6 +119,7 @@
         </th:block>
 
         <div class="lookup-bottom"><p>Bạn chưa có cuộc hẹn tại T3L?</p><a class="home-text-link" th:href="@{/reservations/new}">Đặt bàn ngay <span aria-hidden="true">↗</span></a></div>
+        </div>
       </div>
     </main>
     <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>

@@ -7,7 +7,7 @@
         <a th:href="@{/account/invoices(tab='company')}" th:attr="aria-current=${tab == 'company' ? 'page' : null}">Thông tin công ty</a>
       </nav>
       <div th:if="${tab == 'list'}">
-        <section aria-labelledby="invoice-list-title">
+        <section class="account-card" aria-labelledby="invoice-list-title">
           <h2 id="invoice-list-title">Lịch sử thanh toán</h2>
           <th:block th:if="${invoices.isEmpty()}">
             <div th:replace="~{account/fragments/activity :: empty('invoices','Chưa có hóa đơn đã thanh toán',null)}"></div>
@@ -19,8 +19,8 @@
                   <strong th:text="${invoice.invoiceNumber + ' · ' + invoice.reservation.code}"></strong>
                   <span th:text="${#numbers.formatInteger(invoice.totalAmount, 1, 'POINT') + ' đ'}"></span>
                 </summary>
-                <ul class="account-list">
-                  <li class="account-record" th:each="item : ${invoice.items}" th:unless="${item.cancelled}">
+                <ul class="account-invoice-items">
+                  <li th:each="item : ${invoice.items}" th:unless="${item.cancelled}">
                     <span th:text="${item.quantity + ' × ' + item.dishName}"></span>
                     <span th:text="${#numbers.formatInteger(item.amount, 1, 'POINT') + ' đ'}"></span>
                   </li>
@@ -68,27 +68,27 @@
           </ul>
         </section>
       </div>
-      <form class="account-form" th:if="${tab == 'company'}" th:action="@{/account/invoices/company}"
+      <form class="account-card account-form" th:if="${tab == 'company'}" th:action="@{/account/invoices/company}"
           th:object="${companyForm}" method="post" data-partial-submit>
         <div class="account-fields">
           <div class="account-field">
             <label for="companyName">Tên công ty</label>
-            <input th:field="*{companyName}" autocomplete="organization" maxlength="180" required />
+            <input th:field="*{companyName}" th:errorclass="is-invalid" autocomplete="organization" maxlength="180" required />
             <small th:errors="*{companyName}"></small>
           </div>
           <div class="account-field">
             <label for="taxCode">Mã số thuế</label>
-            <input th:field="*{taxCode}" maxlength="14" required />
+            <input th:field="*{taxCode}" th:errorclass="is-invalid" maxlength="14" required />
             <small th:errors="*{taxCode}"></small>
           </div>
           <div class="account-field account-full">
             <label for="companyAddress">Địa chỉ công ty</label>
-            <textarea th:field="*{companyAddress}" rows="3" autocomplete="street-address" maxlength="300" required></textarea>
+            <textarea th:field="*{companyAddress}" th:errorclass="is-invalid" rows="3" autocomplete="street-address" maxlength="300" required></textarea>
             <small th:errors="*{companyAddress}"></small>
           </div>
           <div class="account-field account-full">
             <label for="invoiceEmail">Email nhận hóa đơn</label>
-            <input type="email" th:field="*{invoiceEmail}" autocomplete="email" maxlength="254" required />
+            <input type="email" th:field="*{invoiceEmail}" th:errorclass="is-invalid" autocomplete="email" maxlength="254" required />
             <small th:errors="*{invoiceEmail}"></small>
           </div>
         </div>

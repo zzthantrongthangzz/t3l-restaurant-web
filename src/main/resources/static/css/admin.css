@@ -38,17 +38,17 @@ body.admin-page { --admin-sidebar-width: 16.25rem; min-height: 100vh; padding-in
 .admin-revenue-chart .staff-panel-heading { align-items: start; }
 .admin-segments { display: flex; gap: 4px; padding: 3px; border: 1px solid var(--staff-line); border-radius: 7px; }
 .admin-segments a { display: inline-flex; align-items: center; padding: 6px 9px; min-height: 34px; border-radius: 4px; font-size: var(--text-label); font-weight: 600; }
-.admin-segments a:hover, .admin-segments a[aria-current="page"] { background: #eadbcb; color: #59391d; }
+.admin-segments a:hover, .admin-segments a[aria-current="page"] { background: var(--accent-wash); color: var(--accent-text); }
 .admin-account-groups { width: fit-content; margin-block-end: 14px; }
 .admin-chart { margin: 16px 0 0; min-width: 0; }
 .admin-chart figcaption { color: var(--staff-muted); font-size: var(--text-label); }
 .admin-bars { display: flex; margin: 10px 0 0; padding: 4px 2px 8px; gap: 8px; list-style: none; overflow-x: auto; }
 .admin-bars li { position: relative; flex: 1 0 36px; color: var(--staff-muted); font-size: var(--text-caption); text-align: center; min-width: 0; }
 .admin-bar-track {
-  height: clamp(105px, 15vw, 168px); border-bottom: 1px solid #aa9279; display: flex; align-items: end; justify-content: center;
-  margin-bottom: 6px; background: repeating-linear-gradient(to top, #e7dacb 0 1px, transparent 1px 25%);
+  height: clamp(105px, 15vw, 168px); border-bottom: 1px solid var(--control-border); display: flex; align-items: end; justify-content: center;
+  margin-bottom: 6px; background: repeating-linear-gradient(to top, var(--border) 0 1px, transparent 1px 25%);
 }
-.admin-bar { display: block; width: min(69%, 46px); height: var(--height); border-radius: 4px 4px 0 0; background: linear-gradient(#b58149, #704927); }
+.admin-bar { display: block; width: min(69%, 46px); height: var(--height); border-radius: 4px 4px 0 0; background: linear-gradient(var(--accent-text), var(--action)); }
 .admin-chart-values { margin-top: 5px; font-size: var(--text-label); }
 .admin-chart-values dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px,1fr)); gap: 8px 14px; }
 .admin-chart-values dl div { border-top: 1px solid var(--staff-line); padding-top: 5px; }

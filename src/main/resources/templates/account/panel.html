@@ -4,21 +4,22 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="robots" content="noindex,nofollow" />
-    <meta name="theme-color" content="#171411" />
     <title th:text="${pageTitle + ' | T3L Restaurant'}">Tài khoản | T3L Restaurant</title>
     <th:block th:replace="~{web/fragments/theme :: start}"></th:block>
     <link rel="stylesheet" th:href="@{/css/home.css}" />
     <link rel="stylesheet" th:href="@{/css/account.css}" />
     <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
+    <script data-page-script defer th:src="@{/js/account.js}"></script>
   </head>
   <body class="home account-page">
-    <a class="skip-link" href="#main">Chuyển đến nội dung</a>
+    <a class="skip-link" href="#account-content">Chuyển đến nội dung</a>
     <header th:replace="~{web/fragments/restaurant-shell :: header('account')}"></header>
-    <div class="account-area">
+    <main data-navigation data-navigation-fragment class="account-area" id="main" aria-labelledby="account-title">
       <div class="account-layout">
-        <main data-navigation data-navigation-fragment class="account-content" id="main">
-          <h1 th:text="${pageTitle}"></h1>
-          <p class="account-notice" role="status" th:if="${accountNotice}" th:text="${accountNotice}"></p>
+        <aside th:replace="~{account/fragments/sidebar :: customer(${section}, 'Khách T3L')}"></aside>
+        <div class="account-content" id="account-content" tabindex="-1">
+          <header class="account-heading"><h1 id="account-title" th:text="${section == 'profile' ? 'Thông tin cá nhân' : pageTitle}"></h1></header>
+          <p class="account-notice" role="status" th:if="${accountNotice != null and section != 'profile'}" th:text="${accountNotice}"></p>
           <th:block th:switch="${section}">
             <th:block th:case="'profile'"><div th:replace="~{account/fragments/profile :: content}"></div></th:block>
             <th:block th:case="'reservations'"><div th:replace="~{account/fragments/activity :: reservations}"></div></th:block>
@@ -27,9 +28,9 @@
             <th:block th:case="'addresses'"><div th:replace="~{account/fragments/addresses :: content}"></div></th:block>
             <th:block th:case="'invoices'"><div th:replace="~{account/fragments/invoices :: content}"></div></th:block>
           </th:block>
-        </main>
+        </div>
       </div>
-    </div>
+    </main>
     <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>
     <th:block th:replace="~{web/fragments/restaurant-shell :: navigation}"></th:block>
     <script th:if="${section == 'vouchers'}" data-page-script defer th:src="@{/js/voucher-copy.js}"></script>
