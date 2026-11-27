@@ -1,6 +1,7 @@
 package t3l.restaurant.t3l_restaurant.service;
 
 import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import java.math.BigDecimal;
@@ -9,10 +10,12 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +47,9 @@ import static t3l.restaurant.t3l_restaurant.entity.Reservation.*;
 public class StaffWorkspaceService {
   public static final List<String> STATUSES = List.of(PENDING, CONFIRMED, CHECKED_IN, SEATED, COMPLETED, CANCELLED, NO_SHOW);
   private static final List<String> SCHEDULED = List.of(PENDING, CONFIRMED);
+  private static final List<String> UNRESOLVED = List.of(PENDING, CONFIRMED, CHECKED_IN);
+  private static final Sort ARRIVAL_ORDER = Sort.by("reservationDate", "reservationTime", "id");
+  private static final int DASHBOARD_ARRIVAL_MINUTES = 30;
   private static final int RESERVATIONS_PAGE_SIZE = 20;
   private final ReservationRepository reservations;
   private final RestaurantTableRepository tables;
@@ -83,9 +89,14 @@ public class StaffWorkspaceService {
       };
     }
   }
-  public record Dashboard(LocalDate date, long bookingsToday, long pending, long guestsArrived, long serving,
-                          long free, long changeRequests, long awaitingPayment, List<Reservation> upcoming, List<Reservation> toConfirm,
-                          List<Reservation> checkedIn) {}
+  public record DashboardTask(Reservation booking, String label, String icon, String reason, Long requestId,
+                              boolean depositReview, ReservationRow state) {}
+  public record ReportCounts(long serving, long pending, long changeRequests) {}
+  public record Dashboard(LocalDate date, LocalDateTime now, long bookingsToday, long pending, long guestsArrived,
+                          long late, long backlog, long awaitingPayment,
+                          List<DashboardTask> priority, List<DashboardTask> work, List<DashboardTask> waiting,
+                          long free, long serving,
+                          int checkInMinutes, int noShowMinutes, LocalDateTime opensAt, LocalDateTime closesAt) {}
   public record BookingActions(boolean confirm, boolean confirmEnabled, String confirmReason,
                                boolean cancel, boolean receive, boolean receiveEnabled, String receiveReason,
                                boolean complete, boolean noShow, boolean late, boolean moveTable, boolean reschedule) {}
@@ -96,25 +107,75 @@ public class StaffWorkspaceService {
                                boolean late, ListAction confirm, ListAction receive) {}
 
   @Transactional(readOnly = true)
-  public Dashboard dashboard() {
+  public ReportCounts reportCounts() {
+    LocalDateTime now = LocalDateTime.now(schedule.getClock());
+    return new ReportCounts(tableCount(boardAt(now.toLocalDate(), now, null, 1, false, false), TableState.OCCUPIED),
+        reservations.countByStatus(PENDING), requests.countByStatus("PENDING"));
+  }
+
+  @Transactional(readOnly = true)
+  public Dashboard dashboard(boolean shiftOpen) {
     LocalDateTime now = LocalDateTime.now(schedule.getClock());
     LocalDate today = now.toLocalDate();
-    var bookings = reservations.findByReservationDateOrderByReservationTimeAscIdAsc(today);
-    var board = boardAt(today, now, null, 1, false, false);
-    var upcoming = Stream.concat(bookings.stream()
-        .filter(booking -> SCHEDULED.contains(booking.getStatus()) && !booking.getStartsAt().isBefore(now)),
-        reservations.findTop10ByStatusInAndReservationDateGreaterThanOrderByReservationDateAscReservationTimeAscIdAsc(SCHEDULED, today).stream())
-        .limit(8).toList();
-    return new Dashboard(today, bookings.size(), reservations.countByStatus(PENDING),
+    var rules = schedule.rules();
+    var board = boardAt(today, now, null, 1, shiftOpen, false);
+    var pending = reservations.findAll((root, query, cb) -> activePending(root, cb, now), PageRequest.of(0, 5, ARRIVAL_ORDER));
+    var late = reservations.findAll((root, query, cb) -> lateToday(root, cb, now), PageRequest.of(0, 1, ARRIVAL_ORDER));
+    var arriving = preview((root, query, cb) -> cb.and(cb.equal(root.get("reservationDate"), today),
+        cb.or(cb.equal(root.get("status"), CHECKED_IN), cb.and(root.get("status").in(SCHEDULED),
+            cb.greaterThanOrEqualTo(root.get("reservationTime"), now.toLocalTime()),
+            cb.not(startsAfter(root, cb, now.plusMinutes(DASHBOARD_ARRIVAL_MINUTES))))),
+        cb.not(expiredDeposit(root, cb, now))), 2, ARRIVAL_ORDER);
+    var review = preview((root, query, cb) -> paymentReview(root, query, cb), 1, ARRIVAL_ORDER);
+    var waiting = preview((root, query, cb) -> cb.and(root.get("status").in(SCHEDULED),
+        cb.greaterThanOrEqualTo(root.get("reservationDate"), today),
+        cb.equal(root.get("depositStatus"), "WAITING_PAYMENT"),
+        cb.not(expiredDeposit(root, cb, now))), 2, ARRIVAL_ORDER);
+    var changes = requests.findTop3ByStatusAndReservation_ReservationDateGreaterThanEqualOrderByCreatedAtAscIdAsc("PENDING", today);
+    var rows = reservationRows(Stream.of(pending.getContent(), late.getContent(), arriving)
+        .flatMap(List::stream).distinct().toList(), shiftOpen, now);
+    var priority = new ArrayList<DashboardTask>();
+    var seen = new HashSet<Long>();
+    for (var booking : review) {
+      seen.add(booking.getId());
+      priority.add(new DashboardTask(booking, "Đối soát tiền cọc", "receipt",
+          "Kiểm tra giao dịch hoặc khoản hoàn cọc.", null, true, null));
+    }
+    addTasks(priority, seen, late.getContent(), rows, "Quá giờ đến", "clock", "Đã qua giờ đặt và chưa ghi nhận khách đến.", 4);
+    addTasks(priority, seen, arriving, rows, "Chuẩn bị nhận khách", "person", "Khách đã check-in hoặc sắp đến trong 30 phút.", 4);
+    var work = new ArrayList<DashboardTask>();
+    for (var change : changes) {
+      work.add(new DashboardTask(change.getReservation(), change.getTypeLabel(), "ticket",
+          "Yêu cầu của khách đang chờ duyệt.", change.getId(), false, null));
+    }
+    var onHold = new ArrayList<DashboardTask>();
+    addTasks(onHold, seen, waiting, Map.of(), "Chờ tiền cọc", "receipt", "Đang chờ khách thanh toán tiền cọc.", 2);
+    var confirmable = pending.getContent().stream().filter(booking -> rows.get(booking.getId()).confirm().visible()).toList();
+    addTasks(work, seen, confirmable, rows, "Chờ xác nhận", "calendar", "Kiểm tra điều kiện để xác nhận chỗ ngồi.", 4);
+    return new Dashboard(today, now, reservations.countByReservationDate(today), pending.getTotalElements(),
         reservations.guestsArrivedOn(today, today.atStartOfDay(), today.plusDays(1).atStartOfDay()),
-        board.stream().filter(table -> table.state() == TableState.OCCUPIED).count(),
-        board.stream().filter(table -> table.state() == TableState.FREE).count(),
-        requests.countByStatus("PENDING"), orders.countByStatus(DiningOrder.FINALIZED), upcoming,
-        reservations.findTop8ByStatusOrderByReservationDateAscReservationTimeAscIdAsc(PENDING),
-        reservations.findByStatusInAndTableIsNotNull(List.of(CONFIRMED, CHECKED_IN)).stream()
-            .filter(booking -> booking.getReservationDate().equals(today))
-            .filter(booking -> !booking.getStartsAt().isAfter(now.plusMinutes(schedule.getCheckInMinutes())))
-            .sorted(Comparator.comparing(Reservation::getStartsAt)).limit(8).toList());
+        late.getTotalElements(), reservations.count((root, query, cb) -> backlog(root, cb, today)),
+        orders.countByStatus(DiningOrder.FINALIZED),
+        priority, work, onHold, tableCount(board, TableState.FREE), tableCount(board, TableState.OCCUPIED),
+        rules.checkIn(), rules.noShow(), today.atTime(rules.opening()), today.atTime(rules.closing()));
+  }
+
+  private List<Reservation> preview(Specification<Reservation> criteria, int limit, Sort sort) {
+    return reservations.findAll(criteria, PageRequest.of(0, limit, sort)).getContent();
+  }
+
+  private void addTasks(List<DashboardTask> tasks, Set<Long> seen, List<Reservation> candidates,
+      Map<Long, ReservationRow> rows, String label, String icon, String reason, int limit) {
+    for (var booking : candidates) {
+      if (tasks.size() >= limit) return;
+      if (seen.add(booking.getId())) {
+        tasks.add(new DashboardTask(booking, label, icon, reason, null, false, rows.get(booking.getId())));
+      }
+    }
+  }
+
+  private long tableCount(List<TableView> board, TableState state) {
+    return board.stream().filter(table -> table.state() == state).count();
   }
 
   @Transactional(readOnly = true)
@@ -128,13 +189,13 @@ public class StaffWorkspaceService {
   }
 
   private List<TableView> boardAt(LocalDate date, LocalDateTime now, LocalTime time, int guests, boolean shiftOpen,
-      boolean staffTimeline) {
+      boolean includeCommands) {
     var rules = schedule.rules();
     boolean today = date.equals(now.toLocalDate());
     boolean live = today && time == null;
     var slotStart = time == null ? null : date.atTime(time);
     var slotEnd = slotStart == null ? null : slotStart.plusMinutes(rules.duration());
-    boolean operational = !staffTimeline || (today && (live || (!slotStart.isAfter(now) && slotEnd.isAfter(now))));
+    boolean operational = today && (live || (!slotStart.isAfter(now) && slotEnd.isAfter(now)));
     var blocked = slotStart == null ? Map.<Long, Reservation>of() : bookings.blockingByTable(slotStart, slotEnd);
     var scheduledByTable = reservations.findByReservationDateBetweenAndStatusNot(date, date, CANCELLED)
         .stream().filter(booking -> booking.getTable() != null && !booking.hasExpiredDeposit(now) && ReservationService.BLOCKING_STATUSES.contains(booking.getStatus()))
@@ -142,15 +203,15 @@ public class StaffWorkspaceService {
         .collect(Collectors.groupingBy(booking -> booking.getTable().getId()));
     var arrivedByTable = today
         ? reservations.findByStatusInAndTableIsNotNull(List.of(SEATED, CHECKED_IN)).stream()
-            .filter(booking -> !staffTimeline || SEATED.equals(booking.getStatus()) || booking.getReservationDate().equals(date))
+            .filter(booking -> SEATED.equals(booking.getStatus()) || booking.getReservationDate().equals(date))
             .collect(Collectors.groupingBy(booking -> booking.getTable().getId()))
         : Map.<Long, List<Reservation>>of();
     var walkInEnd = now.plusMinutes(rules.duration());
-    var walkInBlocks = today && operational
+    var walkInBlocks = includeCommands && operational
         ? bookings.blockingByTable(now, walkInEnd)
         : Map.<Long, Reservation>of();
-    var bookingIds = Stream.concat(scheduledByTable.values().stream(), arrivedByTable.values().stream())
-        .flatMap(List::stream).map(Reservation::getId).distinct().toList();
+    var bookingIds = includeCommands ? Stream.concat(scheduledByTable.values().stream(), arrivedByTable.values().stream())
+        .flatMap(List::stream).map(Reservation::getId).distinct().toList() : List.<Long>of();
     var boardOrders = bookingIds.isEmpty() ? Map.<Long, DiningOrder>of()
         : orders.findByReservation_IdIn(bookingIds).stream()
             .collect(Collectors.toMap(order -> order.getReservation().getId(), order -> order));
@@ -164,7 +225,7 @@ public class StaffWorkspaceService {
       Reservation current = slotStart != null ? blocked.get(table.getId()) : arrived.stream()
           .min(Comparator.comparing(booking -> !SEATED.equals(booking.getStatus())))
           .orElseGet(() -> scheduled.stream()
-              .filter(booking -> staffTimeline && live
+              .filter(booking -> live
                   ? activeNow(booking, now, rules)
                   : !booking.getStartsAt().isBefore(now) || booking.effectiveEndsAt(rules.duration()).isAfter(now))
               .findFirst().orElse(null));
@@ -172,31 +233,29 @@ public class StaffWorkspaceService {
           : switch (current.getStatus()) {
             case SEATED -> operational ? TableState.OCCUPIED : TableState.RESERVED;
             case PENDING -> TableState.PENDING;
-            case CONFIRMED, CHECKED_IN -> staffTimeline && operational && readyForArrival(current, now, rules)
+            case CONFIRMED, CHECKED_IN -> operational && readyForArrival(current, now, rules)
                 ? TableState.ARRIVING : TableState.RESERVED;
             default -> TableState.RESERVED;
           };
-      boolean canWalkIn = today && operational && activeIds.contains(table.getId())
+      boolean canWalkIn = includeCommands && operational && activeIds.contains(table.getId())
           && table.getCapacity() >= guests && arrived.isEmpty() && !walkInBlocks.containsKey(table.getId());
       var nextFrom = slotStart == null ? (live ? now : date.atStartOfDay()) : slotStart;
       var next = scheduled.stream().filter(booking -> SCHEDULED.contains(booking.getStatus()))
-          .filter(booking -> staffTimeline
-              ? !sameBooking(booking, current) && (!booking.getStartsAt().isBefore(nextFrom)
-                  || (state == TableState.OCCUPIED && booking.effectiveEndsAt(rules.duration()).isAfter(nextFrom)))
-              : booking.effectiveEndsAt(rules.duration()).isAfter(now))
+          .filter(booking -> !sameBooking(booking, current) && (!booking.getStartsAt().isBefore(nextFrom)
+              || (state == TableState.OCCUPIED && booking.effectiveEndsAt(rules.duration()).isAfter(nextFrom))))
           .findFirst().orElse(null);
       var others = scheduled.stream().filter(booking -> !sameBooking(booking, current)
-          && (!staffTimeline || !sameBooking(booking, next))).toList();
+          && !sameBooking(booking, next)).toList();
       LocalDateTime servingUntil = state == TableState.OCCUPIED ? current.effectiveEndsAt(rules.duration()) : null;
       boolean serviceAtRisk = servingUntil != null && next != null
           && (servingUntil.isAfter(next.getStartsAt()) || !now.plusMinutes(rules.slot()).isBefore(next.getStartsAt()));
       boolean hasWaitingBooking = state != TableState.INACTIVE
           && ((current != null && (SCHEDULED.contains(current.getStatus()) || CHECKED_IN.equals(current.getStatus())))
               || (slotStart == null && next != null));
-      board.add(new TableView(table, state, current, others, current == null ? null : actions(current, now, shiftOpen, rules),
-          current != null && (operational || !SEATED.equals(current.getStatus()))
+      board.add(new TableView(table, state, current, others, includeCommands && current != null ? actions(current, now, shiftOpen, rules) : null,
+          includeCommands && current != null && (operational || !SEATED.equals(current.getStatus()))
               && bookings.canAddMenuItems(current, boardOrders.get(current.getId()), true), canWalkIn,
-          next, servingUntil, serviceAtRisk, staffTimeline && next != null ? actions(next, now, shiftOpen, rules) : null,
+          next, servingUntil, serviceAtRisk, includeCommands && next != null ? actions(next, now, shiftOpen, rules) : null,
           operational, hasWaitingBooking));
     }
     return board;
@@ -255,9 +314,7 @@ public class StaffWorkspaceService {
       if (STATUSES.contains(status)) conditions.add(cb.equal(root.get("status"), status));
       if (staffList) {
         var awaiting = root.get("status").in(SCHEDULED);
-        var expired = cb.and(awaiting, cb.or(
-            depositDeadlinePassed(root, cb, "WAITING_PAYMENT", "depositDueAt", now),
-            depositDeadlinePassed(root, cb, "TRANSFER_SUBMITTED", "depositReviewDueAt", now)));
+        var expired = expiredDeposit(root, cb, now);
         if ("upcoming".equals(scope)) {
           conditions.add(cb.and(awaiting, startsAfter(root, cb, now), cb.not(expired)));
         } else if ("attention".equals(scope)) {
@@ -265,17 +322,21 @@ public class StaffWorkspaceService {
           var change = pendingRequest.from(ReservationChangeRequest.class);
           pendingRequest.select(change.get("id")).where(cb.equal(change.get("reservation").get("id"), root.get("id")),
               cb.equal(change.get("status"), "PENDING"));
-          var latestDeposit = criteriaQuery.subquery(Long.class);
-          var latest = latestDeposit.from(PaymentIntent.class);
-          latestDeposit.select(cb.max(latest.<Long>get("id"))).where(
-              cb.equal(latest.get("reservationId"), root.get("id")), cb.equal(latest.get("paymentType"), PaymentIntent.DEPOSIT));
-          var review = criteriaQuery.subquery(Long.class);
-          var intent = review.from(PaymentIntent.class);
-          review.select(intent.get("id")).where(cb.equal(intent.get("id"), latestDeposit),
-              cb.equal(intent.get("status"), PaymentIntent.REVIEW_REQUIRED));
-          conditions.add(cb.or(cb.exists(pendingRequest), cb.exists(review), expired,
-              cb.and(awaiting, cb.not(startsAfter(root, cb, noShowCutoff))),
-              root.get("depositStatus").in("TRANSFER_SUBMITTED", "PAYMENT_REVIEW_REQUIRED", "REFUND_PENDING", "CLOSED_TRANSFER_PENDING")));
+          conditions.add(cb.or(cb.exists(pendingRequest), paymentReview(root, criteriaQuery, cb), expired,
+              cb.and(awaiting, cb.not(startsAfter(root, cb, noShowCutoff)))));
+        } else if ("late".equals(scope)) {
+          conditions.add(lateToday(root, cb, now));
+        } else if ("backlog".equals(scope)) {
+          conditions.add(backlog(root, cb, now.toLocalDate()));
+        } else if ("active-pending".equals(scope)) {
+          conditions.add(activePending(root, cb, now));
+        } else if ("arrived".equals(scope)) {
+          var today = now.toLocalDate();
+          var checkedIn = root.<LocalDateTime>get("checkedInAt");
+          conditions.add(cb.or(cb.and(cb.greaterThanOrEqualTo(checkedIn, today.atStartOfDay()),
+                  cb.lessThan(checkedIn, today.plusDays(1).atStartOfDay())),
+              cb.and(cb.isNull(checkedIn), cb.equal(root.get("reservationDate"), today),
+                  root.get("status").in(CHECKED_IN, SEATED, COMPLETED))));
         } else if (PENDING.equals(status)) {
           conditions.add(cb.not(expired));
         }
@@ -304,6 +365,39 @@ public class StaffWorkspaceService {
     var date = root.<LocalDate>get("reservationDate");
     return cb.or(cb.greaterThan(date, time.toLocalDate()),
         cb.and(cb.equal(date, time.toLocalDate()), cb.greaterThan(root.<LocalTime>get("reservationTime"), time.toLocalTime())));
+  }
+
+  private Predicate lateToday(Root<Reservation> root, CriteriaBuilder cb, LocalDateTime now) {
+    return cb.and(cb.equal(root.get("reservationDate"), now.toLocalDate()), root.get("status").in(SCHEDULED),
+        cb.lessThan(root.get("reservationTime"), now.toLocalTime()), cb.not(expiredDeposit(root, cb, now)));
+  }
+
+  private Predicate backlog(Root<Reservation> root, CriteriaBuilder cb, LocalDate today) {
+    return cb.and(cb.lessThan(root.get("reservationDate"), today), root.get("status").in(UNRESOLVED));
+  }
+
+  private Predicate activePending(Root<Reservation> root, CriteriaBuilder cb, LocalDateTime now) {
+    return cb.and(cb.equal(root.get("status"), PENDING), cb.greaterThanOrEqualTo(root.get("reservationDate"), now.toLocalDate()),
+        cb.not(expiredDeposit(root, cb, now)));
+  }
+
+  private Predicate expiredDeposit(Root<Reservation> root, CriteriaBuilder cb, LocalDateTime now) {
+    return cb.and(root.get("status").in(SCHEDULED), cb.or(
+        depositDeadlinePassed(root, cb, "WAITING_PAYMENT", "depositDueAt", now),
+        depositDeadlinePassed(root, cb, "TRANSFER_SUBMITTED", "depositReviewDueAt", now)));
+  }
+
+  private Predicate paymentReview(Root<Reservation> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
+    var latestDeposit = query.subquery(Long.class);
+    var latest = latestDeposit.from(PaymentIntent.class);
+    latestDeposit.select(cb.max(latest.<Long>get("id"))).where(
+        cb.equal(latest.get("reservationId"), root.get("id")), cb.equal(latest.get("paymentType"), PaymentIntent.DEPOSIT));
+    var review = query.subquery(Long.class);
+    var intent = review.from(PaymentIntent.class);
+    review.select(intent.get("id")).where(cb.equal(intent.get("id"), latestDeposit),
+        cb.equal(intent.get("status"), PaymentIntent.REVIEW_REQUIRED));
+    return cb.or(cb.exists(review),
+        root.get("depositStatus").in("TRANSFER_SUBMITTED", "PAYMENT_REVIEW_REQUIRED", "REFUND_PENDING", "CLOSED_TRANSFER_PENDING"));
   }
 
   private Predicate depositDeadlinePassed(Root<Reservation> root, CriteriaBuilder cb, String status,

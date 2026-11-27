@@ -45,6 +45,10 @@
         <div class="staff-reservation-result">
           <p class="staff-result-count" th:text="${results.totalElements + ' lượt đặt bàn'}"></p>
           <p class="staff-muted" th:if="${staffList and scope == 'attention'}">Lượt quá hạn, cọc cần đối soát hoặc hoàn, và yêu cầu chờ duyệt.</p>
+          <p class="staff-muted" th:if="${scope == 'late'}">Lượt hôm nay đã qua giờ đặt và chưa ghi nhận khách đến.</p>
+          <p class="staff-muted" th:if="${scope == 'backlog'}">Lượt đặt từ ngày trước còn chờ xử lý.</p>
+          <p class="staff-muted" th:if="${scope == 'active-pending'}">Lượt đặt từ hôm nay còn chờ xác nhận.</p>
+          <p class="staff-muted" th:if="${scope == 'arrived'}">Lượt đã ghi nhận khách đến hôm nay.</p>
         </div>
         <p class="staff-empty" th:if="${results.empty}">Không có lượt đặt phù hợp.</p>
         <div class="staff-table-wrap" th:if="${staffList and !results.empty}">

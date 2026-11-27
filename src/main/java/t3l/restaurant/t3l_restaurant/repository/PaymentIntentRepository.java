@@ -34,6 +34,15 @@ public interface PaymentIntentRepository extends JpaRepository<PaymentIntent, Lo
   Optional<PaymentIntent> findFirstByPaymentTypeAndOrderIdOrderByIdDesc(String paymentType, Long orderId);
   Optional<PaymentIntent> findByPaymentCode(String paymentCode);
 
+  @Query("""
+      select count(p) from PaymentIntent p, DiningOrder o
+      where p.paymentType = 'INVOICE' and p.status = 'REVIEW_REQUIRED'
+        and p.orderId = o.id and o.status = 'FINALIZED' and o.reservation.serviceShift.id = :shiftId
+        and p.id = (select max(latest.id) from PaymentIntent latest
+          where latest.orderId = o.id and latest.paymentType = 'INVOICE')
+      """)
+  long countInvoicesToReview(@Param("shiftId") Long shiftId);
+
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select p from PaymentIntent p where p.id=:id")
   Optional<PaymentIntent> lockById(@Param("id") Long id);

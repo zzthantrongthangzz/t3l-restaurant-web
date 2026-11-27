@@ -10,6 +10,7 @@
     <link rel="stylesheet" th:href="@{/css/reservation-requests.css}" />
     <th:block th:replace="~{staff/fragments/shell :: workspaceAssets}"></th:block>
     <link rel="stylesheet" th:href="@{/css/table-plan.css(v=table-commands)}" />
+    <link rel="stylesheet" th:if="${dashboard != null}" th:href="@{/css/staff-dashboard.css}" />
     <script data-page-script defer th:src="@{/js/staff.js}"></script>
     <th:block th:replace="~{web/fragments/theme :: assets}"></th:block>
   </head>
@@ -99,6 +100,9 @@
         <path th:case="'bell'" d="M18 9a6 6 0 0 0-12 0c0 4.5-1.6 6-2 7h16c-.4-1-2-2.5-2-7Zm-8 10a2.1 2.1 0 0 0 4 0" />
         <path th:case="'sidebar'" d="M5 4.5h14A1.5 1.5 0 0 1 20.5 6v12a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 18V6A1.5 1.5 0 0 1 5 4.5Zm4 0v15" />
         <path th:case="'close'" d="m6 6 12 12M18 6 6 18" />
+        <path th:case="'plus'" d="M12 5v14M5 12h14" />
+        <path th:case="'arrow'" d="M4 12h15m-6-6 6 6-6 6" />
+        <path th:case="'check'" d="m5 12 4 4L19 6" />
         <path th:case="'settings'" d="M12 3.5 20 7v5c0 4-3.3 6.6-8 8.5C7.3 18.6 4 16 4 12V7l8-3.5Zm-3 9 2 2 4-4" />
         <path th:case="'home'" d="m3.5 11 8.5-7.5 8.5 7.5M6 10v10h12V10m-8 10v-6h4v6" />
         <path th:case="'dining'" d="M3 17h18M5 15a7 7 0 0 1 14 0M12 6.5V5M9 19h6" />
@@ -116,6 +120,10 @@
       <p class="staff-notice is-error" th:if="${error}" th:text="${error}" role="alert"></p>
     </div>
     <span class="staff-badge" th:fragment="status(booking)" th:attr="data-status=${booking.status}" th:text="${booking.statusLabel}"></span>
+    <img th:fragment="tableImage(table,state)"
+        th:with="tone=${state == 'OCCUPIED' ? 'Do' : ((state == 'PENDING' or state == 'RESERVED' or state == 'ARRIVING') ? 'Vang' : 'Xam')},
+            image=${'ban' + tone + (table.kind.name() == 'VIP' ? '_vip.png' : '_thuong.png')}"
+        th:src="@{/images/tables/{image}(image=${image})}" alt="" width="144" height="90" />
     <th:block th:fragment="tableOptions(tableOptions, selected)">
       <option th:each="table : ${tableOptions}" th:value="${table.id}" th:selected="${table.id == selected}"
           th:text="${table.code + ' · ' + table.kind.label + ' · ' + table.capacity + ' chỗ'}"></option>

@@ -17,7 +17,9 @@ window.t3lPage.register(({ signal, state }) => {
   const context = board.querySelector('[data-board-context]');
   let cards = [...grid.querySelectorAll('.table-board-card')];
   let selectedButton;
-  let statusFilter = state.board?.status ?? '';
+  const requestedState = adminBoard ? '' : new URL(location.href).searchParams.get('state');
+  let statusFilter = state.board?.status
+    ?? statusFilters.find(button => button.dataset.boardState === requestedState)?.dataset.boardState ?? '';
   let pendingRead;
   let writing = false;
   let queuedHistory;

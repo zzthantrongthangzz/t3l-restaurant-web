@@ -1,0 +1,89 @@
+<th:block xmlns:th="http://www.thymeleaf.org">
+  <a class="staff-metric dashboard-metric" th:fragment="metric(target,icon,label,value,tone)"
+      th:href="${target}" th:attr="data-tone=${tone}">
+    <span class="dashboard-icon"><svg th:replace="~{staff/fragments/shell :: icon(${icon})}"></svg></span>
+    <span th:text="${label}"></span>
+    <strong th:text="${value}"></strong>
+  </a>
+
+  <div class="dashboard-empty" th:fragment="empty(icon,heading,description)">
+    <span class="dashboard-icon"><svg th:replace="~{staff/fragments/shell :: icon(${icon})}"></svg></span>
+    <div><strong th:text="${heading}"></strong><p th:if="${description != null}" th:text="${description}"></p></div>
+  </div>
+
+  <div class="dashboard-task-group" th:fragment="tasks(entries,heading,tone)" th:unless="${entries.isEmpty()}" th:attr="data-tone=${tone}">
+    <h3 th:text="${heading}"></h3>
+    <ul class="dashboard-tasks">
+      <li th:each="task : ${entries}" th:with="booking=${task.booking},row=${task.state}">
+        <span class="dashboard-icon"><svg th:replace="~{staff/fragments/shell :: icon(${task.icon})}"></svg></span>
+        <div class="dashboard-task-info">
+          <div class="dashboard-task-heading">
+            <span class="dashboard-task-kind" th:text="${task.label}"></span>
+            <time th:datetime="${booking.startsAt}" th:text="${#temporals.format(booking.startsAt, booking.reservationDate == dashboard.date ? 'HH:mm' : 'HH:mm · dd/MM')}"></time>
+          </div>
+          <strong th:text="${booking.guestName}"></strong>
+          <small class="dashboard-task-meta">
+            <span th:text="${booking.guestCount + ' khách'}"></span>
+            <span th:text="${booking.table != null ? booking.table.code : 'Chưa phân bàn'}"></span>
+            <span th:text="${task.reason}"></span>
+          </small>
+          <small th:if="${booking.status == 'CHECKED_IN' and booking.checkedInAt != null and booking.checkedInAt.isAfter(booking.startsAt)}"
+              th:text="${'Khách đã đến muộn, check-in lúc ' + #temporals.format(booking.checkedInAt,'HH:mm')}"></small>
+        </div>
+        <div class="dashboard-task-actions" th:with="hasAction=${row != null and (row.confirm.visible or row.receive.visible)}">
+          <th:block th:if="${hasAction}">
+            <form th:replace="~{staff/fragments/dashboard :: bookingAction(${booking},${row})}"></form>
+          </th:block>
+          <a class="staff-button is-outline" th:if="${task.requestId != null}"
+              th:href="@{/staff/reservations} + ${'#review-' + task.requestId}">Xem yêu cầu</a>
+          <a class="staff-button is-outline" th:if="${task.depositReview}"
+              th:href="@{/staff/reservations/{id}(id=${booking.id})} + '#staff-deposit'">Kiểm tra tiền cọc</a>
+          <a class="dashboard-task-detail" th:classappend="${hasAction or task.requestId != null or task.depositReview ? 'staff-link' : 'staff-button is-outline'}"
+              th:href="@{/staff/reservations/{id}(id=${booking.id})}"
+              th:attr="aria-label=${'Xem chi tiết ' + booking.code}">Xem chi tiết</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <form th:fragment="bookingAction(booking,row)" method="post" class="dashboard-booking-action" data-partial-submit
+      th:with="receiving=${row.receive.visible},action=${receiving ? row.receive : row.confirm},
+        reasonId=${'dashboard-action-reason-' + booking.id}"
+      th:action="@{/staff/reservations/{id}/status(id=${booking.id})}"
+      th:attr="data-dashboard-action=${receiving ? 'receive' : 'confirm'},data-arrival-start=${booking.startsAt},
+        data-dashboard-booking=${booking.id},data-guest=${booking.guestName},data-code=${booking.code},
+        data-guests=${booking.guestCount},data-table=${booking.table != null ? booking.table.code : 'Chưa phân bàn'}">
+    <input type="hidden" name="from" value="dashboard" />
+    <button class="staff-button" type="submit" name="status" th:disabled="${!action.enabled}" th:attr="aria-describedby=${reasonId}"
+        th:value="${receiving ? 'RECEIVE' : 'CONFIRMED'}" th:text="${receiving ? 'Nhận khách & bàn' : 'Xác nhận đặt bàn'}"></button>
+    <small class="staff-action-reason" th:id="${reasonId}" data-dashboard-action-reason
+        th:hidden="${action.enabled or #strings.isEmpty(action.reason)}" th:text="${action.reason}"></small>
+  </form>
+
+  <dialog class="table-board-dialog dashboard-arrival-dialog" th:fragment="arrivalDialog" data-dashboard-dialog
+      aria-labelledby="dashboard-arrival-title" aria-describedby="dashboard-arrival-warning">
+    <form method="dialog">
+      <div class="table-board-dialog-heading">
+        <h2 id="dashboard-arrival-title">Xác nhận nhận khách ngoài giờ</h2>
+        <button class="staff-button is-outline dashboard-dialog-close" type="submit" value="cancel" aria-label="Đóng">
+          <svg th:replace="~{staff/fragments/shell :: icon('close')}"></svg>
+        </button>
+      </div>
+      <p class="dashboard-dialog-lead" data-dialog-value="message"></p>
+      <dl class="dashboard-dialog-details">
+        <div><dt>Khách hàng</dt><dd data-dialog-value="guest"></dd></div>
+        <div><dt>Mã đặt bàn</dt><dd data-dialog-value="code"></dd></div>
+        <div><dt>Số khách</dt><dd data-dialog-value="guests"></dd></div>
+        <div><dt>Bàn đã đặt</dt><dd data-dialog-value="table"></dd></div>
+        <div><dt>Giờ đặt bàn</dt><dd data-dialog-value="scheduled"></dd></div>
+        <div><dt>Thời điểm tiếp nhận</dt><dd data-dialog-value="current"></dd></div>
+        <div><dt>Chênh lệch so với giờ đặt</dt><dd data-dialog-value="difference"></dd></div>
+      </dl>
+      <p id="dashboard-arrival-warning" class="table-arrival-warning">Khách đến ngoài khung giờ dự kiến. Vui lòng kiểm tra tình trạng bàn và lịch đặt tiếp theo trước khi tiếp nhận.</p>
+      <div class="staff-actions dashboard-dialog-actions">
+        <button class="staff-button is-outline" type="submit" value="cancel" autofocus>Quay lại</button>
+        <button class="staff-button" type="submit" value="receive">Xác nhận nhận khách</button>
+      </div>
+    </form>
+  </dialog>
+</th:block>

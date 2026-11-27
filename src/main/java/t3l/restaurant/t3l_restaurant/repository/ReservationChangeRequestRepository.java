@@ -1,6 +1,7 @@
 package t3l.restaurant.t3l_restaurant.repository;
 
 import jakarta.persistence.LockModeType;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.*;
@@ -19,6 +20,9 @@ public interface ReservationChangeRequestRepository extends JpaRepository<Reserv
   List<ReservationChangeRequest> findTop20ByReservation_IdOrderByCreatedAtDescIdDesc(Long reservationId);
   @EntityGraph(attributePaths = {"reservation", "reservation.table"})
   List<ReservationChangeRequest> findByStatusOrderByCreatedAtAscIdAsc(String status);
+  @EntityGraph(attributePaths = {"reservation", "reservation.table"})
+  List<ReservationChangeRequest> findTop3ByStatusAndReservation_ReservationDateGreaterThanEqualOrderByCreatedAtAscIdAsc(
+      String status, LocalDate date);
   @Query("select r.reservation.id from ReservationChangeRequest r where r.id = :id")
   Optional<Long> findReservationId(@Param("id") Long id);
   @Lock(LockModeType.PESSIMISTIC_WRITE)

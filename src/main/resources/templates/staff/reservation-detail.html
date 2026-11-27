@@ -42,7 +42,7 @@
               <div th:if="${booking.completedAt != null}"><dt>Kết thúc</dt><dd th:text="${#temporals.format(booking.completedAt, 'dd/MM · HH:mm')}"></dd></div>
               <div class="staff-full" th:if="${!#strings.isEmpty(booking.note)}"><dt>Ghi chú</dt><dd class="staff-note" th:text="${booking.note}"></dd></div>
             </dl>
-            <section class="staff-deposit-panel" th:if="${booking.depositAmount.signum() > 0 or booking.depositPaid.signum() > 0}">
+            <section id="staff-deposit" class="staff-deposit-panel" th:if="${booking.depositAmount.signum() > 0 or booking.depositPaid.signum() > 0}">
               <h3>Tiền cọc</h3>
               <p><strong th:text="${#numbers.formatInteger(booking.depositAmount,1,'POINT') + ' đ'}"></strong>
                 <span class="staff-badge staff-deposit-state" th:text="${booking.depositStatusLabel}"></span></p>

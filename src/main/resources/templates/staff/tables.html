@@ -75,12 +75,11 @@
           </div>
           <div class="table-plan-grid table-board-grid">
         <article class="table-board-card" th:each="item : ${rows}" th:with="table=${item.table},booking=${item.current},
-            next=${item.nextBooking}, state=${item.state.name()},tone=${state == 'OCCUPIED' ? 'Do' : ((state == 'PENDING' or state == 'RESERVED' or state == 'ARRIVING') ? 'Vang' : 'Xam')},
-            image=${'ban' + tone + (table.kind.name() == 'VIP' ? '_vip.png' : '_thuong.png')}"
+            next=${item.nextBooking}, state=${item.state.name()}"
             th:attr="data-state=${state},data-kind=${table.kind.name()},data-label=${table.code},data-summary-state=${adminBoard ? item.summaryCategory : null},data-has-waiting=${item.hasWaitingBooking},data-search=${table.code + ' ' + table.kind.label}">
           <button class="table-board-select" type="button" aria-pressed="false" aria-haspopup="dialog" data-select-table>
             <span class="table-board-card-head">
-              <span class="table-board-card-icon"><img th:src="@{/images/tables/{image}(image=${image})}" alt="" width="144" height="90" /></span>
+              <span class="table-board-card-icon"><img th:replace="~{staff/fragments/shell :: tableImage(${table},${state})}" alt="" /></span>
               <span class="table-board-card-identity">
                 <strong class="table-board-name" th:text="${table.code}"></strong>
                 <span th:text="${table.capacity + ' chỗ'}"></span>

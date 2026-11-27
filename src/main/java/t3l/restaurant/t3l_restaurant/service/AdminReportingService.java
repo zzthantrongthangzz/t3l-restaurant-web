@@ -128,7 +128,7 @@ public class AdminReportingService {
           ((seated_at >= :start AND seated_at < :end) OR
            (seated_at IS NULL AND reservation_date >= :fromDay AND reservation_date <= :toDay))
         """, args, Long.class);
-    var live = operations.dashboard();
+    var live = operations.reportCounts();
     return new Dashboard(filter, scale, revenueSummary(filter).total(), bookings, served, live.serving(),
         live.pending() + live.changeRequests() + contactPending(), cancelled, missed, percent(cancelled, bookings),
         percent(missed, bookings), chart(filter, scale), bestsellers(args), recent());

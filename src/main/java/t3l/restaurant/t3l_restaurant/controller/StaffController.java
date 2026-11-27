@@ -80,7 +80,7 @@ public class StaffController {
       @RequestParam(defaultValue = "") String scope, @RequestParam(defaultValue = "0") int page,
       Authentication actor, Model model) {
     boolean staffList = "/staff".equals(operationsBase());
-    String selectedScope = staffList && ("upcoming".equals(scope) || "attention".equals(scope)) ? scope : "";
+    String selectedScope = staffList && List.of("upcoming", "attention", "late", "backlog", "active-pending", "arrived").contains(scope) ? scope : "";
     String selectedStatus = StaffWorkspaceService.STATUSES.contains(status) ? status : "";
     var now = LocalDateTime.now(schedule.getClock());
     var today = now.toLocalDate();
@@ -277,6 +277,7 @@ public class StaffController {
       case "detail" -> RESERVATIONS + "/" + id;
       case "table" -> TABLES;
       case "order" -> ORDERS + "/" + id;
+      case "dashboard" -> "/staff/dashboard";
       default -> RESERVATIONS;
     };
     if ("table".equals(from)) keepBoardFilters(redirect, returnDate, returnTime, returnGuests);

@@ -127,6 +127,90 @@ class StaffOperationsIntegrationTest {
   }
 
   @Test
+  void dashboardSeparatesLateBookingsFromBacklogAndActualArrivals() throws Exception {
+    staff(get("/staff/dashboard")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("Không có công việc cần xử lý")))
+        .andExpect(content().string(not(containsString("Lượt đặt sắp đến"))))
+        .andExpect(content().string(not(containsString("Tình trạng bàn hiện tại"))))
+        .andExpect(content().string(containsString("Bạn chưa mở ca")));
+
+    dashboardBooking("T3L-OVERDUE-TODAY", TODAY, "10:00", Reservation.CONFIRMED);
+    dashboardBooking("T3L-OLD-OPEN", TODAY.minusDays(2), "10:00", Reservation.PENDING);
+    dashboardBooking("T3L-OLD-CLOSED", TODAY.minusDays(2), "10:00", Reservation.NO_SHOW);
+    dashboardBooking("T3L-CANCELLED", TODAY, "10:00", Reservation.CANCELLED);
+    dashboardBooking("T3L-COMPLETE", TODAY.minusDays(1), "10:00", Reservation.COMPLETED);
+    var arrived = dashboardBooking("T3L-ACTUAL-ARRIVAL", TODAY, "10:30", Reservation.CONFIRMED);
+    arrived.checkIn(TODAY.atTime(10, 45));
+    reservations.save(arrived);
+
+    var response = staff(get("/staff/dashboard")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("Khách đã đến muộn, check-in lúc 10:45")))
+        .andExpect(content().string(containsString("Lượt đặt tồn đọng từ ngày trước")))
+        .andExpect(content().string(not(containsString("T3L-OLD-OPEN")))).andReturn();
+    var dashboard = (StaffWorkspaceService.Dashboard) response.getModelAndView().getModel().get("dashboard");
+    assertEquals(1, dashboard.late());
+    assertEquals(1, dashboard.backlog());
+    assertEquals(2, dashboard.guestsArrived());
+
+    staff(get("/staff/reservations").param("scope", "late"))
+        .andExpect(content().string(containsString("T3L-OVERDUE-TODAY")))
+        .andExpect(content().string(not(containsString("T3L-ACTUAL-ARRIVAL"))))
+        .andExpect(content().string(not(containsString("T3L-OLD-OPEN"))));
+    staff(get("/staff/reservations").param("scope", "backlog"))
+        .andExpect(content().string(containsString("T3L-OLD-OPEN")))
+        .andExpect(content().string(not(containsString("T3L-OLD-CLOSED"))))
+        .andExpect(content().string(not(containsString("T3L-COMPLETE"))));
+    staff(get("/staff/reservations").param("scope", "arrived"))
+        .andExpect(content().string(containsString("T3L-ACTUAL-ARRIVAL")));
+  }
+
+  @Test
+  void dashboardReceiveReturnsToDashboardAndReusesShiftAndDepositChecks() throws Exception {
+    long early = createPhone("Khách đến sớm thử Dashboard", "16:00", tableOne, 2);
+    long late = createPhone("Khách đến muộn thử Dashboard", "11:30", tableTwo, 2);
+    long unpaid = createPhone("Khách thiếu cọc thử Dashboard", "12:30", smallTable, 2);
+    var deposit = reservations.findOneById(unpaid).orElseThrow();
+    deposit.priceDeposit(new BigDecimal("350000"), TODAY.atTime(18, 0));
+    reservations.save(deposit);
+    clock.at(TODAY.atTime(12, 0));
+    staff(get("/staff/dashboard")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("Cần mở ca làm trước khi nhận khách.")));
+    staff(post("/staff/reservations/{id}/status", early).param("status", "RECEIVE").param("from", "dashboard"))
+        .andExpect(redirectedUrl("/staff/dashboard")).andExpect(flash().attributeExists("error"));
+    assertEquals(Reservation.CONFIRMED, reservations.findOneById(early).orElseThrow().getStatus());
+
+    staff(post("/staff/shift/open").param("openingCash", "0")).andExpect(flash().attributeExists("notice"));
+    staff(get("/staff/dashboard")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("Chưa xác minh đủ tiền cọc.")));
+    staff(post("/staff/reservations/{id}/status", unpaid).param("status", "RECEIVE").param("from", "dashboard"))
+        .andExpect(redirectedUrl("/staff/dashboard")).andExpect(flash().attributeExists("error"));
+    for (long booking : List.of(early, late)) {
+      staff(post("/staff/reservations/{id}/status", booking).param("status", "RECEIVE").param("from", "dashboard"))
+          .andExpect(redirectedUrl("/staff/dashboard")).andExpect(flash().attributeExists("notice"));
+      assertEquals(Reservation.SEATED, reservations.findOneById(booking).orElseThrow().getStatus());
+    }
+    var response = staff(get("/staff/dashboard")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("Đang mở ca")))
+        .andExpect(content().string(containsString("Doanh thu trong ca"))).andReturn();
+    var dashboard = (StaffWorkspaceService.Dashboard) response.getModelAndView().getModel().get("dashboard");
+    assertEquals(2, dashboard.serving());
+    assertEquals(0, dashboard.late());
+  }
+
+  @Test
+  void dashboardWarnsWhenTheOpenShiftCrossesItsOpeningDate() throws Exception {
+    staff(post("/staff/shift/open").param("openingCash", "0")).andExpect(flash().attributeExists("notice"));
+    staff(get("/staff/dashboard")).andExpect(status().isOk())
+        .andExpect(content().string(not(containsString("Ca vẫn đang mở qua ngày."))));
+
+    clock.at(TODAY.plusDays(6).atTime(10, 0));
+    staff(get("/staff/dashboard")).andExpect(status().isOk())
+        .andExpect(content().string(containsString("Ca vẫn đang mở qua ngày.")))
+        .andExpect(content().string(containsString("Xem chi tiết ca làm việc")));
+    assertEquals(1L, id("select count(*) from staff_shifts where status='OPEN'"));
+  }
+
+  @Test
   void boardConfirmationKeepsIsoDateTimeAndGuestFilters() throws Exception {
     long booking = publicBooking("Khách chờ duyệt", "14:00");
     staff(post("/staff/reservations/" + booking + "/status").param("status", "CONFIRMED")
@@ -1212,4 +1296,10 @@ class StaffOperationsIntegrationTest {
   }
 
   private Long id(String sql) { return jdbc.queryForObject(sql, Long.class); }
+
+  private Reservation dashboardBooking(String code, LocalDate date, String time, String status) {
+    var booking = new Reservation(code, code, "0901234567", null, null, date, LocalTime.parse(time), 2, null, true);
+    booking.updateStatus(status);
+    return reservations.save(booking);
+  }
 }

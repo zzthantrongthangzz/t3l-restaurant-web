@@ -3,72 +3,103 @@
   <head th:replace="~{staff/fragments/shell :: head('Tổng quan nhân viên')}"></head>
   <body class="staff-page">
     <header th:replace="~{staff/fragments/shell :: header('dashboard')}"></header>
-    <main id="main" data-navigation class="staff-main">
+    <main id="main" data-navigation class="staff-main staff-dashboard"
+        th:attr="data-dashboard-now=${dashboard.now},data-check-in-minutes=${dashboard.checkInMinutes},data-no-show-minutes=${dashboard.noShowMinutes},
+          data-opens-at=${dashboard.opensAt},data-closes-at=${dashboard.closesAt},data-row-url=@{/staff/reservations/list-status}">
       <div class="staff-page-heading">
-        <div><p class="staff-kicker" th:text="${#temporals.format(dashboard.date, 'dd/MM/yyyy')}"></p><h1>Tổng quan nhân viên</h1></div>
-        <div class="staff-actions">
-          <a class="staff-button is-outline" th:href="@{/staff/shift}" th:text="${openShift ? 'Xem ca đang mở' : 'Mở ca làm'}"></a>
-          <a class="staff-button" th:href="@{/staff/reservations/new}">Tạo đặt bàn</a>
+        <div>
+          <p class="staff-kicker" th:text="${dashboardDate}"></p>
+          <h1>Tổng quan nhân viên</h1>
+          <p>Theo dõi tình hình và xử lý công việc vận hành nhà hàng.</p>
+        </div>
+        <div class="staff-actions dashboard-heading-actions">
+          <span class="dashboard-shift-status" th:classappend="${shift != null ? 'is-open' : ''}"
+              th:text="${shift != null ? 'Đang mở ca' : 'Chưa mở ca'}"></span>
+          <a class="staff-button is-outline" th:href="${shift != null} ? @{/staff/shift(id=${shift.id})} : @{/staff/shift}"
+              th:text="${shift != null ? 'Xem ca đang mở' : 'Mở ca'}"></a>
+          <a class="staff-button dashboard-with-icon" th:href="@{/staff/reservations/new}">
+            <svg th:replace="~{staff/fragments/shell :: icon('plus')}"></svg> Tạo đặt bàn
+          </a>
         </div>
       </div>
       <div th:replace="~{staff/fragments/shell :: messages}"></div>
-      <section class="staff-metrics" aria-label="Tình hình vận hành">
-        <a class="staff-metric" th:href="@{/staff/reservations(date=${dashboard.date})}"><span>Đặt bàn hôm nay</span><strong th:text="${dashboard.bookingsToday}"></strong></a>
-        <a class="staff-metric" th:href="@{/staff/reservations(status='PENDING_CONFIRMATION')}"><span>Chờ xác nhận</span><strong th:text="${dashboard.pending}"></strong></a>
-        <div class="staff-metric"><span>Khách đã đến hôm nay</span><strong th:text="${dashboard.guestsArrived}"></strong></div>
-        <a class="staff-metric" th:href="@{/staff/orders}"><span>Bàn đang phục vụ</span><strong th:text="${dashboard.serving}"></strong></a>
-        <a class="staff-metric" th:href="@{/staff/tables}"><span>Bàn trống hiện tại</span><strong th:text="${dashboard.free}"></strong></a>
+
+      <section class="staff-metrics dashboard-metrics" aria-label="Tình hình vận hành">
+        <a th:replace="~{staff/fragments/dashboard :: metric(@{/staff/reservations(date=${dashboard.date})}, 'calendar', 'Đặt bàn hôm nay', ${dashboard.bookingsToday}, 'accent')}"></a>
+        <a th:replace="~{staff/fragments/dashboard :: metric(@{/staff/reservations(scope='active-pending')}, 'bell', 'Chờ xác nhận', ${dashboard.pending}, 'warning')}"></a>
+        <a th:replace="~{staff/fragments/dashboard :: metric(@{/staff/reservations(scope='arrived')}, 'person', 'Khách đã đến hôm nay', ${dashboard.guestsArrived}, 'info')}"></a>
+        <a th:replace="~{staff/fragments/dashboard :: metric(@{/staff/tables(state='OCCUPIED')}, 'dining', 'Bàn đang phục vụ', ${dashboard.serving}, 'neutral')}"></a>
+        <a th:replace="~{staff/fragments/dashboard :: metric(@{/staff/tables(state='FREE')}, 'tables', 'Bàn trống hiện tại', ${dashboard.free}, 'success')}"></a>
+        <a th:replace="~{staff/fragments/dashboard :: metric(@{/staff/reservations(scope='late')}, 'clock', 'Lượt đặt quá giờ đến', ${dashboard.late}, 'error')}"></a>
       </section>
-      <div class="staff-split">
-        <section class="staff-panel">
-          <div class="staff-panel-heading"><h2>Lượt đặt sắp đến</h2><a class="staff-link" th:href="@{/staff/reservations}">Danh sách đặt bàn</a></div>
-          <p class="staff-empty" th:if="${#lists.isEmpty(dashboard.upcoming)}">Chưa có lượt đặt sắp đến.</p>
-          <ul class="staff-feed" th:unless="${#lists.isEmpty(dashboard.upcoming)}">
-            <li th:each="booking : ${dashboard.upcoming}">
-              <div><a class="staff-link" th:href="@{/staff/reservations/{id}(id=${booking.id})}" th:text="${booking.guestName}"></a>
-                <p th:text="${booking.guestCount + ' khách · ' + (booking.table == null ? 'Chưa phân bàn' : booking.table.code)}"></p></div>
-              <div class="staff-feed-end"><strong th:text="${#temporals.format(booking.startsAt, 'dd/MM · HH:mm')}"></strong><span th:replace="~{staff/fragments/shell :: status(${booking})}"></span></div>
-            </li>
-          </ul>
+
+      <div class="dashboard-columns">
+        <section class="staff-panel" aria-labelledby="dashboard-work">
+          <div class="staff-panel-heading">
+            <h2 id="dashboard-work">Việc cần xử lý</h2>
+            <a class="staff-link" th:href="@{/staff/reservations(scope='attention')}">Xem hàng chờ</a>
+          </div>
+          <div th:replace="~{staff/fragments/dashboard :: tasks(${dashboard.priority}, 'Ưu tiên cao', 'error')}"></div>
+          <div th:replace="~{staff/fragments/dashboard :: tasks(${dashboard.work}, 'Cần xử lý', 'warning')}"></div>
+          <div th:replace="~{staff/fragments/dashboard :: tasks(${dashboard.waiting}, 'Đang chờ', 'info')}"></div>
+          <th:block th:if="${dashboard.priority.isEmpty() and dashboard.work.isEmpty() and dashboard.waiting.isEmpty()
+              and dashboard.backlog == 0 and dashboard.awaitingPayment == 0}">
+            <div th:replace="~{staff/fragments/dashboard :: empty('check', 'Không có công việc cần xử lý', ${null})}"></div>
+          </th:block>
+          <div class="dashboard-queue-links" th:if="${dashboard.backlog > 0 or dashboard.awaitingPayment > 0}">
+            <a class="staff-task-link" th:if="${dashboard.backlog > 0}" th:href="@{/staff/reservations(scope='backlog')}">
+              <span>Lượt đặt tồn đọng từ ngày trước</span><strong th:text="${dashboard.backlog}"></strong>
+            </a>
+            <a class="staff-task-link" th:if="${dashboard.awaitingPayment > 0}" th:href="@{/staff/orders}">
+              <span>Hóa đơn chờ thu tiền</span><strong th:text="${dashboard.awaitingPayment}"></strong>
+            </a>
+          </div>
         </section>
-        <section class="staff-panel">
-          <div class="staff-panel-heading"><h2>Việc cần xử lý</h2></div>
-          <a class="staff-task-link" th:href="@{/staff/reservations} + '#request-queue-title'">
-            <span>Yêu cầu đổi lịch, đổi món hoặc hủy</span><strong th:text="${dashboard.changeRequests}"></strong>
-          </a>
-          <a class="staff-task-link" th:href="@{/staff/orders}" th:if="${dashboard.awaitingPayment > 0}">
-            <span>Hóa đơn chờ thu tiền</span><strong th:text="${dashboard.awaitingPayment}"></strong>
-          </a>
-          <ul class="staff-feed">
-            <li th:each="booking : ${dashboard.checkedIn}" th:with="actions=${bookingActions.get(booking.id)}"
-                th:attr="data-payment-status-url=@{/staff/reservations/{id}/payment-status(id=${booking.id})}">
-              <div><strong th:text="${booking.guestName}"></strong><p th:text="${booking.guestCount + ' khách · ' + #temporals.format(booking.startsAt, 'HH:mm')}"></p>
-                <span class="staff-badge is-warning" th:if="${actions.late}">Đến trễ</span>
-                <span class="staff-badge staff-deposit-state" th:if="${booking.depositAmount.signum() > 0}" th:text="${booking.depositStatusLabel}"></span></div>
-              <form class="staff-dashboard-action" th:if="${actions.receive}" th:action="@{/staff/reservations/{id}/status(id=${booking.id})}" method="post" data-partial-submit>
-                <button class="staff-button" name="status" value="RECEIVE" th:disabled="${!actions.receiveEnabled}" th:title="${actions.receiveEnabled ? null : actions.receiveReason}"
-                        th:attr="data-confirm=${actions.receiveEnabled and !#strings.isEmpty(actions.receiveReason) ? actions.receiveReason : null}">Nhận khách &amp; bàn</button>
-              </form>
-              <a class="staff-link" th:unless="${actions.receive}" th:href="@{/staff/reservations/{id}(id=${booking.id})}">Chi tiết</a>
-            </li>
-            <li th:each="booking : ${dashboard.toConfirm}" th:with="actions=${bookingActions.get(booking.id)}"
-                th:attr="data-payment-status-url=@{/staff/reservations/{id}/payment-status(id=${booking.id})}">
-              <div><strong th:text="${booking.guestName}"></strong><p th:text="${#temporals.format(booking.startsAt, 'dd/MM · HH:mm')}"></p>
-                <span class="staff-badge is-warning" th:if="${actions.late}">Đến trễ</span>
-                <span class="staff-badge staff-deposit-state" th:if="${booking.depositAmount.signum() > 0}" th:text="${booking.depositStatusLabel}"></span></div>
-              <div class="staff-dashboard-action">
-                <form th:if="${actions.confirm}" th:action="@{/staff/reservations/{id}/status(id=${booking.id})}" method="post" data-partial-submit>
-                  <button class="staff-button" name="status" value="CONFIRMED" th:disabled="${!actions.confirmEnabled}" th:title="${actions.confirmReason}">Xác nhận đặt bàn</button>
-                  <small th:if="${!actions.confirmEnabled}" th:text="${actions.confirmReason}"></small>
-                </form>
-                <a class="staff-link" th:href="@{/staff/reservations/{id}(id=${booking.id})}">Chi tiết</a>
+
+        <section class="staff-panel dashboard-shift" aria-labelledby="dashboard-shift">
+          <div class="staff-panel-heading">
+            <h2 id="dashboard-shift">Ca làm việc</h2>
+            <span class="dashboard-shift-status" th:classappend="${shift != null ? 'is-open' : ''}"
+                th:text="${shift != null ? 'Đang mở ca' : 'Chưa mở ca'}"></span>
+          </div>
+          <div class="dashboard-shift-body" th:if="${shift != null}">
+            <div class="dashboard-shift-info">
+              <div class="dashboard-shift-person dashboard-with-icon">
+                <span class="dashboard-icon"><svg th:replace="~{staff/fragments/shell :: icon('person')}"></svg></span>
+                <div>
+                  <strong th:text="${shift.employee}"></strong>
+                  <small th:text="${'Bắt đầu ' + #temporals.format(shift.openedAt,'HH:mm · dd/MM/yyyy')}"></small>
+                </div>
               </div>
-            </li>
-          </ul>
-          <p class="staff-empty" th:if="${#lists.isEmpty(dashboard.toConfirm) and #lists.isEmpty(dashboard.checkedIn) and dashboard.changeRequests == 0 and dashboard.awaitingPayment == 0}">Mọi yêu cầu đã được xử lý.</p>
+              <div class="dashboard-shift-duration">
+                <small>Thời gian làm việc</small>
+                <time th:attr="data-shift-seconds=${shift.elapsedSeconds},datetime=${'PT' + shift.elapsedSeconds + 'S'}"
+                    data-shift-running="true" th:text="${(shift.elapsedSeconds / 60) + ' phút'}"></time>
+              </div>
+            </div>
+            <p class="dashboard-shift-warning" th:if="${shift.openedAt.toLocalDate().isBefore(dashboard.date)}">
+              <svg th:replace="~{staff/fragments/shell :: icon('clock')}"></svg>
+              <span>Ca vẫn đang mở qua ngày. Vui lòng kiểm tra và đối soát khi kết thúc ca.</span>
+            </p>
+            <dl class="dashboard-shift-numbers">
+              <div class="dashboard-shift-stat"><dt>Hóa đơn đã thanh toán</dt><dd th:text="${shift.totals.paidOrders}"></dd></div>
+              <div class="dashboard-shift-stat" th:if="${shift.transactionsToReview > 0}"><dt>Giao dịch cần đối soát</dt><dd th:text="${shift.transactionsToReview}"></dd></div>
+              <div class="dashboard-shift-revenue"><dt>Doanh thu trong ca</dt><dd th:text="${#numbers.formatInteger(shift.totals.revenue,1,'POINT') + ' đ'}"></dd></div>
+              <div class="dashboard-shift-payment"><dt>Tiền mặt</dt><dd th:text="${#numbers.formatInteger(shift.totals.cash,1,'POINT') + ' đ'}"></dd></div>
+              <div class="dashboard-shift-payment"><dt>Chuyển khoản</dt><dd th:text="${#numbers.formatInteger(shift.totals.transfer,1,'POINT') + ' đ'}"></dd></div>
+            </dl>
+            <a class="staff-button is-outline dashboard-shift-link" th:href="@{/staff/shift(id=${shift.id})}">
+              Xem chi tiết ca làm việc <svg th:replace="~{staff/fragments/shell :: icon('arrow')}"></svg>
+            </a>
+          </div>
+          <div class="dashboard-shift-body" th:unless="${shift != null}">
+            <div th:replace="~{staff/fragments/dashboard :: empty('clock', 'Bạn chưa mở ca', 'Mở ca để nhận bàn, thanh toán hóa đơn và ghi nhận doanh thu.')}"></div>
+            <a class="staff-button" th:href="@{/staff/shift}">Mở ca làm việc</a>
+          </div>
         </section>
       </div>
+      <dialog th:replace="~{staff/fragments/dashboard :: arrivalDialog}"></dialog>
     </main>
-    <script data-page-script th:src="@{/js/staff-payment-status.js}" defer></script>
+    <script data-page-script defer th:src="@{/js/staff-dashboard.js}"></script>
   </body>
 </html>

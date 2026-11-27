@@ -45,8 +45,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
 
   long countByStatus(String status);
 
-  @EntityGraph(attributePaths = "table")
-  List<Reservation> findByReservationDateOrderByReservationTimeAscIdAsc(LocalDate date);
+  long countByReservationDate(LocalDate date);
 
   @EntityGraph(attributePaths = "table")
   List<Reservation> findByStatusInAndTableIsNotNull(Collection<String> statuses);
@@ -72,13 +71,6 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
       and r.status in ('PENDING_CONFIRMATION','CONFIRMED','CHECKED_IN','SEATED')
       """)
   int renamePreferredArea(@Param("previous") String previous, @Param("next") String next);
-
-  @EntityGraph(attributePaths = "table")
-  List<Reservation> findTop10ByStatusInAndReservationDateGreaterThanOrderByReservationDateAscReservationTimeAscIdAsc(
-      Collection<String> statuses, LocalDate date);
-
-  @EntityGraph(attributePaths = "table")
-  List<Reservation> findTop8ByStatusOrderByReservationDateAscReservationTimeAscIdAsc(String status);
 
   @Query("select coalesce(sum(r.guestCount), 0) from Reservation r where r.serviceShift.id = :shiftId")
   long guestsServedByShift(@Param("shiftId") Long shiftId);

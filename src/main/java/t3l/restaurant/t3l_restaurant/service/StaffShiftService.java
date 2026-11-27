@@ -2,6 +2,7 @@ package t3l.restaurant.t3l_restaurant.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.repository.CashSaleRepository;
 import t3l.restaurant.t3l_restaurant.repository.DiningPaymentRepository;
 import t3l.restaurant.t3l_restaurant.repository.DishRepository;
+import t3l.restaurant.t3l_restaurant.repository.PaymentIntentRepository;
 import t3l.restaurant.t3l_restaurant.repository.ReservationRepository;
 import t3l.restaurant.t3l_restaurant.repository.StaffShiftRepository;
 import t3l.restaurant.t3l_restaurant.repository.UserAccountRepository;
@@ -35,6 +37,7 @@ public class StaffShiftService {
   private final UserAccountRepository accounts;
   private final DishRepository dishes;
   private final DiningPaymentRepository payments;
+  private final PaymentIntentRepository paymentIntents;
   private final ReservationRepository reservations;
   private final ReservationSchedule schedule;
   private final EmployeeActivityService activity;
@@ -46,6 +49,21 @@ public class StaffShiftService {
 
   public record ShiftView(StaffShift current, StaffShift selected, Totals totals,
                           List<CashSale> sales, List<DiningPayment> payments, Page<StaffShift> history) {}
+  public record CurrentShift(Long id, String employee, LocalDateTime openedAt, long elapsedSeconds, Totals totals,
+                             long transactionsToReview) {}
+
+  @Transactional(readOnly = true)
+  public CurrentShift currentSummary(String username) {
+    var shift = current(username);
+    if (shift == null) return null;
+    var totals = totals(shift, sales.findByShift_IdOrderByCreatedAtDesc(shift.getId()),
+        payments.findByShift_IdOrderByPaidAtDescIdDesc(shift.getId()));
+    var employee = shift.getEmployee();
+    String name = employee.getFullName();
+    long elapsed = Duration.between(shift.getOpenedAt(), LocalDateTime.now(schedule.getClock())).toSeconds();
+    return new CurrentShift(shift.getId(), name == null || name.isBlank() ? employee.getUsername() : name,
+        shift.getOpenedAt(), Math.max(0, elapsed), totals, paymentIntents.countInvoicesToReview(shift.getId()));
+  }
 
   @PreAuthorize("hasAnyRole('STAFF', 'ADMIN') and #username == authentication.name and (!#admin or hasRole('ADMIN'))")
   @Transactional(readOnly = true)
