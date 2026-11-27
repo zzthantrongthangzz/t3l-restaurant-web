@@ -8,7 +8,6 @@
         <path th:case="'reservations'" d="M4 6h16v14H4zM8 3v6m8-6v6M4 11h16m-10 4h4" />
         <path th:case="'orders'" d="M5 8h14l2 12H3L5 8Zm3 2V7a4 4 0 0 1 8 0v3" />
         <path th:case="'vouchers'" d="M3 7h18v3a2 2 0 0 0 0 4v3H3v-3a2 2 0 0 0 0-4V7Zm11 0v2m0 3h.01m-.01 3v2" />
-        <path th:case="'addresses'" d="M20 10c0 6-8 11-8 11s-8-5-8-11a8 8 0 1 1 16 0Zm-5 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
         <path th:case="'invoices'" d="M6 3h8l4 4v14l-3-2-3 2-3-2-3 2V3Zm8 0v5h4M9 12h6m-6 3h5" />
         <path th:case="'phone'" d="M7 3h3l1.4 4-2 2a12 12 0 0 0 5.6 5.6l2-2 4 1.4v3a3 3 0 0 1-3.3 3A16 16 0 0 1 4 6.3 3 3 0 0 1 7 3Z" />
         <path th:case="'logout'" d="M11 4H5v16h6m4-12 4 4-4 4m4-4H9" />
@@ -24,7 +23,6 @@
       <a th:replace="~{account/fragments/navigation :: link('reservations','/account/reservations','Lịch sử đặt bàn',${active})}"></a>
       <a th:replace="~{account/fragments/navigation :: link('orders','/account/orders','Đơn hàng',${active})}"></a>
       <a th:replace="~{account/fragments/navigation :: link('vouchers','/account/vouchers','Ví voucher',${active})}"></a>
-      <a th:replace="~{account/fragments/navigation :: link('addresses','/account/addresses','Địa chỉ',${active})}"></a>
       <a th:replace="~{account/fragments/navigation :: link('invoices','/account/invoices','Hóa đơn',${active})}"></a>
     </th:block>
     <span th:fragment="avatar" class="customer-avatar" aria-hidden="true">

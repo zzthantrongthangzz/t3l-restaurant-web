@@ -16,7 +16,6 @@
     <header th:replace="~{web/fragments/restaurant-shell :: header('account')}"></header>
     <main data-navigation data-navigation-fragment class="account-area" id="main" aria-labelledby="account-title">
       <div class="account-layout">
-        <aside th:replace="~{account/fragments/sidebar :: customer(${section}, 'Khách T3L')}"></aside>
         <div class="account-content" id="account-content" tabindex="-1">
           <header class="account-heading"><h1 id="account-title" th:text="${section == 'profile' ? 'Thông tin cá nhân' : pageTitle}"></h1></header>
           <p class="account-notice" role="status" th:if="${accountNotice != null and section != 'profile'}" th:text="${accountNotice}"></p>
@@ -29,6 +28,7 @@
             <th:block th:case="'invoices'"><div th:replace="~{account/fragments/invoices :: content}"></div></th:block>
           </th:block>
         </div>
+        <aside th:replace="~{account/fragments/sidebar :: customer(${section}, 'Khách T3L')}"></aside>
       </div>
     </main>
     <footer th:replace="~{web/fragments/restaurant-shell :: footer}"></footer>

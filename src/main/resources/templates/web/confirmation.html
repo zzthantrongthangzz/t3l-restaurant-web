@@ -18,9 +18,9 @@
   <body class="home confirmation-page" th:classappend="${accountReceipt ? 'account-page' : ''}">
     <a class="skip-link" th:href="${accountReceipt ? '#account-content' : '#main'}">Chuyển đến thông tin đặt bàn</a>
     <header th:replace="~{web/fragments/restaurant-shell :: header(${accountReceipt ? 'account' : 'reservation'})}"></header>
-    <main id="main" class="receipt-main" th:classappend="${accountReceipt ? 'account-area account-related' : ''}">
+    <main id="main" class="receipt-main"
+        th:classappend="${(accountReceipt ? 'account-area account-related ' : '') + (reservation != null and paymentStatus.payable ? 'has-payable-deposit' : '')}">
       <div th:class="${accountReceipt ? 'account-layout' : 'home-container'}" th:if="${reservation != null}" th:with="closedEarly=${reservation.status == 'CANCELLED' or reservation.status == 'NO_SHOW'}, confirmed=${!reservation.openBooking or reservation.status == 'CONFIRMED'}">
-        <th:block th:if="${accountReceipt}"><aside th:replace="~{account/fragments/sidebar :: customer('reservations', 'Khách T3L')}"></aside></th:block>
         <div class="account-content" id="account-content" tabindex="-1" th:remove="${accountReceipt ? 'none' : 'tag'}">
         <a class="account-text-action account-related-return" th:if="${accountReceipt}" th:href="@{/account/reservations}">← Lịch sử đặt bàn</a>
         <section class="receipt-intro" aria-labelledby="receipt-title">
@@ -55,15 +55,15 @@
 
         <p class="receipt-deposit" th:if="${error != null}" th:text="${error}" role="alert"></p>
 
+        <th:block th:if="${paymentStatus.payable}">
+          <section th:replace="~{web/fragments/deposit :: details(${reservation})}"></section>
+        </th:block>
+
         <section class="reservation-receipt" th:if="${accountReceipt}" aria-label="Kết quả đặt bàn"
-            th:attr="data-payment-status-url=@{/reservations/{code}/payment-status(code=${reservation.code})},
-              data-status=${paymentStatus.status},data-reservation-status=${reservation.status},
-              data-payable=${paymentStatus.payable},data-payment-seconds=${paymentStatus.remainingSeconds}">
+            th:attr="data-payment-status-url=${!paymentStatus.payable} ? @{/reservations/{code}/payment-status(code=${reservation.code})} : null,
+              data-status=${paymentStatus.status},data-reservation-status=${reservation.status},data-payable=${paymentStatus.payable}">
           <div class="receipt-code"><span>Mã đặt bàn</span><strong th:text="${reservation.code}"></strong></div>
           <div class="receipt-actions">
-            <a class="home-button" th:if="${paymentStatus.payable}" data-deposit-action
-                th:href="@{/reservations/lookup(code=${reservation.code})} + '#booking-payment'"
-                th:text="${'Thanh toán cọc ' + #numbers.formatInteger(reservation.depositRemaining,1,'POINT') + ' đ'}"></a>
             <a class="account-button" th:href="@{/reservations/lookup(code=${reservation.code})}">Xem chi tiết đặt bàn</a>
           </div>
         </section>
@@ -95,7 +95,9 @@
               <p th:if="${preorder.voucherCode != null}" th:text="${'Voucher ' + preorder.voucherCode + ' · giảm ' + #numbers.formatInteger(preorder.voucherDiscount,1,'POINT') + ' đ'}"></p>
               <p th:if="${preorder.status == 'VOID'}">Đơn đã hủy.</p>
             </section>
-            <section th:replace="~{web/fragments/deposit :: details(${reservation})}"></section>
+            <th:block th:unless="${paymentStatus.payable}">
+              <section th:replace="~{web/fragments/deposit :: details(${reservation})}"></section>
+            </th:block>
             <section class="receipt-deposit" th:if="${preorder != null and preorder.legacyCustomerOrder}">
               <h2>Chi tiết đơn cũ</h2>
               <ul><li th:each="item : ${preorder.items}" th:unless="${item.cancelled}"
@@ -133,6 +135,7 @@
         </div>
         <p class="receipt-privacy" th:unless="${accountReceipt}">Thông tin đặt bàn chỉ hiển thị trong phiên trình duyệt đã gửi yêu cầu. Vui lòng giữ riêng mã đặt bàn của bạn.</p>
         </div>
+        <th:block th:if="${accountReceipt}"><aside th:replace="~{account/fragments/sidebar :: customer('reservations', 'Khách T3L')}"></aside></th:block>
       </div>
 
       <section class="home-container receipt-unavailable" th:unless="${reservation != null}" aria-labelledby="unavailable-title">

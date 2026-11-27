@@ -28,7 +28,6 @@
   align-items: center;
   gap: .65rem 1rem;
 }
-.booking-detail-status-head > a { margin-inline-start: auto; }
 .booking-detail-code small, .booking-meal-list small { display: block; color: var(--text-muted); }
 .booking-detail-code strong { font-weight: 650; overflow-wrap: anywhere; }
 .booking-detail-progress {

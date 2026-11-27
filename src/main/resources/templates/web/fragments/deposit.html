@@ -1,7 +1,7 @@
 <section xmlns:th="http://www.thymeleaf.org" th:fragment="details(booking)" class="receipt-deposit deposit-payment" id="booking-payment"
     th:if="${lookupDeposit == true or booking.depositAmount.signum() > 0 or booking.depositPaid.signum() > 0}"
     th:attr="data-payment-status-url=@{/reservations/{code}/payment-status(code=${booking.code})},data-status=${paymentStatus.status},
-      data-reservation-status=${booking.status},data-payable=${paymentStatus.payable},data-checkout-version=${lookupDeposit == true ? paymentStatus.checkoutVersion : null}"
+      data-reservation-status=${booking.status},data-payable=${paymentStatus.payable},data-checkout-version=${paymentStatus.checkoutVersion}"
     th:with="hasDeposit=${booking.depositAmount.signum() > 0 or booking.depositPaid.signum() > 0}">
   <h3 th:text="${paymentStatus.payable ? 'Thanh toán tiền đặt cọc' : 'Tiền đặt cọc'}"></h3>
   <p class="deposit-payment-status" data-payment-status-text role="status"

@@ -447,7 +447,7 @@ public class WebController {
       var deposit = paymentIntents.customerDeposit(reservation);
       model.addAttribute("depositCheckout", deposit.checkout());
       model.addAttribute("paymentStatus", deposit.status());
-      if (!reservation.isDepositDemo() && deposit.status().payable() && !reservationService.owns(reservation, customer)) {
+      if (!reservation.isDepositDemo() && deposit.status().payable()) {
         tracking.depositOpened(request, authentication, reservation.getId());
       }
       model.addAttribute("demoEnabled", sepay.demoAllowed());

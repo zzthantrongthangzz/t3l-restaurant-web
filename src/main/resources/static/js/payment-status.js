@@ -6,7 +6,7 @@ window.t3lPage.register(({ signal }) => {
   const countdown = panel.querySelector('[data-payment-countdown]');
   const actions = panel.querySelectorAll('[data-deposit-action]');
   const copy = panel.querySelector('[data-copy-payment-code]');
-  let deadline = Date.now() + Number(countdown?.dataset.seconds ?? panel.dataset.paymentSeconds ?? 0) * 1000;
+  let deadline = Date.now() + Number(countdown?.dataset.seconds ?? 0) * 1000;
   let refreshing = false;
 
   const paintCountdown = () => {
@@ -56,6 +56,7 @@ window.t3lPage.register(({ signal }) => {
       if (signal.aborted) return;
       if (!status.payable) actions.forEach(action => { action.hidden = true; });
       if (panel.dataset.reservationStatus !== status.reservationStatus || panel.dataset.status !== status.status
+          || (panel.dataset.checkoutVersion !== undefined && panel.dataset.checkoutVersion !== status.checkoutVersion)
           || (panel.dataset.payable === 'true') !== status.payable) {
         window.location.reload();
         return;

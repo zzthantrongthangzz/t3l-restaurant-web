@@ -8,7 +8,6 @@
       <strong th:text="${booking.code}"></strong>
     </div>
     <span class="lookup-status" th:attr="data-status=${booking.status}" th:text="${booking.statusLabel}"></span>
-    <a class="account-text-action" th:if="${payment.payable}" href="#booking-payment">Đến phần thanh toán</a>
   </div>
   <ol class="booking-detail-progress">
     <li class="is-done">Đã tiếp nhận</li>

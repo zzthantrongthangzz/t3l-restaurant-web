@@ -4,7 +4,6 @@ window.t3lPage.register(({ signal, state }) => {
 
   const panels = [...form.querySelectorAll('[data-booking-panel]')];
   const steps = [...form.querySelectorAll('[data-booking-step]')];
-  const progress = form.querySelector('.checkout-progress');
   const confirm = form.querySelector('[data-booking-confirm]');
   const reviewLogin = form.querySelector('[data-booking-login-review]');
   const quantities = form.querySelector('[data-preorder-fields]');
@@ -196,7 +195,7 @@ window.t3lPage.register(({ signal, state }) => {
     queueQuote();
     if (focus) {
       panels[step - 1].querySelector('h2').focus({ preventScroll: true });
-      progress.scrollIntoView({ behavior: 'instant', block: 'start' });
+      window.scrollTo({ top: 0, behavior: 'instant' });
     }
   }
 
@@ -242,7 +241,7 @@ window.t3lPage.register(({ signal, state }) => {
     if (event.key !== 'Enter' || event.isComposing || !event.target.matches('input:not([type=checkbox])')) return;
     event.preventDefault();
     if (event.target === code) checkVoucher();
-    else if (current === 1) advance(3, true);
+    else if (current === 1) advance(2);
   });
   code?.addEventListener('input', () => {
     syncOffers();

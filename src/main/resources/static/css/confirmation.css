@@ -129,5 +129,25 @@
 .deposit-bank-info > [data-copy-payment-code], .deposit-demo-form { width: 100%; }
 .deposit-demo-form { display: grid; justify-items: stretch; gap: .5rem; }
 .deposit-demo-form .home-button { width: 100%; }
+.receipt-main.has-payable-deposit:not(.account-area) { padding-block-start: clamp(108px, 11vw, 125px); }
+.receipt-main.has-payable-deposit .receipt-intro { margin-bottom: 16px; }
+.receipt-main.has-payable-deposit .receipt-symbol { display: none; }
+.receipt-main.has-payable-deposit .receipt-intro > p:last-child { margin-top: 8px; }
+.receipt-main.has-payable-deposit .deposit-payment {
+  max-width: 850px;
+  margin: 0 auto 20px;
+  padding: clamp(14px, 2vw, 24px);
+  gap: 12px;
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+.receipt-main.has-payable-deposit .deposit-payment > p { margin: 0; }
+.receipt-main.has-payable-deposit .deposit-amounts { order: 1; }
+.receipt-main.has-payable-deposit .deposit-refund-terms { order: 2; }
+.receipt-main.has-payable-deposit .deposit-qr { width: min(100%, 224px); }
+@media (min-width: 641px) {
+  .receipt-main.has-payable-deposit .deposit-transfer { grid-template-columns: minmax(0, 224px) minmax(0, 1fr); }
+}
 [hidden] { display: none !important; }
 @media (max-width: 640px) { .deposit-transfer { grid-template-columns: 1fr; } .deposit-qr { margin-inline: auto; } }

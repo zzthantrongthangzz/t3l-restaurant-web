@@ -1,3 +1,5 @@
+.home.booking-checkout-page .home-header.restaurant-header { position: sticky; }
+
 .booking-checkout {
   --checkout-gutter: clamp(16px, 4vw, 58px);
   --checkout-menu-width: min(1360px, calc(100% - 2 * var(--checkout-gutter)));

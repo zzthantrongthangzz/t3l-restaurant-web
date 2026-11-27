@@ -68,8 +68,7 @@
         </div>
         <div class="checkout-actions">
           <a class="checkout-link" th:if="${bookingCustomer and !bookingProfileMissing}" th:href="@{/account}">Cập nhật hồ sơ</a>
-          <button type="button" class="checkout-link" data-booking-next="2" data-booking-js>Chọn món trước</button>
-          <button type="button" class="home-button checkout-primary" data-booking-skip data-booking-js>Tiếp tục xác nhận <span aria-hidden="true">→</span></button>
+          <button type="button" class="home-button checkout-primary" data-booking-next="2" data-booking-js>Tiếp tục chọn món <span aria-hidden="true">→</span></button>
         </div>
       </section>
 
