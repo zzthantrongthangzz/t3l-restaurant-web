@@ -3,9 +3,8 @@ package t3l.restaurant.t3l_restaurant.service;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -20,13 +19,18 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.core.task.AsyncTaskExecutor;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -40,9 +44,9 @@ import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.web.util.UriComponentsBuilder;
 import t3l.restaurant.t3l_restaurant.entity.Reservation;
-import t3l.restaurant.t3l_restaurant.dto.CustomerProfileForm;
 import t3l.restaurant.t3l_restaurant.dto.ReservationForm;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.repository.CustomerProfileRepository;
@@ -54,7 +58,8 @@ import t3l.restaurant.t3l_restaurant.security.GoogleOAuthFlow;
     "spring.datasource.url=jdbc:h2:mem:customerAccounts;MODE=MySQL;DB_CLOSE_DELAY=-1",
     "spring.datasource.username=sa", "spring.datasource.password=", "spring.jpa.hibernate.ddl-auto=create-drop",
     "spring.sql.init.mode=never", "app.google.client-id=local-test-client", "app.google.client-secret=local-test-secret",
-    "app.sms.local-enabled=true", "server.address=127.0.0.1", "app.sms.local-phone=0900000000", "app.sms.api-key=",
+    "spring.mail.username=t3l-qa@example.test", "spring.mail.password=test-only",
+    "app.reservation-mail.worker-enabled=false",
     "app.jwt.secret=Y3VzdG9tZXItYWNjb3VudHMtdGVzdC1rZXktdGhpcy1pcy1mb3ItdGVzdHMtb25seQ=="
 })
 @AutoConfigureMockMvc
@@ -71,7 +76,17 @@ class CustomerAccountIntegrationTest {
   @Autowired PasswordEncoder passwords;
   @Autowired JdbcTemplate jdbc;
   @Autowired ObjectMapper objectMapper;
-  @SpyBean EsmsOtpSender esms;
+  @MockBean JavaMailSender mail;
+  @MockBean(name = "applicationTaskExecutor") AsyncTaskExecutor executor;
+
+  @BeforeEach
+  void runOtpDeliveryLocally() {
+    jdbc.update("delete from sms_otp_limits");
+    doAnswer(call -> {
+      call.getArgument(0, Runnable.class).run();
+      return null;
+    }).when(executor).execute(any(Runnable.class));
+  }
 
   @Test
   void rendersCustomerPagesAndProtectsProfileAndAddressActions() throws Exception {
@@ -88,14 +103,15 @@ class CustomerAccountIntegrationTest {
     }
     mvc.perform(post("/account").with(viewer)).andExpect(status().isForbidden());
     mvc.perform(post("/account").with(viewer).with(csrf()).param("givenName", "Linh")
-        .param("familyName", "Nguyễn").param("email", customer.getEmail()).param("phone", "")
+        .param("familyName", "Nguyễn").param("phone", "")
         .param("dietaryPreferences", "Ăn chay").param("bookingNotifications", "true"))
         .andExpect(redirectedUrl("/account"));
     assertEquals("Nguyễn Linh", accounts.findById(customer.getId()).orElseThrow().getFullName());
     assertTrue(profiles.findById(customer.getId()).orElseThrow().isBookingNotifications());
     assertFalse(profiles.findById(customer.getId()).orElseThrow().isMarketingOptIn());
     mvc.perform(post("/account").with(viewer).with(csrf()).param("givenName", "Linh")
-        .param("email", other.getEmail())).andExpect(model().attributeHasFieldErrors("profileForm", "email"));
+        .param("email", other.getEmail())).andExpect(redirectedUrl("/account"));
+    assertEquals(customer.getEmail(), accounts.findById(customer.getId()).orElseThrow().getEmail());
 
     for (String address : List.of("12 Test Street", "22 Test Street")) {
       mvc.perform(post("/account/addresses/new").with(viewer).with(csrf()).param("recipientName", "Linh")
@@ -314,13 +330,18 @@ class CustomerAccountIntegrationTest {
   }
 
   @Test
-  void passwordsRemainAvailableOnlyForEmployees() throws Exception {
+  void customerPhoneAndEmployeeUsernameUseSeparateLoginPaths() throws Exception {
     var buyer = account();
     var employee = accounts.save(new UserAccount("employee-" + UUID.randomUUID(), passwords.encode(PASSWORD), "STAFF"));
     mvc.perform(get("/login")).andExpect(status().isOk())
-        .andExpect(content().string(not(containsString("name=\"password\""))));
+        .andExpect(content().string(containsString("name=\"password\"")))
+        .andExpect(content().string(not(containsString("/login/sms/"))));
     mvc.perform(get("/register")).andExpect(status().isOk())
-        .andExpect(content().string(not(containsString("name=\"password\""))));
+        .andExpect(content().string(containsString("id=\"register-email\"")));
+    mvc.perform(post("/login/sms/send").with(user(buyer.getUsername()).roles("BUYER")).with(csrf()))
+        .andExpect(status().isNotFound());
+    mvc.perform(post("/login/sms/verify").with(user(buyer.getUsername()).roles("BUYER")).with(csrf()))
+        .andExpect(status().isNotFound());
     mvc.perform(get("/staff/reservations")).andExpect(redirectedUrlPattern("**/staff/login"));
     mvc.perform(get("/staff/login")).andExpect(content().string(containsString("name=\"password\"")));
     mvc.perform(post("/login").with(csrf()).param("username", buyer.getUsername()).param("password", PASSWORD))
@@ -336,18 +357,39 @@ class CustomerAccountIntegrationTest {
   }
 
   @Test
-  void registersAndSignsInWithSmsWithoutAnExistingSessionLogin() throws Exception {
+  void createsAccountOnlyAfterEmailVerificationAndKeepsPhoneLogin() throws Exception {
     String phone = "0971234567";
-    var code = simulateSms();
+    String email = "register@example.test";
     var session = new MockHttpSession();
-    mvc.perform(post("/register").session(session).with(csrf())
-        .param("fullName", "Nguyễn An").param("phone", phone))
-        .andExpect(status().isOk()).andExpect(model().attribute("registrationPending", true));
-    assertNotNull(code.get());
-    mvc.perform(post("/register/verify").session(session).with(csrf()).param("code", code.get()))
+    register(session, phone, "REGISTER@EXAMPLE.TEST", null).andExpect(redirectedUrl("/register"));
+    assertTrue(accounts.findByEmailIgnoreCase(email).isEmpty());
+    assertTrue(accounts.findByUsername("phone:" + phone).isEmpty());
+    mvc.perform(get("/register").session(session)).andExpect(content().string(containsString("r***@e***.test")))
+        .andExpect(content().string(not(containsString(email))));
+    String code = sentCode(email);
+    mvc.perform(post("/register/verify").session(new MockHttpSession()).with(csrf()).param("code", code))
+        .andExpect(flash().attributeExists("registrationError"));
+    mvc.perform(post("/register/verify").session(session).with(csrf()).param("code", code))
         .andExpect(redirectedUrl("/"));
-    assertEquals("Nguyễn An", accounts.findByVerifiedPhone(phone).orElseThrow().getFullName());
+    var saved = accounts.findByEmailIgnoreCase(email).orElseThrow();
+    assertEquals("Nguyễn An", saved.getFullName());
+    assertEquals(email, saved.getEmail());
+    assertEquals(phone, saved.getPhone());
+    assertNull(saved.getVerifiedPhone());
+    assertNotNull(saved.getEmailVerifiedAt());
+    assertTrue(passwords.matches(PASSWORD, saved.getPassword()));
     mvc.perform(get("/account").session(session)).andExpect(status().isOk());
+    mvc.perform(post("/register/verify").session(session).with(csrf()).param("code", code))
+        .andExpect(redirectedUrl("/account"));
+    signIn(new MockHttpSession(), phone);
+
+    mvc.perform(post("/account/google/link").session(session).with(csrf())).andExpect(header().string("Location",
+        org.hamcrest.Matchers.startsWith("https://accounts.google.com/")));
+    assertThrows(OAuth2AuthenticationException.class,
+        () -> google.link(saved.getId(), googleUser("different-mailbox", "different@example.test", true)));
+    var identity = googleUser("registered-mailbox", email, true);
+    assertEquals(saved.getUsername(), google.link(saved.getId(), identity));
+    assertEquals(saved.getUsername(), google.signIn(identity));
   }
 
   @Test
@@ -362,18 +404,17 @@ class CustomerAccountIntegrationTest {
     String target = "/reservations/new?draft=" + draft;
     mvc.perform(get("/register").session(session).param("returnTo", target))
         .andExpect(model().attribute("registrationReturnTo", target));
-    var sentCode = simulateSms();
-    mvc.perform(post("/register").session(session).with(csrf()).param("returnTo", target)
-        .param("fullName", "Khách đăng ký").param("phone", "0966543210"))
-        .andExpect(model().attribute("registrationPending", true));
-    mvc.perform(post("/register/verify").session(session).with(csrf()).param("code", sentCode.get()))
+    register(session, "0966543210", "booking-register@example.test", target).andExpect(redirectedUrl("/register"));
+    mvc.perform(post("/register/verify").session(session).with(csrf())
+        .param("code", sentCode("booking-register@example.test")))
         .andExpect(redirectedUrl(target));
     var resumed = (ReservationForm) mvc.perform(get(target).session(session))
         .andExpect(view().name("web/reservation-form"))
         .andReturn().getModelAndView().getModel().get("form");
     assertNull(resumed.getTableId());
     assertEquals(LocalTime.of(18, 0), resumed.getTime());
-    assertEquals("Khách đăng ký", resumed.getGuestName());
+    assertEquals("Nguyễn An", resumed.getGuestName());
+    assertEquals("booking-register@example.test", resumed.getGuestEmail());
   }
 
   @Test
@@ -412,116 +453,102 @@ class CustomerAccountIntegrationTest {
   }
 
   @Test
-  void localSmsKeepsBookingDraftAndCanCreateBookingWithProvidedContact() throws Exception {
-    jdbc.update("insert into restaurant_tables(code, table_type, capacity, active) values (?, ?, ?, ?)",
-        "SMS-QA-TABLE", "Bàn nhỏ", 4, true);
+  void registrationRejectsInvalidOrDuplicateContactWithoutSendingMail() throws Exception {
+    var other = account();
     var session = new MockHttpSession();
-    String date = "2098-11-19";
-    long before = bookings.count();
-    String next = mvc.perform(post("/reservations").session(session).with(csrf()).param("date", date)
-        .param("guestName", "Nguyễn Linh").param("guestPhone", "0900000000")
-        .param("time", "18:00").param("guests", "3").param("preferredArea", "Bàn nhỏ")
-        .param("note", "Ghi chú cần giữ").param("consentAccepted", "true").param("loginOnly", "true"))
-        .andExpect(status().is3xxRedirection()).andReturn().getResponse().getRedirectedUrl();
-    var login = UriComponentsBuilder.fromUriString(next).build();
-    assertEquals("/login", login.getPath());
-    String target = URLDecoder.decode(login.getQueryParams().getFirst("returnTo"), StandardCharsets.UTF_8);
-    String draft = UriComponentsBuilder.fromUriString(target).build().getQueryParams().getFirst("draft");
-    assertEquals(before, bookings.count());
-    mvc.perform(get(java.net.URI.create(next)).session(session)).andExpect(status().isOk())
-        .andExpect(content().string(containsString("Tiếp tục với số điện thoại")));
-
-    String code = (String) mvc.perform(post("/login/sms/send").session(session).with(csrf())
-        .param("phone", "0900000000").param("returnTo", target))
-        .andExpect(content().string(containsString("Chưa gửi SMS.")))
-        .andExpect(model().attribute("requestAccepted", false)).andReturn().getModelAndView().getModel().get("localCode");
-    assertNotNull(code);
-    assertTrue(code.matches("[0-9]{6}"));
-    mvc.perform(post("/login/sms/send").session(session).with(csrf()).param("phone", "0900000000"))
-        .andExpect(content().string(containsString("quá thường xuyên")));
-    mvc.perform(post("/login/sms/verify").with(csrf()).param("code", code))
-        .andExpect(content().string(containsString("đã hết hạn")));
-    mvc.perform(post("/login/sms/verify").session(session).with(csrf()).param("code", code))
-        .andExpect(redirectedUrl(target));
-    assertTrue(accounts.findByVerifiedPhone("0900000000").isEmpty());
-    var account = accounts.findByUsername("local-sms:0900000000").orElseThrow();
-    var form = (ReservationForm) mvc.perform(get(target).session(session)).andExpect(status().isOk())
-        .andExpect(content().string(not(containsString("HOÀN THIỆN HỒ SƠ CỦA BẠN"))))
-        .andExpect(model().attribute("bookingProfileMissing", true))
-        .andReturn().getModelAndView().getModel().get("form");
-    assertEquals("Nguyễn Linh", form.getGuestName());
-    assertEquals("0900000000", form.getGuestPhone());
-    assertEquals("Ghi chú cần giữ", form.getNote());
-    mvc.perform(post("/reservations").session(session).with(csrf()).param("draft", draft)
-        .param("date", date).param("time", "18:00").param("guests", "3").param("preferredArea", "Bàn nhỏ")
-        .param("guestName", form.getGuestName()).param("guestPhone", form.getGuestPhone())
-        .param("note", "Ghi chú cần giữ").param("consentAccepted", "true"))
-        .andExpect(redirectedUrlPattern("/reservations/confirmation?code=*"));
-    var saved = bookings.findByCustomerIdOrderByReservationDateAscReservationTimeAscIdAsc(account.getId()).getFirst();
-    assertEquals("Nguyễn Linh", saved.getGuestName());
-    assertEquals("0900000000", saved.getGuestPhone());
-    assertNull(saved.getGuestEmail());
-    mvc.perform(get("/account/reservations").session(session))
-        .andExpect(content().string(containsString(saved.getCode())));
-    mvc.perform(post("/login/sms/verify").session(session).with(csrf()).param("code", code))
-        .andExpect(content().string(containsString("đã hết hạn")));
+    register(session, "12345678", "not-an-email", null)
+        .andExpect(model().attributeHasFieldErrors("registrationForm", "email", "phone"));
+    register(session, "0981234567", "", null)
+        .andExpect(model().attributeHasFieldErrors("registrationForm", "email"));
+    register(session, "+84 901 234 567", "unique@example.test", null)
+        .andExpect(model().attributeHasFieldErrors("registrationForm", "phone"));
+    register(session, "0981234567", other.getEmail().toUpperCase(java.util.Locale.ROOT), null)
+        .andExpect(model().attributeHasFieldErrors("registrationForm", "email"));
+    verifyNoInteractions(mail);
   }
 
   @Test
-  void verifiedSmsWithLegacyPasswordPreservesTheExistingAccount() throws Exception {
+  void registrationLimitsResendAndFailedCodes() throws Exception {
+    String email = "attempts-register@example.test";
+    var session = new MockHttpSession();
+    register(session, "0921234567", email, null).andExpect(redirectedUrl("/register"));
+    String code = sentCode(email);
+    mvc.perform(post("/register/resend").session(session).with(csrf())).andExpect(flash().attributeExists("registrationError"));
+    String wrong = "000000".equals(code) ? "111111" : "000000";
+    for (int i = 0; i < 5; i++) {
+      mvc.perform(post("/register/verify").session(session).with(csrf()).param("code", wrong))
+          .andExpect(flash().attributeExists("registrationError"));
+    }
+    mvc.perform(post("/register/verify").session(session).with(csrf()).param("code", code))
+        .andExpect(flash().attribute("registrationError", "Bạn đã nhập sai quá nhiều lần. Vui lòng yêu cầu mã mới."));
+    assertTrue(accounts.findByEmailIgnoreCase(email).isEmpty());
+  }
+
+  @Test
+  void legacyCustomerVerifiesThenChangesRecoveryEmailWithTheCurrentPassword() throws Exception {
     String phone = "0911234567";
     var legacy = accounts.save(UserAccount.customer("Khách cũ", null, "+84 911 234 567",
         "legacy:" + UUID.randomUUID(), passwords.encode(PASSWORD)));
-    var oldBooking = legacyBooking();
-    oldBooking.assignCustomer(legacy);
-    bookings.saveAndFlush(oldBooking);
-    AtomicReference<String> code = simulateSms();
+    var booking = legacyBooking();
+    booking.assignCustomer(legacy);
+    bookings.saveAndFlush(booking);
     var session = new MockHttpSession();
-    mvc.perform(post("/login/sms/send").session(session).with(csrf()).param("phone", phone).param("returnTo", "/menu"))
-        .andExpect(model().attribute("requestAccepted", true)).andExpect(model().attributeDoesNotExist("localCode"));
-    mvc.perform(post("/login/sms/verify").session(session).with(csrf()).param("code", code.get()))
-        .andExpect(redirectedUrl("/login/recover"));
-    assertTrue(accounts.findByVerifiedPhone(phone).isEmpty());
-    mvc.perform(post("/login/recover").session(session).with(csrf())
-        .param("username", legacy.getUsername()).param("password", "wrong"))
-        .andExpect(model().attributeExists("recoveryError"));
-    mvc.perform(post("/login/recover").session(session).with(csrf())
-        .param("username", legacy.getUsername()).param("password", PASSWORD))
-        .andExpect(redirectedUrl("/menu"));
-    assertEquals(legacy.getId(), accounts.findByVerifiedPhone(phone).orElseThrow().getId());
-    assertEquals(legacy.getId(), bookings.findByCode(oldBooking.getCode()).orElseThrow().getCustomerId());
+    var otherSession = new MockHttpSession();
+    signIn(session, phone);
+    signIn(otherSession, phone);
+
+    mvc.perform(post("/account/email/request").session(session).with(csrf()).param("email", "unused@example.test")
+        .param("password", "wrong-password")).andExpect(flash().attribute("emailError", "Mật khẩu hiện tại không đúng."));
+    verifyNoInteractions(mail);
+    String first = "legacy-verified@example.test";
+    requestProfileEmail(session, first, PASSWORD);
+    assertNull(accounts.findById(legacy.getId()).orElseThrow().getEmail());
+    mvc.perform(get("/account").session(session)).andExpect(content().string(containsString("l***@e***.test")));
+    verifyProfileEmail(session, sentCode(first)).andExpect(flash().attributeExists("emailNotice"));
+    assertNotNull(accounts.findById(legacy.getId()).orElseThrow().getEmailVerifiedAt());
+    mvc.perform(get("/account").session(otherSession)).andExpect(status().is3xxRedirection());
+    mvc.perform(get("/account").session(session)).andExpect(content().string(containsString(first)));
+
+    clearInvocations(mail);
+    String replacement = "legacy-replacement@example.test";
+    requestProfileEmail(session, replacement, PASSWORD);
+    assertEquals(first, accounts.findById(legacy.getId()).orElseThrow().getEmail());
+    String code = sentCode(replacement);
+    verifyProfileEmail(session, code).andExpect(flash().attributeExists("emailNotice"));
+    verifyProfileEmail(session, code).andExpect(flash().attributeExists("emailError"));
+    var saved = accounts.findById(legacy.getId()).orElseThrow();
+    assertEquals(replacement, saved.getEmail());
+    assertNotNull(saved.getEmailVerifiedAt());
+    assertEquals(legacy.getId(), bookings.findByCode(booking.getCode()).orElseThrow().getCustomerId());
   }
 
   @Test
-  void fiveWrongSmsCodesInvalidateTheChallenge() throws Exception {
-    var sent = simulateSms();
+  void googleOnlyCustomerReauthenticatesAtTheLinkedEmailBeforeChangingEmail() throws Exception {
+    String old = "google-email-change@example.test";
+    String replacement = "google-email-new@example.test";
+    var identity = googleUser("google-email-change", old, true);
+    String username = google.signIn(identity);
+    var viewer = user(username).roles("BUYER");
     var session = new MockHttpSession();
-    mvc.perform(post("/login/sms/send").session(session).with(csrf()).param("phone", "0921234567"))
-        .andExpect(model().attribute("requestAccepted", true));
-    String wrong = "000000".equals(sent.get()) ? "111111" : "000000";
-    for (int i = 0; i < 5; i++) {
-      mvc.perform(post("/login/sms/verify").session(session).with(csrf()).param("code", wrong))
-          .andExpect(model().attributeExists("smsError"));
-    }
-    mvc.perform(post("/login/sms/verify").session(session).with(csrf()).param("code", sent.get()))
-        .andExpect(content().string(containsString("đã hết hạn")));
-    assertTrue(accounts.findByVerifiedPhone("0921234567").isEmpty());
-  }
+    mvc.perform(post("/account/email/request").session(session).with(viewer).with(csrf()).param("email", replacement))
+        .andExpect(redirectedUrl("/account#account-email")).andExpect(flash().attributeCount(0));
+    String oldCode = sentCode(old);
+    String wrong = "000000".equals(oldCode) ? "111111" : "000000";
+    mvc.perform(post("/account/email/verify").session(session).with(viewer).with(csrf()).param("code", wrong))
+        .andExpect(flash().attribute("emailError", "Mã xác minh chưa đúng. Bạn còn 4 lần thử."));
+    verifyNoMoreInteractions(mail);
+    mvc.perform(post("/account/email/verify").session(session).with(viewer).with(csrf()).param("code", oldCode))
+        .andExpect(flash().attributeCount(0));
+    assertEquals(old, accounts.findByUsername(username).orElseThrow().getEmail());
 
-  @Test
-  void liveOtpCreatesOneVerifiedAccountWithoutANameOrEmail() throws Exception {
-    String phone = "0931234567";
-    var code = simulateSms();
-    var session = new MockHttpSession();
-    mvc.perform(post("/login/sms/send").session(session).with(csrf()).param("phone", "+84 931 234 567"))
-        .andExpect(model().attribute("requestAccepted", true));
-    mvc.perform(post("/login/sms/verify").session(session).with(csrf()).param("code", code.get()))
-        .andExpect(redirectedUrl("/"));
-    var account = accounts.findByVerifiedPhone(phone).orElseThrow();
-    assertEquals("BUYER", account.getRole());
-    assertNull(account.getEmail());
-    assertNull(account.getFullName());
-    mvc.perform(get("/account").session(session)).andExpect(content().string(containsString("Đã xác thực qua SMS")));
+    var deliveries = ArgumentCaptor.forClass(SimpleMailMessage.class);
+    verify(mail, times(2)).send(deliveries.capture());
+    var latest = deliveries.getValue();
+    assertArrayEquals(new String[]{replacement}, latest.getTo());
+    mvc.perform(post("/account/email/verify").session(session).with(viewer).with(csrf()).param("code", mailCode(latest)))
+        .andExpect(flash().attributeExists("emailNotice"));
+    assertEquals(replacement, accounts.findByUsername(username).orElseThrow().getEmail());
+    assertEquals(username, google.signIn(identity));
   }
 
   @Test
@@ -605,7 +632,9 @@ class CustomerAccountIntegrationTest {
     var saved = bookings.findByCustomerIdOrderByReservationDateAscReservationTimeAscIdAsc(owner).getFirst();
     assertEquals(identity.getEmail(), saved.getGuestEmail());
     assertEquals(new java.math.BigDecimal("210000"), saved.getDepositAmount());
-    assertEquals(tableId, bookings.findOneById(saved.getId()).orElseThrow().getTable().getId());
+    var allocated = bookings.findOneById(saved.getId()).orElseThrow().getTable();
+    assertNotNull(allocated);
+    assertTrue(allocated.getCapacity() >= saved.getGuestCount());
     mvc.perform(get("/account/reservations").session(session)).andExpect(content().string(containsString(saved.getCode())));
   }
 
@@ -630,11 +659,37 @@ class CustomerAccountIntegrationTest {
     assertEquals("0901234569", account.getPhone());
   }
 
-  private AtomicReference<String> simulateSms() {
-    var sent = new AtomicReference<String>();
-    doReturn(true).when(esms).live();
-    doAnswer(call -> { sent.set(call.getArgument(1)); return true; }).when(esms).send(anyString(), anyString(), anyString());
-    return sent;
+  private ResultActions register(MockHttpSession session, String phone, String email,
+      String target) throws Exception {
+    var request = post("/register").session(session).with(csrf()).param("fullName", "Nguyễn An")
+        .param("phone", phone).param("email", email).param("password", PASSWORD).param("confirmPassword", PASSWORD);
+    if (target != null) request.param("returnTo", target);
+    return mvc.perform(request);
+  }
+
+  private void signIn(MockHttpSession session, String phone) throws Exception {
+    mvc.perform(post("/login/password").session(session).with(csrf()).param("phone", phone).param("password", PASSWORD))
+        .andExpect(redirectedUrl("/"));
+  }
+
+  private void requestProfileEmail(MockHttpSession session, String email, String password) throws Exception {
+    mvc.perform(post("/account/email/request").session(session).with(csrf()).param("email", email)
+        .param("password", password)).andExpect(redirectedUrl("/account#account-email")).andExpect(flash().attributeCount(0));
+  }
+
+  private ResultActions verifyProfileEmail(MockHttpSession session, String code) throws Exception {
+    return mvc.perform(post("/account/email/verify").session(session).with(csrf()).param("code", code));
+  }
+
+  private String sentCode(String email) {
+    var delivery = ArgumentCaptor.forClass(SimpleMailMessage.class);
+    verify(mail).send(delivery.capture());
+    assertArrayEquals(new String[]{email}, delivery.getValue().getTo());
+    return mailCode(delivery.getValue());
+  }
+
+  private static String mailCode(SimpleMailMessage message) {
+    return Pattern.compile("[0-9]{6}").matcher(message.getText()).results().findFirst().orElseThrow().group();
   }
 
   private UserAccount account() {

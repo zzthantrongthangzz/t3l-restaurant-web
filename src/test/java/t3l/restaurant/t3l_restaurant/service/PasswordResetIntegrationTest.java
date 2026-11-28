@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,7 +68,9 @@ class PasswordResetIntegrationTest {
   @Test
   void resetsPasswordOnceAndRevokesAnExistingWebSession() throws Exception {
     String phone = "0930000001";
-    var account = customer("phone:" + phone, phone, "verified@example.test");
+    var account = customer("phone:" + phone, phone, "linked-google@example.test");
+    account.verifyEmail("verified@example.test", Instant.now());
+    accounts.saveAndFlush(account);
     var oldSession = new MockHttpSession();
     login(oldSession, phone, OLD_PASSWORD).andExpect(redirectedUrl("/"));
     mvc.perform(get("/account").session(oldSession)).andExpect(status().isOk());
@@ -107,6 +110,30 @@ class PasswordResetIntegrationTest {
     login(new MockHttpSession(), phone, OLD_PASSWORD).andExpect(model().attributeExists("passwordError"));
     login(new MockHttpSession(), phone, NEW_PASSWORD).andExpect(redirectedUrl("/"));
     change(reset, NEW_PASSWORD, NEW_PASSWORD).andExpect(flash().attributeExists("resetError"));
+  }
+
+  @Test
+  void emailChangeInvalidatesAPasswordResetGrantIssuedToTheOldAddress() throws Exception {
+    String phone = "0930000007";
+    var account = customer("phone:" + phone, phone, null);
+    account.verifyEmail("before-change@example.test", Instant.now());
+    accounts.saveAndFlush(account);
+    var reset = new MockHttpSession();
+    requestCode(reset, phone).andExpect(flash().attributeCount(0));
+    var deliveries = ArgumentCaptor.forClass(SimpleMailMessage.class);
+    verify(mail).send(deliveries.capture());
+    verifyCode(reset, code(deliveries.getValue())).andExpect(flash().attributeCount(0));
+
+    var signedIn = new MockHttpSession();
+    login(signedIn, phone, OLD_PASSWORD).andExpect(redirectedUrl("/"));
+    mvc.perform(post("/account/email/request").session(signedIn).with(csrf())
+        .param("email", "after-change@example.test").param("password", OLD_PASSWORD))
+        .andExpect(flash().attributeCount(0));
+    verify(mail, times(2)).send(deliveries.capture());
+    mvc.perform(post("/account/email/verify").session(signedIn).with(csrf()).param("code", code(deliveries.getValue())))
+        .andExpect(flash().attributeExists("emailNotice"));
+    change(reset, NEW_PASSWORD, NEW_PASSWORD).andExpect(flash().attributeExists("resetError"));
+    login(new MockHttpSession(), phone, OLD_PASSWORD).andExpect(redirectedUrl("/"));
   }
 
   @Test

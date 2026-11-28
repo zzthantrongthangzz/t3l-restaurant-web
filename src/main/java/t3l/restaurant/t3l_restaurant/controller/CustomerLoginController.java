@@ -10,12 +10,15 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import t3l.restaurant.t3l_restaurant.dto.CustomerRegistrationForm;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.security.AccountPrincipal;
 import t3l.restaurant.t3l_restaurant.security.CustomerSession;
 import t3l.restaurant.t3l_restaurant.security.LoginReturnTarget;
 import t3l.restaurant.t3l_restaurant.service.CustomerAccountService;
+import t3l.restaurant.t3l_restaurant.service.CustomerEmailVerificationService;
+import t3l.restaurant.t3l_restaurant.service.EmailOtpService.VerificationException;
 import t3l.restaurant.t3l_restaurant.service.CustomerRecovery;
 import t3l.restaurant.t3l_restaurant.service.PhoneCustomerService;
 import t3l.restaurant.t3l_restaurant.service.SmsOtpService.OtpException;
@@ -25,16 +28,16 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Controller
 public class CustomerLoginController {
+  private static final String REGISTER = "redirect:/register";
   private final PhoneCustomerService phones;
   private final CustomerRecovery recovery;
   private final CustomerSession sessions;
   private final CustomerAccountService customers;
   private final AuthenticationManager passwordAuthenticationManager;
-  private final PasswordEncoder passwords;
+  private final CustomerEmailVerificationService emails;
   public CustomerLoginController(
           PhoneCustomerService phones,
           CustomerRecovery recovery,
@@ -42,14 +45,14 @@ public class CustomerLoginController {
           CustomerAccountService customers,
           @Qualifier("customerPasswordAuthenticationManager")
           AuthenticationManager passwordAuthenticationManager,
-          PasswordEncoder passwords
+          CustomerEmailVerificationService emails
   ) {
     this.phones = phones;
     this.recovery = recovery;
     this.sessions = sessions;
     this.customers = customers;
     this.passwordAuthenticationManager = passwordAuthenticationManager;
-    this.passwords = passwords;
+    this.emails = emails;
   }
 
   @ModelAttribute
@@ -66,9 +69,15 @@ public class CustomerLoginController {
 
   @GetMapping("/register")
   String registration(@RequestParam(required = false) String returnTo, Authentication authentication,
-      Model model) {
+      HttpServletRequest request, Model model) {
     String target = LoginReturnTarget.validate(returnTo);
     if (customers.signedInCustomer(authentication) != null) return "redirect:" + (target == null ? "/account" : target);
+    var maskedEmail = emails.registrationEmail(request.getSession(false));
+    if (maskedEmail != null) {
+      model.addAttribute("registrationEmail", maskedEmail);
+      model.addAttribute("registrationReturnTo", emails.registrationTarget(request.getSession(false)));
+      return "auth/register";
+    }
     return registrationPage(model, new CustomerRegistrationForm(), target);
   }
 
@@ -78,15 +87,22 @@ public class CustomerLoginController {
           BindingResult errors,
           @RequestParam(required = false) String returnTo,
           HttpServletRequest request,
-          HttpServletResponse response,
+          Authentication authentication,
+          RedirectAttributes redirect,
           Model model
   ) {
     String target = LoginReturnTarget.validate(returnTo);
+    if (customers.signedInCustomer(authentication) != null) return "redirect:" + (target == null ? "/account" : target);
     String phone = SmsOtpService.normalizePhone(form.getPhone());
+    String email = CustomerEmailVerificationService.normalizeEmail(form.getEmail());
 
-    if (!errors.hasErrors() && phone == null) {
+    if (!errors.hasFieldErrors("phone") && phone == null) {
       errors.rejectValue("phone", "phone.invalid",
               "Nhập số di động Việt Nam hợp lệ.");
+    }
+
+    if (!errors.hasFieldErrors("email") && email == null) {
+      errors.rejectValue("email", "email.invalid", "Vui lòng nhập email hợp lệ.");
     }
 
     if (!errors.hasErrors() && !phones.canRegister(phone)) {
@@ -96,12 +112,12 @@ public class CustomerLoginController {
 
     String rawPassword = form.getPassword() == null ? "" : form.getPassword();
 
-    if (!errors.hasErrors() && !rawPassword.equals(form.getConfirmPassword())) {
+    if (!errors.hasFieldErrors("confirmPassword") && !rawPassword.equals(form.getConfirmPassword())) {
       errors.rejectValue("confirmPassword", "password.mismatch",
               "Mật khẩu xác nhận không khớp.");
     }
 
-    if (!errors.hasErrors()
+    if (!errors.hasFieldErrors("password")
             && rawPassword.getBytes(StandardCharsets.UTF_8).length > 72) {
       errors.rejectValue("password", "password.tooLong",
               "Mật khẩu quá dài. Vui lòng dùng tối đa 72 byte UTF-8.");
@@ -112,17 +128,59 @@ public class CustomerLoginController {
     }
 
     try {
-      UserAccount customer = phones.registerPassword(form.getFullName(), phone, passwords.encode(rawPassword));
-      return signedIn(request, response, customer, target);
-    } catch (IllegalArgumentException exception) {
+      if (emails.emailInUse(email, null)) {
+        errors.rejectValue("email", "email.duplicate", "Email đã được sử dụng cho tài khoản khác.");
+        return registrationPage(model, form, target);
+      }
+      emails.startRegistration(request, form.getFullName(), phone, email, rawPassword, target);
+      return REGISTER;
+    } catch (VerificationException exception) {
       model.addAttribute("registrationError", exception.getMessage());
-    } catch (DataIntegrityViolationException exception) {
-      model.addAttribute("registrationError", "Số điện thoại vừa được đăng ký. Vui lòng đăng nhập.");
     } catch (DataAccessException exception) {
-      model.addAttribute("registrationError", "Chưa thể tạo tài khoản. Vui lòng thử lại.");
+      model.addAttribute("registrationError", "Chưa thể gửi mã xác minh. Vui lòng thử lại.");
     }
 
     return registrationPage(model, form, target);
+  }
+
+  @PostMapping("/register/verify")
+  String verifyRegistration(@RequestParam(defaultValue = "") String code, Authentication authentication,
+      HttpServletRequest request, HttpServletResponse response, RedirectAttributes redirect) {
+    if (customers.signedInCustomer(authentication) != null) return "redirect:/account";
+    String target = emails.registrationTarget(request.getSession(false));
+    try {
+      var registered = emails.verifyRegistration(request, code);
+      return signedIn(request, response, registered.account(), registered.target());
+    } catch (VerificationException | IllegalArgumentException exception) {
+      redirect.addFlashAttribute("registrationError", exception.getMessage());
+    } catch (DataIntegrityViolationException exception) {
+      redirect.addFlashAttribute("registrationError", "Email hoặc số điện thoại vừa được đăng ký. Vui lòng kiểm tra lại.");
+    } catch (DataAccessException exception) {
+      redirect.addFlashAttribute("registrationError", "Chưa thể tạo tài khoản. Vui lòng thử lại.");
+    }
+    if (target != null && emails.registrationEmail(request.getSession(false)) == null) redirect.addAttribute("returnTo", target);
+    return REGISTER;
+  }
+
+  @PostMapping("/register/resend")
+  String resendRegistration(Authentication authentication, HttpServletRequest request, RedirectAttributes redirect) {
+    if (customers.signedInCustomer(authentication) != null) return "redirect:/account";
+    try {
+      emails.resendRegistration(request);
+      redirect.addFlashAttribute("registrationNotice", "Đã yêu cầu gửi mã mới.");
+    } catch (VerificationException exception) {
+      redirect.addFlashAttribute("registrationError", exception.getMessage());
+    } catch (DataAccessException exception) {
+      redirect.addFlashAttribute("registrationError", "Chưa thể gửi mã xác minh. Vui lòng thử lại.");
+    }
+    return REGISTER;
+  }
+
+  @PostMapping("/register/cancel")
+  String cancelRegistration(HttpServletRequest request, RedirectAttributes redirect) {
+    var target = emails.cancelRegistration(request.getSession(false));
+    if (target != null) redirect.addAttribute("returnTo", target);
+    return REGISTER;
   }
 
   @PostMapping("/login/password")
@@ -141,6 +199,7 @@ public class CustomerLoginController {
               new UsernamePasswordAuthenticationToken(phone, password));
 
       recovery.clear(request.getSession(false));
+      emails.cancelRegistration(request.getSession(false));
       sessions.signIn(request, response, (AccountPrincipal) authentication.getPrincipal());
       return "redirect:" + (target == null ? "/" : target);
     } catch (AuthenticationException exception) {

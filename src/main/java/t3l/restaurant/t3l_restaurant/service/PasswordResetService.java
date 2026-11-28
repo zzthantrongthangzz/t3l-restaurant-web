@@ -5,17 +5,8 @@ import jakarta.servlet.http.HttpSession;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
-import java.util.UUID;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.task.TaskExecutor;
-import org.springframework.core.task.TaskRejectedException;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -25,46 +16,35 @@ import t3l.restaurant.t3l_restaurant.repository.CustomerProfileRepository;
 import t3l.restaurant.t3l_restaurant.repository.UserAccountRepository;
 import t3l.restaurant.t3l_restaurant.security.LoginReturnTarget;
 
-@Slf4j
 @Service
 public class PasswordResetService {
   private static final String KEY = PasswordResetService.class.getName();
-  private static final Duration LIFETIME = Duration.ofMinutes(5);
-  private static final int MAX_ATTEMPTS = 5;
-  private final OtpCodes codes = new OtpCodes();
   private final PhoneCustomerService phones;
   private final UserAccountRepository accounts;
   private final CustomerProfileRepository profiles;
   private final SmsOtpRateLimiter limiter;
   private final PasswordEncoder passwords;
   private final TransactionTemplate transactions;
-  private final TaskExecutor executor;
-  private final JavaMailSender mail;
-  private final String from;
+  private final EmailOtpService otp;
   private final Clock clock;
 
   @Autowired
   public PasswordResetService(PhoneCustomerService phones, UserAccountRepository accounts,
       CustomerProfileRepository profiles, SmsOtpRateLimiter limiter, PasswordEncoder passwords,
-      TransactionTemplate transactions, @Qualifier("applicationTaskExecutor") TaskExecutor executor,
-      JavaMailSender mail, @Value("${spring.mail.username:}") String username,
-      @Value("${spring.mail.password:}") String mailPassword) {
-    this(phones, accounts, profiles, limiter, passwords, transactions, executor, mail,
-        mailPassword.isBlank() ? null : ReservationEmailQueue.mailbox(username.strip()), Clock.systemUTC());
+      TransactionTemplate transactions, EmailOtpService otp) {
+    this(phones, accounts, profiles, limiter, passwords, transactions, otp, Clock.systemUTC());
   }
 
   PasswordResetService(PhoneCustomerService phones, UserAccountRepository accounts, CustomerProfileRepository profiles,
-      SmsOtpRateLimiter limiter, PasswordEncoder passwords, TransactionTemplate transactions, TaskExecutor executor,
-      JavaMailSender mail, String from, Clock clock) {
+      SmsOtpRateLimiter limiter, PasswordEncoder passwords, TransactionTemplate transactions, EmailOtpService otp,
+      Clock clock) {
     this.phones = phones;
     this.accounts = accounts;
     this.profiles = profiles;
     this.limiter = limiter;
     this.passwords = passwords;
     this.transactions = transactions;
-    this.executor = executor;
-    this.mail = mail;
-    this.from = from;
+    this.otp = otp;
     this.clock = clock;
   }
 
@@ -75,7 +55,7 @@ public class PasswordResetService {
       if (flow == null) return new View(Step.PHONE, null, null);
       if (flow.grant() == null) return new View(Step.CODE, flow.target(), null);
       if (clock.instant().isBefore(flow.grant().expiresAt())) {
-        return new View(Step.PASSWORD, flow.target(), mask(flow.grant().recipient().email()));
+        return new View(Step.PASSWORD, flow.target(), EmailOtpService.mask(flow.grant().recipient().email()));
       }
       session.removeAttribute(KEY);
       return new View(Step.PHONE, flow.target(), null);
@@ -104,20 +84,17 @@ public class PasswordResetService {
     var session = requireSession(request);
     synchronized (WebUtils.getSessionMutex(session)) {
       Flow flow = flow(session);
-      Challenge challenge = flow == null ? null : flow.challenge();
+      PendingCode pending = flow == null ? null : flow.challenge();
       Instant now = clock.instant();
-      if (challenge == null || !now.isBefore(challenge.expiresAt)) throw expired();
-      if (challenge.attempts >= MAX_ATTEMPTS) throw attemptsExceeded();
-      boolean matches = codes.matches(challenge.id, challenge.hash, code);
-      Recipient recipient = challenge.recipient;
-      if (matches && recipient != null) {
-        request.changeSessionId();
-        challenge.cancelled = true;
-        session.setAttribute(KEY, new Flow(flow.phone(), flow.target(), null, new Grant(recipient, now.plus(LIFETIME))));
-        return;
+      Recipient recipient = pending == null ? null : pending.recipient;
+      try {
+        otp.verify(pending == null ? null : pending.challenge, code, recipient != null, now);
+      } catch (EmailOtpService.VerificationException exception) {
+        throw new ResetException(exception.getMessage());
       }
-      if (++challenge.attempts >= MAX_ATTEMPTS) throw attemptsExceeded();
-      throw new ResetException("Mã xác minh chưa đúng. Bạn còn " + (MAX_ATTEMPTS - challenge.attempts) + " lần thử.");
+      request.changeSessionId();
+      session.setAttribute(KEY, new Flow(flow.phone(), flow.target(), null,
+          new Grant(recipient, now.plus(EmailOtpService.LIFETIME))));
     }
   }
 
@@ -159,71 +136,38 @@ public class PasswordResetService {
       throw new ResetException("Bạn đã yêu cầu mã quá thường xuyên. Vui lòng chờ trước khi thử lại.");
     }
     Flow previous = flow(session);
-    Challenge old = previous == null ? null : previous.challenge();
-    String id = UUID.randomUUID().toString();
-    String code = codes.generate();
-    if (old != null) {
-      while (codes.matches(old.id, old.hash, code)) code = codes.generate();
-      old.cancelled = true;
-    }
-    var challenge = new Challenge(id, codes.digest(id, code), now.plus(LIFETIME));
-    session.setAttribute(KEY, new Flow(phone, target, challenge, null));
-    String deliveryCode = code;
-    try {
-      // Account lookup and SMTP stay off the HTTP path for every phone number.
-      executor.execute(() -> deliver(phone, challenge, deliveryCode));
-    } catch (TaskRejectedException exception) {
-      log.warn("Password reset email task could not be scheduled");
-    }
+    PendingCode old = previous == null ? null : previous.challenge();
+    var issued = otp.issue(old == null ? null : old.challenge, now);
+    var pending = new PendingCode(issued.challenge());
+    session.setAttribute(KEY, new Flow(phone, target, pending, null));
+    // Account lookup and SMTP stay off the HTTP path for every phone number.
+    otp.schedule(() -> deliver(phone, pending, issued));
   }
 
-  private void deliver(String phone, Challenge challenge, String code) {
-    if (from == null || !deliverable(challenge)) return;
-    try {
-      Recipient recipient = recipientFor(phone);
-      if (recipient == null || !deliverable(challenge)) return;
-      var message = new SimpleMailMessage();
-      message.setFrom(from);
-      message.setTo(recipient.email());
-      message.setSubject("T3L Restaurant | Mã đặt lại mật khẩu");
-      message.setText("Mã xác minh đặt lại mật khẩu của bạn: " + code
-          + "\n\nMã có hiệu lực trong 5 phút và chỉ dùng một lần."
-          + "\nNếu bạn không yêu cầu đổi mật khẩu, hãy bỏ qua email này. Không chia sẻ mã với người khác.");
-      mail.send(message);
-      challenge.recipient = recipient;
-    } catch (RuntimeException exception) {
-      log.warn("Password reset email delivery was not confirmed");
+  private void deliver(String phone, PendingCode pending, EmailOtpService.Issued issued) {
+    if (otp.configured() && pending.challenge.active(clock.instant())) {
+      var recipient = recipientFor(phone);
+      if (recipient != null) {
+        pending.recipient = recipient;
+        otp.send(issued, recipient.email(), "đặt lại mật khẩu", clock.instant());
+      }
     }
-  }
-
-  private boolean deliverable(Challenge challenge) {
-    return !challenge.cancelled && clock.instant().isBefore(challenge.expiresAt);
   }
 
   private Recipient recipientFor(String phone) {
     var account = phones.findPasswordAccount(phone).filter(PasswordResetService::eligible).orElse(null);
     if (account == null) return null;
-    // Only the address from a verified Google identity is trusted for recovery.
-    String email = profiles.findById(account.getId()).filter(profile -> profile.getGoogleSubject() != null)
-        .map(profile -> ReservationEmailQueue.mailbox(profile.getGoogleEmail())).orElse(null);
+    String email = account.getEmailVerifiedAt() != null ? ReservationEmailQueue.mailbox(account.getEmail())
+        : profiles.findById(account.getId()).filter(profile -> profile.getGoogleSubject() != null)
+            .map(profile -> ReservationEmailQueue.mailbox(profile.getGoogleEmail())).orElse(null);
     return email == null ? null : new Recipient(account.getId(), account.getAuthVersion(), email);
   }
 
   private static boolean eligible(UserAccount account) {
     String username = account.getUsername();
     return CustomerAccountService.isCustomer(account) && account.getArchivedAt() == null
-        && !username.startsWith("google:") && !username.startsWith("desk:") && !PhoneCustomerService.isLocal(account);
-  }
-
-  private static String mask(String email) {
-    int at = email.indexOf('@');
-    int dot = email.lastIndexOf('.');
-    int prefixLength = Character.charCount(email.codePointAt(0));
-    int domainStart = at + 1;
-    int domainPrefix = Character.charCount(email.codePointAt(domainStart));
-    String local = at > prefixLength ? email.substring(0, prefixLength) : "";
-    String domain = dot > domainStart + domainPrefix ? email.substring(domainStart, domainStart + domainPrefix) : "";
-    return local + "***@" + domain + "***" + email.substring(dot);
+        && !username.startsWith("google:") && !username.startsWith("desk:")
+        && (!PhoneCustomerService.isLocal(account) || account.getEmailVerifiedAt() != null);
   }
 
   private static HttpSession requireSession(HttpServletRequest request) {
@@ -240,10 +184,6 @@ public class PasswordResetService {
     return new ResetException("Mã hoặc phiên xác minh đã hết hiệu lực. Vui lòng yêu cầu mã mới.");
   }
 
-  private static ResetException attemptsExceeded() {
-    return new ResetException("Bạn đã nhập sai quá nhiều lần. Vui lòng yêu cầu mã mới.");
-  }
-
   public enum Step { PHONE, CODE, PASSWORD }
 
   public record View(Step step, String target, String maskedEmail) {}
@@ -254,20 +194,14 @@ public class PasswordResetService {
 
   private record Grant(Recipient recipient, Instant expiresAt) implements Serializable {}
 
-  private record Flow(String phone, String target, Challenge challenge, Grant grant) implements Serializable {}
+  private record Flow(String phone, String target, PendingCode challenge, Grant grant) implements Serializable {}
 
-  private static final class Challenge implements Serializable {
-    private final String id;
-    private final byte[] hash;
-    private final Instant expiresAt;
-    private int attempts;
-    private volatile boolean cancelled;
+  private static final class PendingCode implements Serializable {
+    private final EmailOtpService.Challenge challenge;
     private volatile Recipient recipient;
 
-    private Challenge(String id, byte[] hash, Instant expiresAt) {
-      this.id = id;
-      this.hash = hash;
-      this.expiresAt = expiresAt;
+    private PendingCode(EmailOtpService.Challenge challenge) {
+      this.challenge = challenge;
     }
   }
 

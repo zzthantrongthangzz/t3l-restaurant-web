@@ -3,6 +3,7 @@
 
   const widget = document.querySelector('.t3l-chat');
   if (!widget) return;
+  const mobile = matchMedia('(max-width: 768px), (hover: none) and (pointer: coarse)');
   const launcher = widget.querySelector('.t3l-chat-launcher');
   const panel = widget.querySelector('.t3l-chat-panel');
   const log = widget.querySelector('.t3l-chat-stream');
@@ -129,15 +130,18 @@
     return read(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
   }
 
-  function show(open) {
+  function show(open, restoreFocus = true) {
     panel.hidden = !open;
     launcher.setAttribute('aria-expanded', String(open));
     if (open) {
+      document.dispatchEvent(new CustomEvent('t3l:utility-open', { detail: 'chat' }));
+      if (mobile.matches) panel.scrollIntoView({ block: 'nearest' });
       const target = matchMedia('(pointer: coarse)').matches ? log : input;
       target.focus({ preventScroll: true });
       loadSession().catch(error => notice(error.message));
-    } else {
+    } else if (restoreFocus) {
       launcher.focus({ preventScroll: true });
+      if (mobile.matches) launcher.scrollIntoView({ block: 'nearest' });
     }
   }
 
@@ -188,6 +192,9 @@
 
   launcher.addEventListener('click', () => show(panel.hidden));
   widget.querySelector('.t3l-chat-close').addEventListener('click', () => show(false));
+  document.addEventListener('t3l:utility-open', event => {
+    if (event.detail === 'privacy' && !panel.hidden) show(false, false);
+  });
   widget.addEventListener('keydown', event => {
     if (event.key === 'Escape' && !panel.hidden) {
       event.stopPropagation();

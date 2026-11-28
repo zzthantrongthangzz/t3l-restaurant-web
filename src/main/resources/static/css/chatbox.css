@@ -6,7 +6,7 @@
   --chat-edge: var(--border);
   position: fixed;
   right: max(20px, env(safe-area-inset-right));
-  bottom: max(20px, env(safe-area-inset-bottom));
+  bottom: var(--site-utilities-bottom, max(20px, env(safe-area-inset-bottom)));
   z-index: 60;
   color: var(--chat-ink);
   font: 15px/1.5 var(--font-sans, system-ui, sans-serif);
@@ -192,16 +192,10 @@
 }
 
 @media (max-width: 480px) {
-  .t3l-chat {
-    right: max(12px, env(safe-area-inset-right));
-    bottom: max(12px, env(safe-area-inset-bottom));
-  }
-  .t3l-chat-panel {
-    width: min(390px, calc(100vw - 24px));
-    height: min(570px, calc(100dvh - 84px - env(safe-area-inset-bottom)));
-    bottom: calc(100% + 8px);
-  }
   .t3l-chat-suggestions button, .t3l-chat-actions a, .t3l-chat-actions button { min-height: 40px; }
+}
+@media (max-width: 768px), (hover: none) and (pointer: coarse) {
+  .site-utilities .t3l-chat-panel { height: clamp(330px, 65dvh, 570px); }
 }
 @media (max-height: 440px) {
   .t3l-chat-suggestions { display: none; }

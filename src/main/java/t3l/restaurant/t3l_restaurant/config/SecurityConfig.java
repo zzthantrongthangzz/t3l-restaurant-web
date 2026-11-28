@@ -141,7 +141,7 @@ public class SecurityConfig {
                 .hasRole("BUYER")
                 .requestMatchers(HttpMethod.POST, "/reservations/*/preorder").hasAnyRole("BUYER", "STAFF", "ADMIN")
                 .requestMatchers("/login","/login/password",  "/oauth2/authorization/google", "/login/oauth2/code/google",
-                    "/login/recover/**", "/login/forgot-password/**", "/register", "/staff/login")
+                    "/login/recover/**", "/login/forgot-password/**", "/register", "/register/**", "/staff/login")
                 .permitAll()
                 .requestMatchers("/chat/**").access(new org.springframework.security.web.access.expression.WebExpressionAuthorizationManager(
                     "isAnonymous() or hasAnyRole('BUYER', 'ADMIN')"))

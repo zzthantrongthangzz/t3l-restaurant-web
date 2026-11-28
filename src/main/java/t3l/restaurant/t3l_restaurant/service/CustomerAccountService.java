@@ -67,7 +67,6 @@ public class CustomerAccountService {
         form.setGivenName(fullName.substring(split + 1));
       }
     }
-    form.setEmail(account.getEmail());
     form.setPhone(account.getPhone());
     form.setDietaryPreferences(profile.getDietaryPreferences());
     form.setBookingNotifications(profile.isBookingNotifications());
@@ -90,11 +89,6 @@ public class CustomerAccountService {
       if (usedByAnother) throw new IllegalArgumentException("Số điện thoại đã được dùng cho tài khoản hoặc hồ sơ khác.");
       form.setPhone(normalized);
     }
-    String email = form.getEmail();
-    if (email != null && !email.isBlank() && (accounts.existsByEmailIgnoreCaseAndIdNot(email, accountId)
-        || profiles.existsByGoogleEmailIgnoreCaseAndIdNot(email, accountId))) {
-      throw new DuplicateEmailException();
-    }
     CustomerProfile profile = profile(account);
     profile.updateProfile(form);
     profiles.saveAndFlush(profile);
@@ -112,8 +106,6 @@ public class CustomerAccountService {
     String vietnamese = SmsOtpService.normalizePhone(phone);
     return vietnamese != null ? vietnamese : phone.strip().startsWith("+") ? "+" + digits : digits;
   }
-
-  public static class DuplicateEmailException extends RuntimeException {}
 
   public List<CustomerAddress> addresses(Long accountId) {
     return addresses.findByAccount_IdOrderByDefaultAddressDescIdAsc(accountId);

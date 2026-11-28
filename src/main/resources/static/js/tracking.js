@@ -3,6 +3,7 @@
   const endpoint = script.dataset.endpoint;
   const queue = [];
   const activityWindow = 30000;
+  const mobile = matchMedia('(max-width: 768px), (hover: none) and (pointer: coarse)');
   let choice = 'unset';
   let csrf;
   let preferences;
@@ -14,7 +15,6 @@
   let seconds = 0;
   let inFlight = false;
   let nextSend = 0;
-  let panel;
   let banner;
 
   function pageKey() {
@@ -121,15 +121,51 @@
     }
   }
 
+  function expandChoice(open, interactive = false) {
+    if (!banner) return;
+    const panel = banner.querySelector('#tracking-panel');
+    const toggle = banner.querySelector('.tracking-toggle');
+    panel.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+    if (!interactive) return;
+    if (open) {
+      document.dispatchEvent(new CustomEvent('t3l:utility-open', { detail: 'privacy' }));
+      if (mobile.matches) panel.scrollIntoView({ block: 'nearest' });
+    } else {
+      toggle.focus({ preventScroll: true });
+      if (mobile.matches) toggle.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
   function renderChoice() {
-    if (!pageKey() || choice === 'disabled') { banner?.remove(); banner = null; return; }
+    if (!pageKey() || choice === 'disabled') {
+      if (banner) {
+        const utilities = banner.parentElement;
+        banner.remove();
+        if (!utilities.childElementCount) utilities.remove();
+        banner = null;
+      }
+      return;
+    }
     if (!banner) {
-      banner = document.createElement('aside');
+      let utilities = document.getElementById('site-utilities');
+      if (!utilities) {
+        utilities = document.createElement('aside');
+        utilities.id = 'site-utilities';
+        utilities.className = 'site-utilities';
+        utilities.setAttribute('aria-label', 'Tiện ích trang web');
+        utilities.tabIndex = -1;
+        currentMain.after(utilities);
+      }
+      banner = document.createElement('div');
       banner.className = 'tracking-choice';
       banner.innerHTML = `
         <button type="button" class="tracking-toggle" aria-controls="tracking-panel" aria-expanded="false">Quyền riêng tư</button>
         <section id="tracking-panel" class="tracking-panel" aria-labelledby="tracking-title" hidden>
-          <strong id="tracking-title">Phân tích trải nghiệm</strong>
+          <div class="tracking-panel-heading">
+            <h2 id="tracking-title">Phân tích trải nghiệm</h2>
+            <button type="button" class="tracking-collapse" aria-controls="tracking-panel">Thu gọn</button>
+          </div>
           <p>Nếu đồng ý, T3L đo lượt xem và thao tác để cải thiện website. Dữ liệu lưu tối đa 90 ngày. Tin nhắn và nội dung cá nhân không được ghi nhận.</p>
           <div class="tracking-actions">
             <button type="button" data-tracking-choice="allow">Đồng ý</button>
@@ -137,19 +173,21 @@
           </div>
           <p class="tracking-status" role="status"></p>
         </section>`;
-      document.body.append(banner);
-      panel = banner.querySelector('#tracking-panel');
+      utilities.prepend(banner);
+      const panel = banner.querySelector('#tracking-panel');
       const toggle = banner.querySelector('.tracking-toggle');
-      const expand = open => {
-        panel.hidden = !open;
-        toggle.setAttribute('aria-expanded', String(open));
-      };
-      toggle.addEventListener('click', () => expand(panel.hidden));
+      toggle.addEventListener('click', () => expandChoice(panel.hidden, true));
+      panel.querySelector('.tracking-collapse').addEventListener('click', () => expandChoice(false, true));
+      banner.addEventListener('keydown', event => {
+        if (event.key !== 'Escape' || panel.hidden) return;
+        event.stopPropagation();
+        expandChoice(false, true);
+      });
       banner.addEventListener('click', async event => {
         const control = event.target.closest('[data-tracking-choice]');
         if (!control || !csrf) return;
         const allowed = control.dataset.trackingChoice === 'allow';
-        const buttons = panel.querySelectorAll('button');
+        const buttons = panel.querySelectorAll('[data-tracking-choice]');
         buttons.forEach(button => { button.disabled = true; });
         const status = panel.querySelector('.tracking-status');
         try {
@@ -159,17 +197,16 @@
           queue.length = 0;
           nextSend = 0;
           switchPage(true);
-          expand(false);
-          toggle.focus({ preventScroll: true });
+          expandChoice(false, panel.contains(document.activeElement));
         } catch {
           status.textContent = 'Chưa lưu được lựa chọn. Bạn có thể thử lại.';
         } finally {
           buttons.forEach(button => { button.disabled = false; });
         }
       });
-      expand(choice === 'unset');
+      expandChoice(choice === 'unset' && !mobile.matches && !document.querySelector('.t3l-chat-launcher[aria-expanded="true"]'));
     }
-    panel.querySelector('.tracking-status').textContent = choice === 'allowed'
+    banner.querySelector('.tracking-status').textContent = choice === 'allowed'
       ? 'Phân tích đang bật. Bạn có thể tắt bất cứ lúc nào.' : choice === 'denied' ? 'Phân tích đang tắt.' : '';
   }
 
@@ -250,6 +287,9 @@
   window.addEventListener('pagehide', () => { tick(); checkpoint(); void flush(true); });
   window.addEventListener('pageshow', event => { if (event.persisted) switchPage(true); });
   document.addEventListener('t3l:page', onPage);
+  document.addEventListener('t3l:utility-open', event => {
+    if (event.detail === 'chat') expandChoice(false);
+  });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', onPage, { once: true });
   else onPage();
   window.setInterval(() => { tick(); checkpoint(); void flush(); }, 15000);

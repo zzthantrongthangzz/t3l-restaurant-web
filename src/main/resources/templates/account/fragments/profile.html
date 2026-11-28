@@ -18,11 +18,6 @@
       </div>
       <small class="account-error account-full" th:errors="*{fullNameWithinLimit}"></small>
       <div class="account-field account-full account-contact-field">
-        <label for="email">Email <span class="account-muted">(tùy chọn)</span></label>
-        <input type="email" th:field="*{email}" th:errorclass="is-invalid" autocomplete="email" maxlength="254" />
-        <small th:errors="*{email}"></small>
-      </div>
-      <div class="account-field account-full account-contact-field">
         <label for="phone">Số điện thoại</label>
         <input type="tel" th:field="*{phone}" th:errorclass="is-invalid" autocomplete="tel" maxlength="30"
             th:required="${requirePhone}" />
@@ -55,6 +50,63 @@
           <button class="account-button is-primary" type="submit">Lưu thay đổi</button>
         </div>
       </form>
+      <section class="account-card account-stack account-email" id="account-email" aria-labelledby="account-email-title">
+        <h2 id="account-email-title">Email tài khoản</h2>
+        <p th:if="${accountEmail == null}" class="account-muted">Bạn chưa thêm email.</p>
+        <div th:if="${accountEmail != null}" class="account-email-status">
+          <strong th:text="${accountEmail}"></strong>
+          <span class="account-status" th:classappend="${emailVerified ? 'is-linked' : 'is-unlinked'}"
+                th:text="${emailVerified ? 'Đã xác minh' : 'Chưa xác minh'}"></span>
+        </div>
+        <p class="account-notice is-error" role="alert" th:if="${emailError != null}" th:text="${emailError}"></p>
+        <p class="account-notice" role="status" th:if="${emailNotice != null}" th:text="${emailNotice}"></p>
+        <th:block th:if="${emailVerification == null}">
+          <p class="account-muted" th:if="${!emailReauthWithGoogle}">Xác minh email để khôi phục mật khẩu khi cần.</p>
+          <p class="account-muted" th:if="${emailReauthWithGoogle}">Để đổi email, bạn sẽ nhận mã xác thực tại địa chỉ Google đã liên kết.</p>
+          <form class="account-form" method="post" th:action="@{/account/email/request}">
+            <div class="account-fields">
+              <div class="account-field" th:classappend="${emailReauthWithGoogle} ? 'account-full'">
+                <label for="account-new-email" th:text="${emailVerified ? 'Email mới' : 'Email cần xác minh'}"></label>
+                <input id="account-new-email" name="email" type="email" autocomplete="email" maxlength="254" required
+                       th:value="${emailVerified ? null : accountEmail}" />
+              </div>
+              <div class="account-field" th:unless="${emailReauthWithGoogle}">
+                <label for="account-email-password">Mật khẩu hiện tại</label>
+                <input id="account-email-password" name="password" type="password" autocomplete="current-password"
+                       maxlength="72" required />
+              </div>
+            </div>
+            <div class="account-form-actions">
+              <button class="account-button is-primary" type="submit">Gửi mã xác minh</button>
+            </div>
+          </form>
+        </th:block>
+        <th:block th:if="${emailVerification != null}">
+          <p class="account-muted" id="account-email-code-help">
+            <span th:text="${emailVerification.confirmGoogle ? 'Nhập mã xác thực gửi tới email Google' : 'Nhập mã xác minh gửi tới'}"></span>
+            <strong th:text="${emailVerification.maskedEmail}"></strong>. Mã có hiệu lực trong 5 phút.
+          </p>
+          <form class="account-form" method="post" th:action="@{/account/email/verify}">
+            <div class="account-field">
+              <label for="account-email-code">Mã xác minh</label>
+              <input id="account-email-code" name="code" inputmode="numeric" autocomplete="one-time-code"
+                     aria-describedby="account-email-code-help" maxlength="6" pattern="[0-9]{6}" required />
+            </div>
+            <div class="account-form-actions">
+              <button class="account-button is-primary" type="submit"
+                      th:text="${emailVerification.confirmGoogle ? 'Xác thực và tiếp tục' : 'Xác minh email'}"></button>
+            </div>
+          </form>
+          <div class="account-email-actions">
+            <form method="post" th:action="@{/account/email/resend}">
+              <button class="account-button" type="submit">Gửi lại mã</button>
+            </form>
+            <form method="post" th:action="@{/account/email/cancel}">
+              <button class="account-button" type="submit">Hủy</button>
+            </form>
+          </div>
+        </th:block>
+      </section>
       <section class="account-card account-stack" aria-labelledby="account-linked-title">
         <h2 id="account-linked-title">Phương thức đăng nhập</h2>
         <th:block th:if="${param.google != null}" th:switch="${param.google == null ? '' : param.google[0]}">

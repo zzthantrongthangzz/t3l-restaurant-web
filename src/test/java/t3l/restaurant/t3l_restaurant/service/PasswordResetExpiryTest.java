@@ -39,7 +39,7 @@ class PasswordResetExpiryTest {
     var transactions = mock(TransactionTemplate.class);
     var service = new PasswordResetService(phones, mock(UserAccountRepository.class), profiles,
         mock(SmsOtpRateLimiter.class), mock(PasswordEncoder.class), transactions,
-        new SyncTaskExecutor(), mail, "test@example.test", clock);
+        new EmailOtpService(new SyncTaskExecutor(), mail, "test@example.test", "test-only"), clock);
     var request = new MockHttpServletRequest();
     Instant start = Instant.parse("2026-01-01T00:00:00Z");
     when(clock.instant()).thenReturn(start);

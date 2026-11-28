@@ -63,7 +63,9 @@ public class GoogleCustomerService {
     UserAccount account = lockCustomer(accountId);
     var profile = profiles.findById(accountId).orElseGet(() -> new CustomerProfile(account));
     Long linkedId = profiles.findAccountIdByGoogleSubject(google.subject()).orElse(null);
-    if ((linkedId != null && !linkedId.equals(accountId))
+    boolean matchesVerifiedEmail = account.getEmailVerifiedAt() != null && google.email().equalsIgnoreCase(account.getEmail());
+    if ((account.getVerifiedPhone() == null && !matchesVerifiedEmail)
+        || (linkedId != null && !linkedId.equals(accountId))
         || (profile.getGoogleSubject() != null && !profile.getGoogleSubject().equals(google.subject()))
         || profiles.existsByGoogleEmailIgnoreCaseAndIdNot(google.email(), accountId)
         || accounts.existsByEmailIgnoreCaseAndIdNot(google.email(), accountId)) {

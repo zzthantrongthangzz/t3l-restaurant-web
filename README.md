@@ -34,7 +34,7 @@ Theo hướng dẫn thực hành, Spring MVC nhận yêu cầu tại controller,
 ## Nghiệp vụ và phân quyền
 
 - Khách vãng lai xem trang chủ, thực đơn, FAQ và kiểm tra bàn trống theo ngày, giờ đến. Số điện thoại là bắt buộc khi gửi yêu cầu giữ chỗ. Yêu cầu ở trạng thái **Chờ xác nhận** đến khi nhân viên xử lý.
-- Khách có tài khoản (`BUYER`) đăng ký bằng số điện thoại và mật khẩu xác nhận, đăng nhập bằng số điện thoại/mật khẩu hoặc Google. Sau khi lượt đặt bàn được lưu, khách có thể mở thực đơn từ trang kết quả để thêm món vào đơn của lượt đó, xem lịch sử và gửi yêu cầu đổi hoặc hủy.
+- Khách (`BUYER`) đăng ký bằng số điện thoại, email và mật khẩu, rồi xác minh email bằng mã gửi qua SMTP. Đăng nhập bằng số điện thoại/mật khẩu hoặc Google. Khách đã có tài khoản có thể xác minh hoặc đổi email trong phần Thông tin cá nhân sau khi xác thực lại. Sau khi lượt đặt bàn được lưu, khách có thể mở thực đơn từ trang kết quả để thêm món vào đơn, xem lịch sử và gửi yêu cầu đổi hoặc hủy.
 - Nhân viên (`STAFF`) duyệt yêu cầu, check-in, chuyển bàn, gọi món, ghi nhận thanh toán và đối soát ca.
 - Quản trị viên (`ADMIN`) dùng trang chủ và thực đơn chung, đồng thời có bảng điều khiển cho tài khoản, bàn, báo cáo doanh thu, hóa đơn, ca, liên hệ, cấu hình và nhật ký. Biểu tượng bút chì trên từng món mở trang chỉnh sửa. Món ẩn và món hết bán vẫn hiển thị cho admin.
 - Nút mặt trăng/mặt trời đổi giữa giao diện sáng trắng–cam và tối xám xanh–san hô. Trình duyệt lưu tùy chọn khi chuyển trang.
@@ -129,6 +129,8 @@ Sao lưu MySQL và MongoDB, lưu bản sao cùng nhật ký ngoài máy chủ �
 Admin vào **Tài khoản** để khóa, lưu trữ hoặc khôi phục tài khoản. Lưu trữ yêu cầu lý do, chấm dứt quyền đăng nhập và giữ mã, lịch sử đặt bàn, hóa đơn cùng nhật ký. Dùng bộ lọc **Đã lưu trữ** để tìm và khôi phục. Sau khi khôi phục, quản trị viên có thể mở khóa riêng.
 
 Docker Compose tự nạp `database/mysql/32_account_archive.sql` khi khởi tạo MySQL. Với database đã có, chạy script này một lần bằng tài khoản DBA trước khi chạy phiên bản mới. Script có thể chạy lại và giữ nguyên dữ liệu cũ.
+
+Với database MySQL đã có, chạy `database/mysql/33_customer_email_verification.sql` bằng tài khoản DBA trước khi triển khai xác minh email khách hàng. Docker Compose tự chạy script khi tạo volume mới. Email liên hệ cũ vẫn cần xác minh để dùng khôi phục mật khẩu. Máy chủ gửi OTP bằng cấu hình Gmail SMTP hiện có (`MAIL_USERNAME`, `MAIL_PASSWORD`).
 
 ## Chính sách tiền cọc
 

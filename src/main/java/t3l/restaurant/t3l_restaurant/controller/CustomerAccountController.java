@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DataAccessException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -23,8 +24,10 @@ import t3l.restaurant.t3l_restaurant.entity.UserAccount;
 import t3l.restaurant.t3l_restaurant.repository.DiningOrderRepository;
 import t3l.restaurant.t3l_restaurant.repository.DiningPaymentRepository;
 import t3l.restaurant.t3l_restaurant.security.GoogleOAuthFlow;
+import t3l.restaurant.t3l_restaurant.security.CustomerSession;
 import t3l.restaurant.t3l_restaurant.service.CustomerAccountService;
-import t3l.restaurant.t3l_restaurant.service.CustomerAccountService.DuplicateEmailException;
+import t3l.restaurant.t3l_restaurant.service.CustomerEmailVerificationService;
+import t3l.restaurant.t3l_restaurant.service.EmailOtpService.VerificationException;
 import t3l.restaurant.t3l_restaurant.service.PaymentIntentService;
 import t3l.restaurant.t3l_restaurant.service.ReservationService;
 
@@ -32,6 +35,7 @@ import t3l.restaurant.t3l_restaurant.service.ReservationService;
 @RequestMapping("/account")
 public class CustomerAccountController {
   private static final String ACCOUNT = "redirect:/account";
+  private static final String EMAIL = "redirect:/account#account-email";
   private static final String ADDRESSES = "redirect:/account/addresses";
   private final CustomerAccountService customers;
   private final ReservationService reservations;
@@ -40,10 +44,13 @@ public class CustomerAccountController {
   private final GoogleOAuthFlow google;
   private final PaymentIntentService paymentIntents;
   private final t3l.restaurant.t3l_restaurant.service.VoucherService vouchers;
+  private final CustomerEmailVerificationService emails;
+  private final CustomerSession sessions;
 
   public CustomerAccountController(CustomerAccountService customers, ReservationService reservations, DiningOrderRepository diningOrders,
       DiningPaymentRepository diningPayments, GoogleOAuthFlow google, PaymentIntentService paymentIntents,
-      t3l.restaurant.t3l_restaurant.service.VoucherService vouchers) {
+      t3l.restaurant.t3l_restaurant.service.VoucherService vouchers, CustomerEmailVerificationService emails,
+      CustomerSession sessions) {
     this.customers = customers;
     this.reservations = reservations;
     this.diningOrders = diningOrders;
@@ -51,6 +58,8 @@ public class CustomerAccountController {
     this.google = google;
     this.paymentIntents = paymentIntents;
     this.vouchers=vouchers;
+    this.emails = emails;
+    this.sessions = sessions;
   }
 
   @ModelAttribute
@@ -60,24 +69,68 @@ public class CustomerAccountController {
   }
 
   @GetMapping
-  String account(Authentication authentication, Model model) {
-    return renderProfile(customers.signedInCustomer(authentication), model);
+  String account(Authentication authentication, HttpServletRequest request, Model model) {
+    return renderProfile(customers.signedInCustomer(authentication), request, model);
   }
 
   @PostMapping
   String account(@Valid @ModelAttribute("profileForm") CustomerProfileForm form, BindingResult errors,
-      Authentication authentication, Model model, RedirectAttributes redirect) {
+      Authentication authentication, HttpServletRequest request, Model model, RedirectAttributes redirect) {
     UserAccount account = customers.signedInCustomer(authentication);
     if (!errors.hasErrors()) {
       try {
         customers.updateProfile(account.getId(), form);
         redirect.addFlashAttribute("accountNotice", "Đã lưu thông tin tài khoản.");
         return ACCOUNT;
-      } catch (DuplicateEmailException | DataIntegrityViolationException exception) {
-        errors.rejectValue("email", "email.duplicate", "Email đã được sử dụng.");
+      } catch (IllegalArgumentException exception) {
+        errors.rejectValue("phone", "phone.invalid", exception.getMessage());
       }
     }
-    return renderProfile(account, model);
+    return renderProfile(account, request, model);
+  }
+
+  @PostMapping("/email/request")
+  String requestEmail(@RequestParam(defaultValue = "") String email, @RequestParam(defaultValue = "") String password,
+      Authentication authentication, HttpServletRequest request, RedirectAttributes redirect) {
+    return emailAction(redirect, () -> emails.startProfile(request, customers.signedInCustomer(authentication), email, password));
+  }
+
+  @PostMapping("/email/verify")
+  String verifyEmail(@RequestParam(defaultValue = "") String code, Authentication authentication,
+      HttpServletRequest request, HttpServletResponse response, RedirectAttributes redirect) {
+    return emailAction(redirect, () -> {
+      var updated = emails.verifyProfile(request, customers.signedInCustomer(authentication), code);
+      if (updated != null) {
+        sessions.signIn(request, response, updated);
+        redirect.addFlashAttribute("emailNotice", "Đã xác minh và lưu email.");
+      }
+    });
+  }
+
+  @PostMapping("/email/resend")
+  String resendEmail(Authentication authentication, HttpServletRequest request, RedirectAttributes redirect) {
+    return emailAction(redirect, () -> {
+      emails.resendProfile(request, customers.signedInCustomer(authentication));
+      redirect.addFlashAttribute("emailNotice", "Đã yêu cầu gửi mã mới.");
+    });
+  }
+
+  @PostMapping("/email/cancel")
+  String cancelEmail(HttpServletRequest request, RedirectAttributes redirect) {
+    return emailAction(redirect, () -> emails.cancelProfile(request));
+  }
+
+  private String emailAction(RedirectAttributes redirect, Runnable action) {
+    try {
+      action.run();
+    } catch (VerificationException exception) {
+      redirect.addFlashAttribute("emailError", exception.getMessage());
+    } catch (DataIntegrityViolationException exception) {
+      redirect.addFlashAttribute("emailError", "Email đã được sử dụng cho tài khoản khác.");
+    } catch (DataAccessException exception) {
+      redirect.addFlashAttribute("emailError", "Chưa thể lưu hoặc xác minh email. Vui lòng thử lại.");
+    }
+    return EMAIL;
   }
 
   @PostMapping("/google/link")
@@ -201,12 +254,17 @@ public class CustomerAccountController {
     return "redirect:/account/invoices";
   }
 
-  private String renderProfile(UserAccount account, Model model) {
+  private String renderProfile(UserAccount account, HttpServletRequest request, Model model) {
     var profile = customers.profile(account);
     if (!model.containsAttribute("profileForm")) {
       model.addAttribute("profileForm", customers.profileForm(account, profile));
     }
     model.addAttribute("linkedGoogleEmail", profile.getGoogleEmail());
+    model.addAttribute("accountEmail", account.getEmail());
+    model.addAttribute("emailVerified", account.getEmailVerifiedAt() != null || (account.getEmail() != null
+        && profile.getGoogleSubject() != null && account.getEmail().equalsIgnoreCase(profile.getGoogleEmail())));
+    model.addAttribute("emailReauthWithGoogle", emails.usesGoogleReauthentication(account));
+    model.addAttribute("emailVerification", emails.profileView(request.getSession(false), account));
     return page(model, "profile", "Tài khoản");
   }
 

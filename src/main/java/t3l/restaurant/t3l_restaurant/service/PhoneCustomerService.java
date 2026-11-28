@@ -2,6 +2,7 @@ package t3l.restaurant.t3l_restaurant.service;
 
 import java.util.UUID;
 import java.util.Optional;
+import java.time.Instant;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -35,7 +36,8 @@ public class PhoneCustomerService {
   }
 
   @Transactional(isolation = Isolation.READ_COMMITTED)
-  public UserAccount registerPassword(String fullName, String inputPhone, String encodedPassword) {
+  public UserAccount registerPassword(String fullName, String inputPhone, String email, String encodedPassword,
+      Instant verifiedAt) {
     String name = fullName == null ? "" : fullName.strip().replaceAll("\\s+", " ");
     String phone = SmsOtpService.normalizePhone(inputPhone);
     if (name.isBlank() || name.length() > 120 || phone == null
@@ -45,7 +47,9 @@ public class PhoneCustomerService {
     if (!canRegister(phone)) {
       throw new IllegalArgumentException("Số điện thoại đã có tài khoản hoặc hồ sơ khách. Vui lòng đăng nhập hoặc liên hệ nhà hàng.");
     }
-    return accounts.saveAndFlush(UserAccount.customer(name, null, phone, "phone:" + phone, encodedPassword));
+    var account = UserAccount.customer(name, email, phone, "phone:" + phone, encodedPassword);
+    account.verifyEmail(email, verifiedAt);
+    return accounts.saveAndFlush(account);
   }
 
   public java.util.List<UserAccount> findPhoneMatches(String phone) {

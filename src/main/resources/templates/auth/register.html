@@ -3,10 +3,14 @@
     th:replace="~{auth/fragments/customer-shell :: page('Tạo tài khoản', ~{::content}, 'sign-in-page')}">
   <body>
     <th:block th:fragment="content">
-      <header th:replace="~{auth/fragments/account-controls :: heading('Tạo tài khoản', 'Đăng ký bằng số điện thoại để đặt bàn và theo dõi lịch sử.')}"></header>
+      <header th:replace="~{auth/fragments/account-controls :: heading(
+          ${registrationEmail == null ? 'Tạo tài khoản' : 'Xác minh email'},
+          ${registrationEmail == null ? 'Đăng ký bằng số điện thoại để đặt bàn và theo dõi lịch sử.' : 'Mã xác minh có hiệu lực trong 5 phút.'})}"></header>
       <p class="login-notice login-notice-error" role="alert"
           th:if="${registrationError != null}" th:text="${registrationError}"></p>
-      <form class="login-form" method="post" th:action="@{/register}"
+      <p class="login-notice login-notice-success" role="status"
+          th:if="${registrationNotice != null}" th:text="${registrationNotice}"></p>
+      <form th:if="${registrationEmail == null}" class="login-form" method="post" th:action="@{/register}"
           th:object="${registrationForm}">
         <input type="hidden" name="returnTo" th:if="${registrationReturnTo != null}" th:value="${registrationReturnTo}" />
         <div class="login-field">
@@ -27,6 +31,16 @@
                    th:attr="aria-invalid=${#fields.hasErrors('phone')},aria-describedby=${#fields.hasErrors('phone')} ? 'phone-error'" />
           </div>
           <small id="phone-error" class="register-error" th:errors="*{phone}"></small>
+        </div>
+        <div class="login-field">
+          <label for="register-email">Email</label>
+          <div class="sign-in-input">
+            <svg th:replace="~{auth/fragments/account-controls :: fieldIcon('code')}"></svg>
+            <input th:field="*{email}" id="register-email" type="email" autocomplete="email" maxlength="254"
+                   placeholder="Nhập email" required
+                   th:attr="aria-invalid=${#fields.hasErrors('email')},aria-describedby=${#fields.hasErrors('email')} ? 'register-email-error'" />
+          </div>
+          <small id="register-email-error" class="register-error" th:errors="*{email}"></small>
         </div>
         <div class="login-field">
           <label for="register-password">Mật khẩu</label>
@@ -52,8 +66,34 @@
           </div>
           <small id="register-confirmation-error" class="register-error" th:errors="*{confirmPassword}"></small>
         </div>
-        <button class="home-button login-submit" type="submit">Tạo tài khoản</button>
+        <button class="home-button login-submit" type="submit">Gửi mã xác minh</button>
       </form>
+      <th:block th:if="${registrationEmail != null}">
+        <p class="auth-help password-reset-intro" id="register-code-help">
+          Nhập mã gửi tới <strong class="password-reset-email" th:text="${registrationEmail}"></strong>.
+          Hãy kiểm tra thư rác nếu chưa thấy mã.
+        </p>
+        <form class="login-form" method="post" th:action="@{/register/verify}">
+          <div class="login-field">
+            <label for="register-code">Mã xác minh</label>
+            <div class="sign-in-input">
+              <svg th:replace="~{auth/fragments/account-controls :: fieldIcon('code')}"></svg>
+              <input id="register-code" class="password-reset-code" name="code" inputmode="numeric"
+                     autocomplete="one-time-code" aria-describedby="register-code-help"
+                     maxlength="6" pattern="[0-9]{6}" placeholder="000000" required />
+            </div>
+          </div>
+          <button class="home-button login-submit" type="submit">Xác minh và tạo tài khoản</button>
+        </form>
+        <div class="password-reset-links">
+          <form method="post" th:action="@{/register/resend}">
+            <button class="sign-in-help-link" type="submit">Gửi lại mã</button>
+          </form>
+          <form method="post" th:action="@{/register/cancel}">
+            <button class="sign-in-help-link" type="submit">Sửa thông tin đăng ký</button>
+          </form>
+        </div>
+      </th:block>
       <div class="sign-in-footer">
         <p class="login-account-link">Đã có tài khoản? <a th:href="@{/login(returnTo=${registrationReturnTo})}">Đăng nhập</a></p>
       </div>

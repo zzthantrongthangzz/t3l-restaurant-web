@@ -533,3 +533,18 @@
     overflow: auto;
   }
 }
+.account-email {
+  scroll-margin-top: calc(var(--account-header-height, 6rem) + 1rem);
+}
+
+.account-email-status, .account-email-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.account-email-status strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

@@ -73,8 +73,7 @@ public class CustomerProfile {
     familyName = form.getFamilyName().strip();
     givenName = form.getGivenName().strip();
     String fullName = (familyName + " " + givenName).strip();
-    account.updateCustomerContact(fullName, form.getEmail() == null || form.getEmail().isBlank()
-        ? null : form.getEmail().toLowerCase(java.util.Locale.ROOT),
+    account.updateCustomerContact(fullName, account.getEmail(),
         form.getPhone() == null || form.getPhone().isBlank() ? null : form.getPhone().strip());
     dietaryPreferences = form.getDietaryPreferences();
     bookingNotifications = form.isBookingNotifications();

@@ -2,6 +2,7 @@
 <html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <body>
 <th:block th:fragment="widget" sec:authorize="isAnonymous() or hasAnyRole('BUYER', 'ADMIN')">
+  <aside id="site-utilities" class="site-utilities" aria-label="Tiện ích trang web" tabindex="-1">
   <section class="t3l-chat" aria-label="Trợ lý T3L Restaurant"
            th:attr="data-chat-session=@{/chat/session},data-chat-messages=@{/chat/messages},data-chat-draft=@{/chat/booking-draft}">
     <button type="button" class="t3l-chat-launcher" aria-expanded="false" aria-controls="t3l-chat-panel">
@@ -33,6 +34,7 @@
       </div>
     </section>
   </section>
+  </aside>
   <script defer th:src="@{/js/chatbox.js}"></script>
 </th:block>
 </body>

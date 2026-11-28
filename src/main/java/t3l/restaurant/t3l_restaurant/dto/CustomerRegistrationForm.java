@@ -1,6 +1,7 @@
 package t3l.restaurant.t3l_restaurant.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -18,6 +19,11 @@ public class CustomerRegistrationForm {
   @Pattern(regexp = "[+0-9(). -]{8,30}", message = "Số điện thoại không đúng định dạng.")
   private String phone = "";
 
+  @NotBlank(message = "Vui lòng nhập email.")
+  @Email(message = "Email không đúng định dạng.")
+  @Size(max = 254, message = "Email không vượt quá 254 ký tự.")
+  private String email = "";
+
   @NotBlank(message = "Vui lòng nhập mật khẩu.")
   @Size(min = 12, max = 72, message = "Mật khẩu cần dài từ 12 đến 72 ký tự.")
   private String password = "";
@@ -31,5 +37,9 @@ public class CustomerRegistrationForm {
 
   public void setPhone(String phone) {
     this.phone = phone == null ? "" : phone.strip();
+  }
+
+  public void setEmail(String email) {
+    this.email = email == null ? "" : email.strip();
   }
 }

@@ -72,7 +72,7 @@ public class GoogleOAuthFlow {
 
   public boolean startLink(UserAccount account, HttpServletRequest request,
       HttpServletResponse response) throws IOException {
-    if (!isEnabled() || account.getVerifiedPhone() == null) {
+    if (!isEnabled() || (account.getVerifiedPhone() == null && account.getEmailVerifiedAt() == null)) {
       return false;
     }
     var authorization = resolver.resolve(request, GOOGLE);

@@ -1,0 +1,39 @@
+Maven suite (lược bỏ response dump, dữ liệu fixture và token)
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.941 s -- in t3l.restaurant.t3l_restaurant.chat.ChatStoreIntegrationTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.871 s -- in t3l.restaurant.t3l_restaurant.chat.ChatTest
+[WARNING] Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0.014 s -- in t3l.restaurant.t3l_restaurant.chat.ChatVectorIndexIntegrationTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 52.13 s -- in t3l.restaurant.t3l_restaurant.chat.ChatWebIntegrationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.246 s -- in t3l.restaurant.t3l_restaurant.chat.GeminiChatTest
+[ERROR] Tests run: 9, Failures: 3, Errors: 0, Skipped: 0, Time elapsed: 17.08 s <<< FAILURE! -- in t3l.restaurant.t3l_restaurant.service.AdminWorkspaceIntegrationTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.140 s -- in t3l.restaurant.t3l_restaurant.service.ContactFailureTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.591 s -- in t3l.restaurant.t3l_restaurant.service.ContactIntegrationTest
+[ERROR] Tests run: 19, Failures: 8, Errors: 0, Skipped: 0, Time elapsed: 11.59 s <<< FAILURE! -- in t3l.restaurant.t3l_restaurant.service.CustomerAccountIntegrationTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in t3l.restaurant.t3l_restaurant.service.DepositPolicyTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.064 s -- in t3l.restaurant.t3l_restaurant.service.EsmsOtpSenderTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.951 s -- in t3l.restaurant.t3l_restaurant.service.PasswordResetExpiryTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 8.714 s -- in t3l.restaurant.t3l_restaurant.service.PasswordResetIntegrationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.613 s -- in t3l.restaurant.t3l_restaurant.service.PaymentVerificationTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.006 s -- in t3l.restaurant.t3l_restaurant.service.ReservationChangePolicyTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in t3l.restaurant.t3l_restaurant.service.ReservationDraftsTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.209 s -- in t3l.restaurant.t3l_restaurant.service.ReservationEmailIntegrationTest
+[ERROR] Tests run: 10, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 5.063 s <<< FAILURE! -- in t3l.restaurant.t3l_restaurant.service.ReservationIntegrationTest
+[ERROR] Tests run: 10, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 5.094 s <<< FAILURE! -- in t3l.restaurant.t3l_restaurant.service.ReservationLookupIntegrationTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.009 s -- in t3l.restaurant.t3l_restaurant.service.ReservationScheduleTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.045 s -- in t3l.restaurant.t3l_restaurant.service.SmsOtpServiceTest
+[INFO] Tests run: 33, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 19.17 s -- in t3l.restaurant.t3l_restaurant.service.StaffOperationsIntegrationTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.726 s -- in t3l.restaurant.t3l_restaurant.service.TrackingIntegrationTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.647 s -- in t3l.restaurant.t3l_restaurant.T3LRestaurantApplicationTests
+[ERROR]   AdminWorkspaceIntegrationTest.editsDishesFromTheSharedMenuWithAdminPermissions:100 Response content
+[ERROR]   AdminWorkspaceIntegrationTest.protectsLastAdminAndRevokesSessionsAndTokensWhenAnEmployeeIsLocked:244 Response content
+[ERROR]   AdminWorkspaceIntegrationTest.synchronizesMenuAreaAndSettingsWithoutInvalidatingConfirmedBookings:326 Status expected:<200> but was:<302>
+[ERROR]   CustomerAccountIntegrationTest.fiveWrongSmsCodesInvalidateTheChallenge:500 No ModelAndView found
+[ERROR]   CustomerAccountIntegrationTest.googleBookingKeepsSelectionAndCanCreateBookingWithPhone:608 expected: <2> but was: <1>
+[ERROR]   CustomerAccountIntegrationTest.liveOtpCreatesOneVerifiedAccountWithoutANameOrEmail:517 No ModelAndView found
+[ERROR]   CustomerAccountIntegrationTest.localSmsKeepsBookingDraftAndCanCreateBookingWithProvidedContact:432 Response content
+[ERROR]   CustomerAccountIntegrationTest.passwordsRemainAvailableOnlyForEmployees:321 Response content
+[ERROR]   CustomerAccountIntegrationTest.registersAndSignsInWithSmsWithoutAnExistingSessionLogin:345 Model attribute 'registrationPending' expected:<true> but was:<null>
+[ERROR]   CustomerAccountIntegrationTest.registrationResumesTheGuestTableDraft:368 Model attribute 'registrationPending' expected:<true> but was:<null>
+[ERROR]   CustomerAccountIntegrationTest.verifiedSmsWithLegacyPasswordPreservesTheExistingAccount:481 No ModelAndView found
+[ERROR]   ReservationIntegrationTest.validatesCapacityContactAndUnknownArea:122 Expected t3l.restaurant.t3l_restaurant.service.BookingException to be thrown, but nothing was thrown.
+[ERROR]   ReservationLookupIntegrationTest.validatesNewTimeCapacityAreaAndNoOpWithoutSavingRequest:141 Expected t3l.restaurant.t3l_restaurant.service.BookingException to be thrown, but nothing was thrown.
+[ERROR] Tests run: 136, Failures: 13, Errors: 0, Skipped: 1

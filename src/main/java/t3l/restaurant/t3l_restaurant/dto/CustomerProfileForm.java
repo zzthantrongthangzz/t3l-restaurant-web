@@ -1,6 +1,5 @@
 package t3l.restaurant.t3l_restaurant.dto;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -20,11 +19,6 @@ public class CustomerProfileForm {
   @Size(max = 120, message = "Tên không vượt quá 120 ký tự.")
   private String givenName = "";
 
-  @Email(message = "Email không đúng định dạng.")
-  @Pattern(regexp = "^(?:[^\\s@]+@[^\\s@]+\\.[^\\s@]+)?$", message = "Email cần có tên miền hợp lệ.")
-  @Size(max = 254, message = "Email không vượt quá 254 ký tự.")
-  private String email;
-
   @Size(max = 30, message = "Số điện thoại không vượt quá 30 ký tự.")
   @Pattern(regexp = "(?:|(?=(?:[^0-9]*[0-9]){8,15}[^0-9]*$)\\+?[0-9 () .-]+)",
       message = "Số điện thoại cần có từ 8 đến 15 chữ số.")
@@ -39,10 +33,6 @@ public class CustomerProfileForm {
   @AssertTrue(message = "Họ và tên không vượt quá 120 ký tự.")
   public boolean isFullNameWithinLimit() {
     return familyName == null || givenName == null || (familyName.strip() + " " + givenName.strip()).strip().length() <= 120;
-  }
-
-  public void setEmail(String email) {
-    this.email = email == null ? null : email.strip();
   }
 
   public void setPhone(String phone) {

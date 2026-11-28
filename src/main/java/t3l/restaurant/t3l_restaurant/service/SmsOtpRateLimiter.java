@@ -40,6 +40,21 @@ public class SmsOtpRateLimiter {
     take("password-reset:phone:" + phone, 4, Duration.ofHours(1), Duration.ofMinutes(1), now);
   }
 
+  @Transactional
+  public void reserveEmailVerification(String email, String address, Instant now) {
+    take("email-verification:global", 120, Duration.ofHours(1), Duration.ZERO, now);
+    take("email-verification:ip:" + address, 12, Duration.ofHours(1), Duration.ZERO, now);
+    take("email-verification:mailbox:" + UUID.nameUUIDFromBytes(email.getBytes(StandardCharsets.UTF_8)),
+        4, Duration.ofHours(1), Duration.ofMinutes(1), now);
+  }
+
+  @Transactional
+  public void reserveEmailReauthentication(Long accountId, String address, Instant now) {
+    take("email-reauth:global", 120, Duration.ofHours(1), Duration.ZERO, now);
+    take("email-reauth:ip:" + address, 20, Duration.ofHours(1), Duration.ZERO, now);
+    take("email-reauth:account:" + accountId, 8, Duration.ofHours(1), Duration.ZERO, now);
+  }
+
   private void take(String key, int maxHits, Duration window, Duration cooldown, Instant now) {
     Timestamp time = Timestamp.from(now);
     jdbc.update("""

@@ -364,7 +364,10 @@ html:has(.booking-checkout [data-booking-ready] [data-booking-panel="2"]:not([hi
   scroll-padding-bottom: calc(var(--checkout-menu-bar) + 16px);
 }
 .booking-checkout [data-booking-ready] [data-booking-panel="2"] { padding-bottom: var(--checkout-menu-bar); }
-.home:has(.booking-checkout [data-booking-ready] [data-booking-panel="2"]:not([hidden])) :is(.t3l-chat, .tracking-choice) {
+.booking-checkout-page:has([data-booking-ready] [data-booking-panel="2"]:not([hidden])) .site-utilities {
+  --site-utilities-bottom: calc(var(--checkout-menu-bar) + 12px);
+}
+.booking-checkout-page:has([data-booking-ready] [data-booking-panel="2"]:not([hidden])) .home-footer .tracking-choice {
   bottom: calc(var(--checkout-menu-bar) + 12px);
 }
 

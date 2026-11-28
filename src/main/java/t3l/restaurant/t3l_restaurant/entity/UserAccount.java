@@ -1,7 +1,9 @@
 package t3l.restaurant.t3l_restaurant.entity;
 
 import jakarta.persistence.*;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Objects;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -25,6 +27,9 @@ public class UserAccount {
 
   @Column(length = 254)
   private String email;
+
+  @Column(name = "email_verified_at")
+  private Instant emailVerifiedAt;
 
   @Column(length = 30)
   private String phone;
@@ -80,6 +85,7 @@ public class UserAccount {
 
   public void updateCustomerContact(String fullName, String email, String phone) {
     this.fullName = fullName;
+    if (!Objects.equals(this.email, email)) emailVerifiedAt = null;
     this.email = email;
     if (verifiedPhone != null && !phoneDigits(verifiedPhone).equals(phoneDigits(phone))) verifiedPhone = null;
     this.phone = phone;
@@ -92,5 +98,14 @@ public class UserAccount {
   public void verifyPhone(String phone) {
     this.verifiedPhone = phone;
     this.phone = phone;
+  }
+
+  public void verifyEmail(String email, Instant verifiedAt) {
+    this.email = email;
+    this.emailVerifiedAt = verifiedAt;
+  }
+
+  public void invalidateAuthentication() {
+    authVersion++;
   }
 }

@@ -198,10 +198,14 @@
     styles();
     document.body.className = doc.body.className;
     replacePart(doc, 'body > .skip-link', shell);
-    const anchor = document.querySelector('.t3l-chat') || document.body.querySelector('script');
     const footer = doc.querySelector('body > .home-footer');
-    if (anchor) replacePart(doc, 'body > .home-footer', anchor);
-    else if (footer && !document.querySelector('body > .home-footer')) document.body.append(document.adoptNode(footer));
+    const currentFooter = document.querySelector('body > .home-footer');
+    if (currentFooter && footer) currentFooter.replaceWith(document.adoptNode(footer));
+    else if (currentFooter) currentFooter.remove();
+    else if (footer) {
+      const beforeFooter = document.querySelector('body > .site-utilities') || document.querySelector(frame);
+      beforeFooter.after(document.adoptNode(footer));
+    }
     document.querySelectorAll('body > dialog').forEach(dialog => dialog.remove());
     for (const dialog of doc.querySelectorAll('body > dialog')) document.body.append(document.adoptNode(dialog));
   }
