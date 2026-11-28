@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.validation.BindingResult;
 import t3l.restaurant.t3l_restaurant.dto.CustomerRegistrationForm;
 import t3l.restaurant.t3l_restaurant.entity.UserAccount;
+import t3l.restaurant.t3l_restaurant.security.AccountPrincipal;
 import t3l.restaurant.t3l_restaurant.security.CustomerSession;
 import t3l.restaurant.t3l_restaurant.security.LoginReturnTarget;
 import t3l.restaurant.t3l_restaurant.service.CustomerAccountService;
@@ -139,8 +140,9 @@ public class CustomerLoginController {
       var authentication = passwordAuthenticationManager.authenticate(
               new UsernamePasswordAuthenticationToken(phone, password));
 
-      UserAccount customer = customers.signedInCustomer(authentication);
-      return signedIn(request, response, customer, target);
+      recovery.clear(request.getSession(false));
+      sessions.signIn(request, response, (AccountPrincipal) authentication.getPrincipal());
+      return "redirect:" + (target == null ? "/" : target);
     } catch (AuthenticationException exception) {
       model.addAttribute("passwordError", "Số điện thoại hoặc mật khẩu không đúng.");
       model.addAttribute("googleReturnTo", target);

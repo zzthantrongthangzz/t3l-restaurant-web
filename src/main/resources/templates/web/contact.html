@@ -29,7 +29,7 @@
             <div><dt>GIỜ PHỤC VỤ</dt><dd><span th:text="${@restaurantInfo.hours}"></span><small>Nhận khách đặt bàn đến <th:block th:text="${@restaurantInfo.lastArrival}"></th:block> · Giờ Việt Nam</small></dd></div>
           </dl>
           <a class="home-text-link" th:href="@{/reservations/new}">Đặt bàn ngay <span aria-hidden="true">↗</span></a>
-          <figure class="contact-detail-image"><img th:src="@{/images/home/dining-detail.jpg}" alt="Góc bàn ăn với ánh sáng ấm — ảnh minh họa" width="900" height="1350" loading="lazy" /><figcaption>Ảnh không gian minh họa · Pexels</figcaption></figure>
+          <figure class="contact-detail-image"><img th:src="@{/images/home/dining-detail.jpg}" alt="Góc bàn ăn với ánh sáng ấm" width="900" height="1350" loading="lazy" /></figure>
         </div>
 
         <form id="contact-form" class="booking-form contact-form" th:action="@{/contact}" th:object="${contactForm}" th:attr="data-has-errors=${contactHasErrors == true}" method="post" aria-labelledby="contact-form-title">

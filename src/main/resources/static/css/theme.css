@@ -127,7 +127,7 @@ html[data-js] body .theme-toggle[hidden] { display: inline-grid !important; visi
 .home .home-hero .home-button-outline:hover { background: var(--photo-accent); color: var(--photo-shade) !important; }
 .home .home-menu, .home .home-reserve { background: var(--surface); color: var(--text); color-scheme: inherit; }
 .home :is(.home-menu .home-eyebrow, .home-menu h2 em) { color: var(--accent-text); }
-.home :is(.reserve-content > p:not(.home-eyebrow), .reserve-content small, .space-credit, .footer-bottom, .footer-intro > p) {
+.home :is(.reserve-content > p:not(.home-eyebrow), .reserve-content small, .footer-bottom, .footer-intro > p) {
   color: var(--text-muted);
 }
 .home :is(.story-image, .space-gallery) figcaption { color: var(--photo-text); }

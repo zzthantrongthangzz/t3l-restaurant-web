@@ -130,7 +130,7 @@
               <div class="receipt-cancel-note" th:if="${closedEarly}"><p>Để sắp xếp một cuộc hẹn khác, bạn có thể gửi yêu cầu đặt bàn mới.</p><a class="home-text-link" th:href="@{/reservations/new}">Chọn buổi hẹn khác <span aria-hidden="true">↗</span></a></div>
               <div class="receipt-visit"><h3>GHÉ THĂM T3L</h3><address th:text="${@restaurantInfo.address}"></address><a class="home-text-link" th:href="@{/contact}">Thông tin hỗ trợ <span aria-hidden="true">↗</span></a></div>
             </div>
-            <figure class="receipt-photo"><img th:src="@{/images/home/dining-room.jpg}" alt="Góc dùng bữa với ánh đèn ấm — ảnh minh họa" width="1920" height="1280" loading="lazy" /><figcaption>Ảnh không gian minh họa · Pexels</figcaption></figure>
+            <figure class="receipt-photo"><img th:src="@{/images/home/dining-room.jpg}" alt="Góc dùng bữa với ánh đèn ấm" width="1920" height="1280" loading="lazy" /></figure>
           </aside>
         </div>
         <p class="receipt-privacy" th:unless="${accountReceipt}">Thông tin đặt bàn chỉ hiển thị trong phiên trình duyệt đã gửi yêu cầu. Vui lòng giữ riêng mã đặt bàn của bạn.</p>

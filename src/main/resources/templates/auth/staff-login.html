@@ -24,9 +24,7 @@
               <label for="password">Mật khẩu</label>
               <div class="login-password">
                 <input id="password" type="password" name="password" autocomplete="current-password" required />
-                <button class="login-password-toggle" type="button" data-password-toggle="password" aria-label="Hiện mật khẩu" aria-pressed="false" hidden>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /><path class="login-eye-slash" d="m3 3 18 18" /></svg>
-                </button>
+                <button th:replace="~{auth/fragments/account-controls :: passwordToggle('password', 'mật khẩu')}"></button>
               </div>
             </div>
             <button class="home-button login-submit" type="submit">Đăng nhập</button>

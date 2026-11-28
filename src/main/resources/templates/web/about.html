@@ -15,7 +15,7 @@
     <header th:replace="~{web/fragments/restaurant-shell :: header('about')}"></header>
     <main data-navigation id="main">
       <section class="about-hero" aria-labelledby="about-title">
-        <img class="about-hero-image" th:if="${#strings.isEmpty(@restaurantInfo.aboutImageUrl)}" th:src="@{/images/home/dining-room.jpg}" alt="Nội thất nhà hàng với chất liệu gỗ và ánh sáng ấm — ảnh minh họa" width="1920" height="1280" fetchpriority="high" />
+        <img class="about-hero-image" th:if="${#strings.isEmpty(@restaurantInfo.aboutImageUrl)}" th:src="@{/images/home/dining-room.jpg}" alt="Nội thất nhà hàng với chất liệu gỗ và ánh sáng ấm" width="1920" height="1280" fetchpriority="high" />
         <img class="about-hero-image" th:unless="${#strings.isEmpty(@restaurantInfo.aboutImageUrl)}" th:src="${@restaurantInfo.aboutImageUrl}" alt="Ảnh giới thiệu T3L Restaurant" width="1920" height="1280" fetchpriority="high" referrerpolicy="no-referrer" />
         <div class="about-hero-shade"></div>
         <div class="home-container about-hero-copy">
@@ -24,7 +24,6 @@
           <p>Món ngon mở đầu câu chuyện.<br />Sự tận tâm giữ lại những điều đáng nhớ.</p>
           <a class="home-text-link" href="#our-story">Câu chuyện của chúng tôi <span aria-hidden="true">↓</span></a>
         </div>
-        <span class="about-photo-credit">Ảnh không gian minh họa · Pexels</span>
       </section>
 
       <section class="home-section about-story" id="our-story" aria-labelledby="story-title">
@@ -43,7 +42,7 @@
       </section>
 
       <section class="about-philosophy" aria-labelledby="philosophy-title">
-        <div class="about-food-visual"><img th:src="@{/images/menu/steak-banner.jpg}" alt="Steak cùng hương thảo và sốt — ảnh minh họa triết lý ẩm thực" width="1920" height="700" loading="lazy" /><span>Ảnh món ăn minh họa · Pexels</span></div>
+        <div class="about-food-visual"><img th:src="@{/images/menu/steak-banner.jpg}" alt="Steak cùng hương thảo và sốt — ảnh minh họa triết lý ẩm thực" width="1920" height="700" loading="lazy" /><span>Ảnh món ăn minh họa · <a href="https://www.pexels.com/photo/a-grilled-steak-topped-with-rosemary-with-garlic-and-red-sauce-on-plate-12015291/" target="_blank" rel="noopener noreferrer">Pexels</a></span></div>
         <div class="about-philosophy-copy" data-reveal>
           <p class="home-eyebrow">02 / TRIẾT LÝ ẨM THỰC</p>
           <h2 id="philosophy-title">Tôn trọng hương vị.<br /><em>Chăm chút trải nghiệm.</em></h2>
@@ -60,11 +59,10 @@
         <div class="home-container">
           <div class="home-section-heading" data-reveal><div><p class="home-eyebrow">03 / CẢM HỨNG KHÔNG GIAN</p><h2 id="gallery-title">Ánh đèn ấm.<br /><em>Những cuộc hẹn dài hơn.</em></h2></div><p class="about-gallery-intro">Sắc gỗ trầm, ánh sáng dịu và những góc bàn thân mật.<br />Cảm hứng cho trải nghiệm dùng bữa tại T3L.</p></div>
           <div class="about-gallery-grid">
-            <figure data-reveal><a th:href="@{/images/home/dining-room.jpg}" target="_blank" rel="noopener" aria-label="Mở ảnh minh họa không gian dùng bữa"><img th:src="@{/images/home/dining-room.jpg}" alt="Không gian dùng bữa với nội thất gỗ — ảnh minh họa" width="1920" height="1280" loading="lazy" /></a><figcaption><span>01 / GẶP GỠ</span> Một nơi để ngồi lại</figcaption></figure>
-            <figure data-reveal><a th:href="@{/images/home/dining-detail.jpg}" target="_blank" rel="noopener" aria-label="Mở ảnh minh họa góc bàn"><img th:src="@{/images/home/dining-detail.jpg}" alt="Góc bàn gỗ dưới ánh đèn vàng — ảnh minh họa" width="900" height="1350" loading="lazy" /></a><figcaption><span>02 / GẦN GŨI</span> Chút riêng tư cho buổi hẹn</figcaption></figure>
-            <figure data-reveal><a th:href="@{/images/home/ambient-dining.jpg}" target="_blank" rel="noopener" aria-label="Mở ảnh minh họa ánh sáng nhà hàng"><img th:src="@{/images/home/ambient-dining.jpg}" alt="Đèn thả trong không gian nhà hàng tối màu — ảnh minh họa" width="1200" height="1409" loading="lazy" /></a><figcaption><span>03 / THƯ THÁI</span> Tận hưởng từng khoảnh khắc</figcaption></figure>
+            <figure data-reveal><a th:href="@{/images/home/dining-room.jpg}" target="_blank" rel="noopener" aria-label="Mở ảnh không gian dùng bữa"><img th:src="@{/images/home/dining-room.jpg}" alt="Không gian dùng bữa với nội thất gỗ" width="1920" height="1280" loading="lazy" /></a><figcaption><span>01 / GẶP GỠ</span> Một nơi để ngồi lại</figcaption></figure>
+            <figure data-reveal><a th:href="@{/images/home/dining-detail.jpg}" target="_blank" rel="noopener" aria-label="Mở ảnh góc bàn"><img th:src="@{/images/home/dining-detail.jpg}" alt="Góc bàn gỗ dưới ánh đèn vàng" width="900" height="1350" loading="lazy" /></a><figcaption><span>02 / GẦN GŨI</span> Chút riêng tư cho buổi hẹn</figcaption></figure>
+            <figure data-reveal><a th:href="@{/images/home/ambient-dining.jpg}" target="_blank" rel="noopener" aria-label="Mở ảnh ánh sáng nhà hàng"><img th:src="@{/images/home/ambient-dining.jpg}" alt="Đèn thả trong không gian nhà hàng tối màu" width="1200" height="1409" loading="lazy" /></a><figcaption><span>03 / THƯ THÁI</span> Tận hưởng từng khoảnh khắc</figcaption></figure>
           </div>
-          <p class="space-credit">Thư viện ảnh minh họa cảm hứng, không phải ảnh chụp T3L. Nguồn: <a href="https://www.pexels.com/photo/interior-of-restaurant-14590691/" target="_blank" rel="noopener noreferrer">Jonathan Borba</a>, <a href="https://www.pexels.com/photo/dark-modern-interior-of-a-restaurant-15626998/" target="_blank" rel="noopener noreferrer">miniperde</a>, <a href="https://www.pexels.com/photo/lamps-in-dark-restaurant-interior-25381424/" target="_blank" rel="noopener noreferrer">Pexels</a>. Ảnh món ăn: <a href="https://www.pexels.com/photo/a-grilled-steak-topped-with-rosemary-with-garlic-and-red-sauce-on-plate-12015291/" target="_blank" rel="noopener noreferrer">Pexels</a>.</p>
         </div>
       </section>
       <section th:replace="~{web/fragments/about-contact :: invitation}"></section>

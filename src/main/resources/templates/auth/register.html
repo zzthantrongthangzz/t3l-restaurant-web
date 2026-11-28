@@ -1,50 +1,62 @@
 <!doctype html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-    th:replace="~{auth/fragments/customer-shell :: page('Tạo tài khoản', ~{::content})}">
+    th:replace="~{auth/fragments/customer-shell :: page('Tạo tài khoản', ~{::content}, 'sign-in-page')}">
   <body>
     <th:block th:fragment="content">
-      <p class="auth-help">Tạo tài khoản bằng số điện thoại và mật khẩu. Sau khi đăng ký, bạn có thể đăng nhập ngay.</p>
+      <header th:replace="~{auth/fragments/account-controls :: heading('Tạo tài khoản', 'Đăng ký bằng số điện thoại để đặt bàn và theo dõi lịch sử.')}"></header>
       <p class="login-notice login-notice-error" role="alert"
           th:if="${registrationError != null}" th:text="${registrationError}"></p>
-      <form class="login-form register-form" method="post" th:action="@{/register}"
+      <form class="login-form" method="post" th:action="@{/register}"
           th:object="${registrationForm}">
         <input type="hidden" name="returnTo" th:if="${registrationReturnTo != null}" th:value="${registrationReturnTo}" />
-        <div class="login-field register-wide">
-          <label for="fullName">Họ và tên <span aria-hidden="true">*</span></label>
-          <input id="fullName" th:field="*{fullName}" autocomplete="name" maxlength="120"
-              placeholder="Nguyễn Văn An" required th:attr="aria-invalid=${#fields.hasErrors('fullName')}" />
-          <small class="register-error" th:errors="*{fullName}"></small>
+        <div class="login-field">
+          <label for="fullName">Họ và tên</label>
+          <div class="sign-in-input">
+            <svg th:replace="~{auth/fragments/account-controls :: fieldIcon('name')}"></svg>
+            <input id="fullName" th:field="*{fullName}" autocomplete="name" maxlength="120" placeholder="Nhập họ và tên" required
+                   th:attr="aria-invalid=${#fields.hasErrors('fullName')},aria-describedby=${#fields.hasErrors('fullName')} ? 'full-name-error'" />
+          </div>
+          <small id="full-name-error" class="register-error" th:errors="*{fullName}"></small>
         </div>
-        <div class="login-field register-wide">
-          <label for="phone">Số điện thoại <span aria-hidden="true">*</span></label>
-          <input id="phone" th:field="*{phone}" type="tel" autocomplete="tel" maxlength="30"
-              placeholder="090 123 4567" required th:attr="aria-invalid=${#fields.hasErrors('phone')}" />
-          <small class="register-error" th:errors="*{phone}"></small>
+        <div class="login-field">
+          <label for="phone">Số điện thoại</label>
+          <div class="sign-in-input">
+            <svg th:replace="~{auth/fragments/account-controls :: fieldIcon('phone')}"></svg>
+            <input id="phone" th:field="*{phone}" type="tel" autocomplete="tel" maxlength="30"
+                   placeholder="Nhập số điện thoại" required
+                   th:attr="aria-invalid=${#fields.hasErrors('phone')},aria-describedby=${#fields.hasErrors('phone')} ? 'phone-error'" />
+          </div>
+          <small id="phone-error" class="register-error" th:errors="*{phone}"></small>
         </div>
-        <div class="login-field register-wide">
+        <div class="login-field">
           <label for="register-password">Mật khẩu</label>
-          <input id="register-password"
-                 name="password"
-                 type="password"
-                 autocomplete="new-password"
-                 minlength="12"
-                 maxlength="72"
-                 required />
-          <small class="register-error" th:errors="*{password}"></small>
+          <div class="sign-in-input login-password">
+            <svg th:replace="~{auth/fragments/account-controls :: fieldIcon('password')}"></svg>
+            <input id="register-password" name="password" type="password" autocomplete="new-password"
+                   placeholder="Nhập mật khẩu" minlength="12" maxlength="72" required
+                   th:attr="aria-invalid=${#fields.hasErrors('password')},aria-describedby=${#fields.hasErrors('password')} ? 'register-password-error' : 'register-password-help'" />
+            <button th:replace="~{auth/fragments/account-controls :: passwordToggle('register-password', 'mật khẩu')}"></button>
+          </div>
+          <small id="register-password-error" class="register-error" th:errors="*{password}"></small>
+          <p id="register-password-help" class="register-hint">Ít nhất 12 ký tự, tối đa 72 byte UTF-8.</p>
         </div>
 
-        <div class="login-field register-wide">
+        <div class="login-field">
           <label for="register-confirm-password">Xác nhận mật khẩu</label>
-          <input id="register-confirm-password"
-                 name="confirmPassword"
-                 type="password"
-                 autocomplete="new-password"
-                 required />
-          <small class="register-error" th:errors="*{confirmPassword}"></small>
+          <div class="sign-in-input login-password">
+            <svg th:replace="~{auth/fragments/account-controls :: fieldIcon('password')}"></svg>
+            <input id="register-confirm-password" name="confirmPassword" type="password" autocomplete="new-password"
+                   placeholder="Nhập lại mật khẩu" required
+                   th:attr="aria-invalid=${#fields.hasErrors('confirmPassword')},aria-describedby=${#fields.hasErrors('confirmPassword')} ? 'register-confirmation-error'" />
+            <button th:replace="~{auth/fragments/account-controls :: passwordToggle('register-confirm-password', 'mật khẩu xác nhận')}"></button>
+          </div>
+          <small id="register-confirmation-error" class="register-error" th:errors="*{confirmPassword}"></small>
         </div>
-        <button class="home-button login-submit register-wide" type="submit">Tạo tài khoản</button>
+        <button class="home-button login-submit" type="submit">Tạo tài khoản</button>
       </form>
-      <a class="login-home-link" th:href="@{/login(returnTo=${registrationReturnTo})}">Đã có tài khoản? Đăng nhập</a>
+      <div class="sign-in-footer">
+        <p class="login-account-link">Đã có tài khoản? <a th:href="@{/login(returnTo=${registrationReturnTo})}">Đăng nhập</a></p>
+      </div>
     </th:block>
   </body>
 </html>

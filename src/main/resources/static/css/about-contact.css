@@ -8,7 +8,6 @@
 .about-hero h1 em { color: var(--photo-accent); }
 .about-hero-copy > p:not(.home-eyebrow) { color: var(--photo-muted); font-size: var(--text-body); margin-top: 25px; }
 .about-hero .home-text-link { margin-top: 22px; }
-.about-photo-credit { position: absolute; bottom: 22px; right: 4%; font-size: var(--text-caption); color: var(--photo-muted); }
 .about-story-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 12%; }
 .about-story h2 { margin-top: 24px; }
 .about-signature { font: italic 400 75px/1.2 var(--home-serif); color: color-mix(in srgb, var(--accent) 70%, transparent); }
@@ -21,6 +20,7 @@
 .about-food-visual { position: relative; overflow: hidden; min-height: 650px; }
 .about-food-visual img { height: 100%; object-position: 52% center; }
 .about-food-visual > span { position: absolute; bottom: 20px; left: 25px; font-size: var(--text-caption); color: var(--photo-muted); text-shadow: 0 1px 6px var(--photo-shade); }
+.about-food-visual > span a { text-decoration: underline; text-underline-offset: 3px; }
 .about-philosophy-copy { padding: 75px clamp(30px, 4.5vw, 90px); }
 .about-philosophy-copy .home-eyebrow { color: var(--accent-text); }
 .about-philosophy h2 { font-size: clamp(30px, 2.8vw, 43px); margin-top: 24px; }
@@ -62,7 +62,6 @@
 .contact-details a:hover { color: var(--home-bronze); }
 .contact-detail-image { position: relative; margin-top: 30px; }
 .contact-detail-image img { height: 200px; object-position: center 60%; }
-.contact-detail-image figcaption { font-size: var(--text-caption); color: var(--home-muted); padding-top: 8px; }
 .contact-form { order: 0; scroll-margin-top: 115px; padding: 40px; }
 .contact-form > h2 { font-size: 32px; margin-block: 15px; }
 .contact-form > p:not(.home-eyebrow) { color: var(--text-muted); }

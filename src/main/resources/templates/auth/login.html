@@ -1,7 +1,11 @@
 <!doctype html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{auth/fragments/customer-shell :: page('Đăng nhập', ~{::content})}">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{auth/fragments/customer-shell :: page('Đăng nhập', ~{::content}, 'sign-in-page')}">
   <body>
     <th:block th:fragment="content">
+      <header th:replace="~{auth/fragments/account-controls :: heading('Chào mừng trở lại', 'Đăng nhập để tiếp tục trải nghiệm cùng T3L.')}"></header>
+      <p class="login-notice login-notice-success" role="status" th:if="${passwordResetSuccess == true}">
+        Đã đổi mật khẩu thành công. Hãy đăng nhập bằng mật khẩu mới.
+      </p>
       <p th:if="${googleReturnTo != null and #strings.startsWith(googleReturnTo, '/reservations/new')}" class="auth-help">
         Đăng nhập để tiếp tục đặt bàn.
         <span th:if="${#strings.contains(googleReturnTo, '?draft=')}">Lựa chọn của bạn đã được lưu.</span>
@@ -23,21 +27,22 @@
 
         <div class="login-field">
           <label for="login-phone">Số điện thoại</label>
-          <input id="login-phone"
-                 name="phone"
-                 type="tel"
-                 autocomplete="username"
-                 placeholder="090 123 4567"
-                 required />
+          <div class="sign-in-input">
+            <svg th:replace="~{auth/fragments/account-controls :: fieldIcon('phone')}"></svg>
+            <input id="login-phone" name="phone" type="tel" autocomplete="username"
+                   placeholder="Nhập số điện thoại" required />
+          </div>
         </div>
 
         <div class="login-field">
           <label for="login-password">Mật khẩu</label>
-          <input id="login-password"
-                 name="password"
-                 type="password"
-                 autocomplete="current-password"
-                 required />
+          <div class="sign-in-input login-password">
+            <svg th:replace="~{auth/fragments/account-controls :: fieldIcon('password')}"></svg>
+            <input id="login-password" name="password" type="password" autocomplete="current-password"
+                   placeholder="Nhập mật khẩu" required />
+            <button th:replace="~{auth/fragments/account-controls :: passwordToggle('login-password', 'mật khẩu')}"></button>
+          </div>
+          <a class="sign-in-help-link" th:href="@{/login/forgot-password(returnTo=${googleReturnTo})}">Quên mật khẩu?</a>
         </div>
 
         <button class="home-button login-submit" type="submit">
@@ -45,16 +50,25 @@
         </button>
       </form>
       <div class="auth-options" th:if="${googleEnabled}">
-        <a class="login-google auth-option" th:if="${googleEnabled}"
+        <p class="login-alternative">Hoặc tiếp tục với</p>
+        <a class="login-google auth-option"
             th:href="${googleReturnTo == null} ? @{/oauth2/authorization/google} : @{/oauth2/authorization/google(returnTo=${googleReturnTo})}">
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="#4285f4" d="M22 12.2c0-.7-.1-1.3-.2-1.9H12v3.6h5.6a4.8 4.8 0 0 1-2.1 3.1v2.4H19c2-1.8 3-4.3 3-7.2Z"/><path fill="#34a853" d="M12 22c2.7 0 5.1-.9 7-2.6l-3.5-2.4a6.4 6.4 0 0 1-9.5-3.5H2.5V16A10 10 0 0 0 12 22Z"/><path fill="#fbbc05" d="M6 13.5a6.4 6.4 0 0 1 0-3V8H2.5a10 10 0 0 0 0 8Z"/><path fill="#ea4335" d="M12 5.9c1.4 0 2.7.5 3.7 1.4L18.5 4A10 10 0 0 0 2.5 8L6 10.5A6.3 6.3 0 0 1 12 5.9Z"/></svg>
           Đăng nhập bằng Google
         </a>
       </div>
       <p class="login-account-link">Chưa có tài khoản?
-        <a th:href="@{/register(returnTo=${googleReturnTo})}">Đăng ký bằng số điện thoại</a>
+        <a th:href="@{/register(returnTo=${googleReturnTo})}">Đăng ký ngay</a>
       </p>
-      <a class="login-home-link" th:href="@{/staff/login}">Đăng nhập nhân viên</a>
+      <div class="sign-in-footer">
+        <a class="login-home-link" th:href="@{/staff/login}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3 5 6v5c0 4.5 2.8 7.5 7 10 4.2-2.5 7-5.5 7-10V6l-7-3Z" />
+            <path d="m9 12 2 2 4-4" />
+          </svg>
+          Dành cho nhân viên <span aria-hidden="true">→</span>
+        </a>
+      </div>
     </th:block>
   </body>
 </html>

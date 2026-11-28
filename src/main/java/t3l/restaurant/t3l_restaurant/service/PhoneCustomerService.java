@@ -1,6 +1,7 @@
 package t3l.restaurant.t3l_restaurant.service;
 
 import java.util.UUID;
+import java.util.Optional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -51,6 +52,14 @@ public class PhoneCustomerService {
     String digits = phone.replace("+", "");
     String alternate = SmsOtpService.normalizePhone(phone) == null ? digits : "84" + digits.substring(1);
     return accounts.findBuyersByContactPhone(digits, alternate);
+  }
+
+  public Optional<UserAccount> findPasswordAccount(String phone) {
+    var phoneMatches = findPhoneMatches(phone);
+    return accounts.findByVerifiedPhone(phone)
+        .or(() -> accounts.findByUsername(LOCAL_PREFIX + phone))
+        .or(() -> phoneMatches.size() == 1 ? Optional.of(phoneMatches.getFirst()) : Optional.empty())
+        .filter(account -> "BUYER".equals(account.getRole()));
   }
 
   @Transactional(isolation = Isolation.READ_COMMITTED)

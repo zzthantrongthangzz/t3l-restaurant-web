@@ -55,7 +55,6 @@
 .receipt-photo { position: relative; overflow: hidden; }
 .receipt-photo img { height: 185px; }
 .receipt-photo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(transparent, color-mix(in srgb, var(--photo-shade) 60%, transparent)); }
-.receipt-photo figcaption { position: absolute; bottom: 11px; right: 14px; z-index: 1; color: var(--photo-muted); font-size: var(--text-caption); }
 .receipt-cancel-note { margin-block: 24px; color: var(--home-muted); font-size: var(--text-body); }
 .receipt-cancel-note .home-text-link { margin-top: 10px; }
 .receipt-privacy { color: var(--text-muted); font-size: var(--text-caption); text-align: center; margin-top: 27px !important; }

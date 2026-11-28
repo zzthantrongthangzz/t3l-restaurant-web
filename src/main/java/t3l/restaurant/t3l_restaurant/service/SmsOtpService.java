@@ -3,17 +3,11 @@ package t3l.restaurant.t3l_restaurant.service;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import java.io.Serializable;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import t3l.restaurant.t3l_restaurant.security.LoginReturnTarget;
@@ -23,8 +17,7 @@ public class SmsOtpService {
   private static final String KEY = SmsOtpService.class.getName();
   private static final Duration LIFETIME = Duration.ofMinutes(5);
   private static final int MAX_FAILURES = 5;
-  private final SecureRandom random = new SecureRandom();
-  private final SecretKeySpec secret = new SecretKeySpec(random.generateSeed(32), "HmacSHA256");
+  private final OtpCodes codes = new OtpCodes();
   private final EsmsOtpSender sender;
   private final SmsOtpRateLimiter limiter;
   private final Clock clock;
@@ -74,7 +67,7 @@ public class SmsOtpService {
         throw new OtpException("Bạn đã gửi mã quá thường xuyên. Vui lòng chờ trước khi thử lại.");
       }
       String id = UUID.randomUUID().toString();
-      String code = String.format(Locale.ROOT, "%06d", random.nextInt(1_000_000));
+      String code = codes.generate();
       Challenge previous = challenge(session, accountId);
       if (!local && !sender.send(phone, code, id)) {
         throw new OtpException("Chưa thể yêu cầu eSMS gửi mã. Vui lòng thử lại sau.");
@@ -82,7 +75,7 @@ public class SmsOtpService {
       String target = LoginReturnTarget.validate(returnTo);
       if (target == null && previous != null) target = previous.proof().returnTo();
       var proof = new Proof(phone, accountId, target, local);
-      session.setAttribute(KEY, new Challenge(proof, id, digest(id, code), clock.instant().plus(LIFETIME), 0));
+      session.setAttribute(KEY, new Challenge(proof, id, codes.digest(id, code), clock.instant().plus(LIFETIME), 0));
       return new Issue(phone, local ? code : null);
     }
   }
@@ -101,8 +94,7 @@ public class SmsOtpService {
     synchronized (session) {
       var challenge = challenge(session, accountId);
       if (challenge == null || (challenge.proof().local() && !sender.local(request))) throw expired();
-      if (submittedCode != null && submittedCode.matches("[0-9]{6}")
-          && MessageDigest.isEqual(challenge.hash(), digest(challenge.id(), submittedCode))) {
+      if (codes.matches(challenge.id(), challenge.hash(), submittedCode)) {
         session.removeAttribute(KEY);
         return challenge.proof();
       }
@@ -126,16 +118,6 @@ public class SmsOtpService {
 
   private OtpException expired() {
     return new OtpException("Mã xác thực đã hết hạn hoặc đã được sử dụng. Hãy yêu cầu mã mới.");
-  }
-
-  private byte[] digest(String id, String code) {
-    try {
-      Mac mac = Mac.getInstance("HmacSHA256");
-      mac.init(secret);
-      return mac.doFinal((id + ":" + code).getBytes(StandardCharsets.UTF_8));
-    } catch (java.security.GeneralSecurityException exception) {
-      throw new IllegalStateException(exception);
-    }
   }
 
   public record Issue(String phone, String localCode) {}

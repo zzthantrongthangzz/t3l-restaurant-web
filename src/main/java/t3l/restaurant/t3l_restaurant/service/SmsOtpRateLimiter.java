@@ -33,6 +33,13 @@ public class SmsOtpRateLimiter {
         8, Duration.ofHours(1), Duration.ZERO, now);
   }
 
+  @Transactional
+  public void reservePasswordReset(String phone, String address, Instant now) {
+    take("password-reset:global", 120, Duration.ofHours(1), Duration.ZERO, now);
+    take("password-reset:ip:" + address, 12, Duration.ofHours(1), Duration.ZERO, now);
+    take("password-reset:phone:" + phone, 4, Duration.ofHours(1), Duration.ofMinutes(1), now);
+  }
+
   private void take(String key, int maxHits, Duration window, Duration cooldown, Instant now) {
     Timestamp time = Timestamp.from(now);
     jdbc.update("""

@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
 import org.springframework.stereotype.Component;
@@ -20,7 +21,10 @@ public class CustomerSession {
   }
 
   public void signIn(HttpServletRequest request, HttpServletResponse response, UserAccount account) {
-    var principal = users.loadUserByUsername(account.getUsername());
+    signIn(request, response, users.loadUserByUsername(account.getUsername()));
+  }
+
+  public void signIn(HttpServletRequest request, HttpServletResponse response, UserDetails principal) {
     if (!principal.isEnabled() || principal.getAuthorities().stream()
         .noneMatch(authority -> authority.getAuthority().equals("ROLE_BUYER"))) {
       throw new org.springframework.security.authentication.DisabledException("Customer account unavailable");

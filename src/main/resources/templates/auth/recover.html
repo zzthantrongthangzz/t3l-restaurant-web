@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-    th:replace="~{auth/fragments/customer-shell :: page('Khôi phục tài khoản cũ', ~{::content})}">
+    th:replace="~{auth/fragments/customer-shell :: page('Khôi phục tài khoản cũ', ~{::content}, '')}">
   <body>
     <th:block th:fragment="content">
       <p class="auth-help" th:if="${recoveryPending}">Xác nhận thông tin đăng nhập cũ để giữ lịch sử đặt bàn và dữ liệu tài khoản.</p>
